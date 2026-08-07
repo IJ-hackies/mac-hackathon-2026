@@ -12,7 +12,7 @@ openWork:
   - progression-economy
   - branching-and-integration-policy
 related: [control-model, core-loop, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
 lastVerified: 2026-08-08
 ---
 

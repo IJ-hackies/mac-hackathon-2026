@@ -3,7 +3,7 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, core-loop, asset-library, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
 lastVerified: 2026-08-08
 ---
 
@@ -25,15 +25,16 @@ Input System `1.18.0`. Target platforms, networking topology, cooperative input
 ownership, and the build pipeline have not been selected. Enemy, wave, damage,
 loot, economy, base, and scoring systems are not implemented. The prototype
 world is a small spherical planet intended for
-circumnavigation, with an approximately 100-unit radius and 628-unit full lap.
+circumnavigation, with an approximately 150-unit radius and 942-unit full lap.
 Its current visual treatment is the pale, cratered
 `Planet_3` mesh from the Ultimate Space Kit, subdivided once to smooth its
 silhouette and finished in a matte warm clay/ochre color. Its active non-convex
-mesh collider matches the rendered craters exactly. A single-player astronaut
-prototype now snaps to that surface, uses radial gravity and tangent movement,
-aligns to the planet, and carries an independent radial-up camera. The scene
-also has a procedural starfield and a visible sun whose world direction matches
-the planet's directional light source.
+mesh collider matches the rendered craters exactly, and the complete planet
+hierarchy is a reusable prefab instantiated by the prototype scene. A
+single-player astronaut prototype now snaps to that surface, uses radial
+gravity and tangent movement, aligns to the planet, and carries an independent
+radial-up camera. The scene also has a procedural starfield and a visible sun
+whose world direction matches the planet's directional light source.
 
 ## Confirmed product invariants
 

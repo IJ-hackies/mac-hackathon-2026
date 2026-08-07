@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project, player-controller]
-verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
 lastVerified: 2026-08-08
 ---
 
@@ -29,6 +29,9 @@ type and gameplay role rather than separated by vendor.
   visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
   geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
   5,496 render vertices after the authored UV seams are split.
+- `Prefabs/Planet.prefab` - reusable approximately 150-unit-radius planet
+  hierarchy. Its stable `Planet Ground` root contains the scaled shell, active
+  crater-matched `MeshCollider`, and disabled reference `SphereCollider`.
 - `Materials/M_PlanetCrateredMoon.mat` - matte warm clay/ochre URP Lit material
   used as the planet's clean base for later terrain layers. It deliberately
   does not sample the source palette atlas.
@@ -68,6 +71,8 @@ type and gameplay role rather than separated by vendor.
   out of the Unity project unless a concrete requirement justifies them.
 - Prefer one shared palette import over duplicating the same texture per model
   category.
+- Keep the planet prefab root named `Planet Ground`; the radial player
+  controller resolves that exact active scene name when no center is assigned.
 
 ## Gotchas
 

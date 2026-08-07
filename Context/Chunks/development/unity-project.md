@@ -14,7 +14,7 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, core-loop, git-collaboration, runtime-art, player-controller]
-verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
 lastVerified: 2026-08-08
 ---
 
@@ -27,18 +27,19 @@ module. `Assets/Scenes/SampleScene.unity` is the only enabled build scene and is
 the current prototype scene. Other top-level scenes may be used as sandboxes
 without implying build inclusion.
 
-The sample scene contains a directional light and global volume plus a static
-`Planet Ground`. Its child `Planet Visual` uses a one-level Catmull-Clark
-derivative of the Ultimate Space Kit `Planet_3` crater mesh, shaded with a
-low-gloss warm clay/ochre material. The same imported mesh now drives a
-non-convex `MeshCollider`, so the walkable crater floor matches what is
-rendered. `Planet Ground` is uniformly scaled to 2, giving the shell an
-approximately 100-unit world radius. The 50-unit root `SphereCollider` scales
+The sample scene contains a directional light and global volume plus an
+instance of `Assets/Art/Prefabs/Planet.prefab`, placed at the established
+planet center. Its `Planet Ground` root owns a child `Planet Visual` using a
+one-level Catmull-Clark derivative of the Ultimate Space Kit `Planet_3` crater
+mesh, shaded with a low-gloss warm clay/ochre material. The same imported mesh
+drives a non-convex `MeshCollider`, so the walkable crater floor matches what
+is rendered. The prefab root is uniformly scaled to 3, giving the shell an
+approximately 150-unit world radius. The 50-unit root `SphereCollider` scales
 with it but remains disabled as a reference, not active ground collision. The
 active shell has 4,802 geometric positions and 9,600 triangles; Unity reports
 5,496 imported vertices after UV seam splits.
 
-`PlayerRig.prefab` is placed 104 units from the planet center near the
+`PlayerRig.prefab` is placed 156 units from the planet center near the
 north-pole crater and snaps its capsule feet to that mesh at startup. The
 template Main Camera remains in the scene but is inactive; the rig camera is
 the single runtime camera/audio listener. Its URP camera data explicitly
