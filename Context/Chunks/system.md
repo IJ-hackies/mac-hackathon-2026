@@ -3,7 +3,7 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, asset-library, unity-project, git-collaboration]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 1c61802889ac0de025fcfaaa12c8f0ce77c07422
 lastVerified: 2026-08-07
 ---
 
@@ -23,9 +23,10 @@ networking model, game-specific input design, and build pipeline have not been
 selected. The prototype world is now a small spherical planet intended for
 circumnavigation, with a 50-unit radius that keeps the horizon gently curved
 and a full lap compact. Its current visual treatment is the pale, cratered
-`Planet_3` mesh from the Ultimate Space Kit over a separate spherical collider.
-The scene now has a procedural starfield and a visible sun whose world direction
-matches the planet's directional light source.
+`Planet_3` mesh from the Ultimate Space Kit, subdivided once to smooth its
+silhouette, over a separate spherical collider. The scene now has a procedural
+starfield and a visible sun whose world direction matches the planet's
+directional light source.
 
 ## Confirmed product invariants
 

@@ -14,7 +14,7 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, git-collaboration, runtime-art]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 1c61802889ac0de025fcfaaa12c8f0ce77c07422
 lastVerified: 2026-08-07
 ---
 
@@ -30,11 +30,13 @@ without implying build inclusion.
 The sample scene contains the template camera, directional light, and global
 volume plus a static spherical `Planet Ground`. Its root has an exact 50-unit
 `SphereCollider`, with the north-pole surface at world height zero directly
-beneath the camera. A child `Planet Visual` uses the Ultimate Space Kit
-`Planet_3` crater mesh, normalized per axis to the collider bounds and shaded
-with its authored palette UVs. Keeping collision on the root decouples future
-walking physics from the stylized crater geometry. A complete lap remains
-about 314 units with a gently curved horizon.
+beneath the camera. A child `Planet Visual` uses a one-level Catmull-Clark
+derivative of the Ultimate Space Kit `Planet_3` crater mesh, normalized per axis
+to the collider bounds and shaded with interpolated authored palette UVs. The
+active shell has 4,802 geometric positions and 9,600 triangles; Unity reports
+5,496 imported vertices after UV seam splits. Keeping collision on the root
+decouples future walking physics from the stylized crater geometry. A complete
+lap remains about 314 units with a gently curved horizon.
 
 SampleScene uses a project-owned procedural space skybox with dense stars, a
 faint galactic band, and a bloom-ready HDR sun disc. The scene's directional

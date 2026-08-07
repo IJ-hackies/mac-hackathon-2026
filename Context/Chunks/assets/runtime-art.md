@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 1c61802889ac0de025fcfaaa12c8f0ce77c07422
 lastVerified: 2026-08-07
 ---
 
@@ -22,8 +22,13 @@ type and gameplay role rather than separated by vendor.
 - `Materials/M_Ground.mat` - URP Lit material used by the sample-scene ground;
   its solid burnt-orange base color is sampled from the palette without binding
   the non-tileable atlas to the plane.
-- `Models/Environment/Planet_CrateredMoon.fbx` - the Ultimate Space Kit
-  `Planet_3` mesh imported as the prototype planet's visible cratered shell.
+- `Models/Environment/Planet_CrateredMoon.fbx` - the original 1,202-position,
+  2,400-triangle runtime import retained as a low-resolution source and future
+  distant LOD.
+- `Models/Environment/Planet_CrateredMoon_Subdivided.obj` - the active static
+  visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
+  geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
+  5,496 render vertices after the authored UV seams are split.
 - `Materials/M_PlanetCrateredMoon.mat` - URP Lit material that applies the
   shared palette atlas to the crater mesh's authored UVs.
 - `Shaders/S_ProceduralSpaceSkybox.shader` - texture-free starfield shader with
@@ -58,9 +63,10 @@ of the light's forward direction so the disc and illumination remain aligned.
 
 FBX preserves the mesh, UV, normals, pivots, rigs, and animation data Unity
 needs without an external authoring-tool dependency. OBJ is suitable only for
-simple static meshes, Blend imports depend on a compatible local Blender
-installation, and glTF needs an importer package that is not currently part of
-the project.
+simple static meshes; the subdivided planet is an intentional static-derivative
+exception that keeps its interpolated palette UVs and shared smooth normals.
+Blend imports depend on a compatible local Blender installation, and glTF needs
+an importer package that is not currently part of the project.
 
 ## How to extend
 

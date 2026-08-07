@@ -10,7 +10,7 @@ openWork:
   - core-game-loop
   - branching-and-integration-policy
 related: [control-model, unity-project, git-collaboration]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 1c61802889ac0de025fcfaaa12c8f0ce77c07422
 lastVerified: 2026-08-07
 ---
 
