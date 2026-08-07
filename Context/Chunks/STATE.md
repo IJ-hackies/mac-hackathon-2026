@@ -19,8 +19,9 @@ lastVerified: 2026-08-07
 ## Open work
 
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
-  replace or remove template content, define game-specific input maps, select
-  3D movement and camera conventions, target platforms, assembly layout, and
+  replace or remove remaining template content, define game-specific input
+  maps, implement planet-aligned locomotion, radial gravity, body orientation,
+  and camera conventions, then select target platforms, assembly layout, and
   verification/build commands.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
   interaction, and camera responsibilities belong to each player. A

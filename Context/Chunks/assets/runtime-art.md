@@ -22,6 +22,20 @@ type and gameplay role rather than separated by vendor.
 - `Materials/M_Ground.mat` - URP Lit material used by the sample-scene ground;
   its solid burnt-orange base color is sampled from the palette without binding
   the non-tileable atlas to the plane.
+- `Models/Environment/Planet_CrateredMoon.fbx` - the original 1,202-position,
+  2,400-triangle runtime import retained as a low-resolution source and future
+  distant LOD.
+- `Models/Environment/Planet_CrateredMoon_Subdivided.obj` - the active static
+  visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
+  geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
+  5,496 render vertices after the authored UV seams are split.
+- `Materials/M_PlanetCrateredMoon.mat` - matte warm clay/ochre URP Lit material
+  used as the planet's clean base for later terrain layers. It deliberately
+  does not sample the source palette atlas.
+- `Shaders/S_ProceduralSpaceSkybox.shader` - texture-free starfield shader with
+  a subtle galactic band and an HDR sun disc in a fixed world direction.
+- `Materials/M_ProceduralSpaceSkybox.mat` - SampleScene's configured space
+  skybox, including star density, deep-space colors, and sun appearance.
 - `Models/` - canonical FBX imports grouped into `Characters`, `Environment`,
   `Props`, and `Vehicles`, regardless of the source pack.
 - `Models/Characters/Astronaut_FinnTheFrog.fbx` - rigged playable-character
@@ -55,13 +69,20 @@ type and gameplay role rather than separated by vendor.
 
 The Ultimate Space Kit atlas is a palette for the pack's authored mesh UVs, not
 a seamless surface texture. Do not apply the whole atlas to generic planes;
-use a palette-matched solid material or an authored kit mesh instead.
+use a palette-matched solid material or an authored kit mesh instead. The
+subdivided planet uses a solid warm base because interpolated atlas regions
+introduced unwanted purple color variation.
+
+The procedural sky material stores the visible sun direction. If the scene's
+directional `Sun Light` is rotated later, update `_SunDirection` to the opposite
+of the light's forward direction so the disc and illumination remain aligned.
 
 FBX preserves the mesh, UV, normals, pivots, rigs, and animation data Unity
 needs without an external authoring-tool dependency. OBJ is suitable only for
-simple static meshes, Blend imports depend on a compatible local Blender
-installation, and glTF needs an importer package that is not currently part of
-the project.
+simple static meshes; the subdivided planet is an intentional static-derivative
+exception that keeps its interpolated palette UVs and shared smooth normals.
+Blend imports depend on a compatible local Blender installation, and glTF needs
+an importer package that is not currently part of the project.
 
 ## How to extend
 
