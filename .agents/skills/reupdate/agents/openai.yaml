@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reupdate"
+  short_description: "Synchronize context with current project files"
+  default_prompt: "Use $reupdate to synchronize project context with the current files."

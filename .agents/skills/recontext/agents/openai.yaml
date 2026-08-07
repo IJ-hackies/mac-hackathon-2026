@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recontext"
+  short_description: "Load only the project context needed now"
+  default_prompt: "Use $recontext to load the project context relevant to this task."
