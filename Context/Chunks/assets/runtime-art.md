@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project]
-verifiedAtCommit: 1c61802889ac0de025fcfaaa12c8f0ce77c07422
+verifiedAtCommit: 715756ee9eda1546c17cce2c87378d684660e04f
 lastVerified: 2026-08-07
 ---
 
@@ -29,8 +29,9 @@ type and gameplay role rather than separated by vendor.
   visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
   geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
   5,496 render vertices after the authored UV seams are split.
-- `Materials/M_PlanetCrateredMoon.mat` - URP Lit material that applies the
-  shared palette atlas to the crater mesh's authored UVs.
+- `Materials/M_PlanetCrateredMoon.mat` - matte warm clay/ochre URP Lit material
+  used as the planet's clean base for later terrain layers. It deliberately
+  does not sample the source palette atlas.
 - `Shaders/S_ProceduralSpaceSkybox.shader` - texture-free starfield shader with
   a subtle galactic band and an HDR sun disc in a fixed world direction.
 - `Materials/M_ProceduralSpaceSkybox.mat` - SampleScene's configured space
@@ -55,7 +56,9 @@ type and gameplay role rather than separated by vendor.
 
 The Ultimate Space Kit atlas is a palette for the pack's authored mesh UVs, not
 a seamless surface texture. Do not apply the whole atlas to generic planes;
-use a palette-matched solid material or an authored kit mesh instead.
+use a palette-matched solid material or an authored kit mesh instead. The
+subdivided planet uses a solid warm base because interpolated atlas regions
+introduced unwanted purple color variation.
 
 The procedural sky material stores the visible sun direction. If the scene's
 directional `Sun Light` is rotated later, update `_SunDirection` to the opposite
