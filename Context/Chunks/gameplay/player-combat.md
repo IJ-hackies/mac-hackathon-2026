@@ -5,8 +5,8 @@ owns:
   - "Assets/Scripts/Player/PlayerCombat.cs"
   - "Assets/Scripts/Player/PlayerDeathHandler.cs"
   - "Assets/Scripts/UI/HealthHudUI.cs"
-related: [player-controller, enemies, runtime-art, state]
-verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
+related: [player-controller, enemies, runtime-art, state, boss-fight]
+verifiedAtCommit: 71b7468850b4e64c25da49ef3deff2ff354c4778
 lastVerified: 2026-08-08
 ---
 
@@ -18,8 +18,13 @@ The player's side of the combat/health system shared with
 [player-controller](player-controller.md) to keep both chunks under the
 150-line limit.
 
-Ranged combat is hitscan, not a traveling projectile (`Projectile.cs` and its
-prefab/material were removed as "finicky"). Shooting arm poses live on their
+Ranged combat still resolves as hitscan, not a traveling projectile
+(`Projectile.cs` and its prefab/material were removed as "finicky"), but now
+spawns a purely cosmetic `FlyProjectileVisual` coroutine after the hit is
+already resolved — an imported-VFX or procedural bolt that flies from the
+muzzle to the already-known hit point, replacing the old instant `LineRenderer`
+tracer. Muzzle flash similarly prefers `muzzleFlashEffectPrefab` (an imported
+VFX asset) over the procedural flash `Light`. Shooting arm poses live on their
 own upper-body-masked `Arms` Animator layer (`BuildArmsLayer`, see
 [player-controller](player-controller.md)) so firing never touches leg/base
 locomotion — `PlayerCombat` toggles that layer's weight and drives its
@@ -28,7 +33,16 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
 ## Key files
 
 - `Assets/Scripts/Player/PlayerCombat.cs` - `Melee` (Punch) and `Attack`
-  (reused as "Fire").
+  (reused as "Fire"). Both `OnMeleePerformed`/`OnFireStarted` early-return
+  while `playerController.IsStaggered` (e.g. mid a [boss-fight]
+  (boss-fight.md) ground-slam stagger), and an in-progress fire hold is force
+  -stopped the instant a stagger lands (`Update` checks `IsStaggered &&
+  _isFiring`) rather than waiting for the player to release `Attack`
+  themselves. `ApplyDamage` calls are tagged with `Combat.DamageType` —
+  `Melee` from the melee window, `Ranged` from the hitscan raycast — so
+  [boss-fight](boss-fight.md)'s mech can tell which `HitRecieve_*` clip a hit
+  should have played (see [enemies](enemies.md) for why the mech doesn't
+  actually react anymore).
   - **Melee**: `MeleeDamageWindow` coroutine waits `meleeHitDelay` after the
     trigger, then `Physics.OverlapSphere` in front of the player and damages
     whatever `IDamageable` it finds (skipping the player's own root).

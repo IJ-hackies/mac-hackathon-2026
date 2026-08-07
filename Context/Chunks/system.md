@@ -2,8 +2,8 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, asset-library, unity-project, git-collaboration, player-controller, player-combat, enemies]
-verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
+related: [control-model, asset-library, unity-project, git-collaboration, player-controller, player-combat, enemies, boss-fight]
+verifiedAtCommit: 71b7468850b4e64c25da49ef3deff2ff354c4778
 lastVerified: 2026-08-08
 ---
 
@@ -30,10 +30,17 @@ whose world direction matches the planet's directional light source.
 
 A separate `Player.unity` prototype scene (not yet merged into the planet
 scene) now carries a working single-player third-person controller with
-melee/hitscan combat, health/death, and three fightable enemy AI types
-sharing a common damage system — see [player-controller](gameplay/
-player-controller.md), [player-combat](gameplay/player-combat.md), and
-[enemies](gameplay/enemies.md).
+melee/hitscan combat, health/death, three fightable basic enemy AI types, and
+a full two-stage Barbara-the-Bee boss fight (Astronaut -> Mech, unlocked via
+a scripted transformation cutscene) — all sharing a common
+`Combat.Health`/`Combat.IDamageable` damage system. The boss-fight tool
+disables the three basic enemies when it builds the boss, leaving the boss as
+the sole fightable target. See [player-controller](gameplay/
+player-controller.md), [player-combat](gameplay/player-combat.md),
+[enemies](gameplay/enemies.md), and [boss-fight](gameplay/boss-fight.md).
+Several imported VFX/audio asset packs have been added and some later
+removed during this work — see [asset-library](assets/asset-library.md) and
+[boss-fight](gameplay/boss-fight.md) Gotchas.
 
 ## Confirmed product invariants
 

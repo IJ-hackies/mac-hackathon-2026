@@ -21,20 +21,44 @@ namespace Player
         [Tooltip("Yaw of this transform is used to make movement camera-relative. Defaults to Camera.main.")]
         [SerializeField] private Transform cameraReference;
 
+        [Header("Stagger")]
+        [SerializeField] private Animator animator;
+
+        private static readonly int StaggerParam = Animator.StringToHash("Stagger");
+
         private CharacterController _controller;
         private InputSystem_Actions _actions;
         private Vector3 _verticalVelocity;
         private bool _jumpQueued;
         private float _currentSpeed;
+        private float _staggerLockedUntil = -1f;
+        private float _duckClipLength = -1f;
 
         public float NormalizedSpeed { get; private set; }
         public bool IsGrounded { get; private set; }
         public bool JumpTriggeredThisFrame { get; private set; }
+        public bool IsStaggered => Time.time < _staggerLockedUntil;
 
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
             _actions = new InputSystem_Actions();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            // Looked up once so Stagger() can guarantee the lock covers the whole clip
+            // ("the entire duck animation must play") regardless of whatever duration a caller
+            // (e.g. BossMechAI's ground-slam) happens to pass in.
+            if (animator != null && animator.runtimeAnimatorController != null)
+            {
+                foreach (var clip in animator.runtimeAnimatorController.animationClips)
+                {
+                    if (clip != null && clip.name.IndexOf("Duck", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _duckClipLength = clip.length;
+                        break;
+                    }
+                }
+            }
         }
 
         private void OnEnable()
@@ -62,13 +86,27 @@ namespace Player
             _jumpQueued = true;
         }
 
+        // Used by boss attacks (e.g. BossMechAI's ground-slam landing) to force the Duck
+        // animation and lock movement/jump input for its duration - "player cannot move until
+        // the duck animation is done." Doesn't disable this component outright (that would also
+        // stop gravity/camera-facing from running), just gates input for the locked window below.
+        public void Stagger(float duration)
+        {
+            float lockedDuration = _duckClipLength > 0f ? Mathf.Max(duration, _duckClipLength) : duration;
+            _staggerLockedUntil = Time.time + lockedDuration;
+            _jumpQueued = false;
+            if (animator != null) animator.SetTrigger(StaggerParam);
+        }
+
         private void Update()
         {
             JumpTriggeredThisFrame = false;
             IsGrounded = _controller.isGrounded;
 
-            Vector2 moveInput = _actions.Player.Move.ReadValue<Vector2>();
-            bool sprinting = _actions.Player.Sprint.IsPressed();
+            bool staggered = IsStaggered;
+            Vector2 moveInput = staggered ? Vector2.zero : _actions.Player.Move.ReadValue<Vector2>();
+            bool sprinting = !staggered && _actions.Player.Sprint.IsPressed();
+            if (staggered) _jumpQueued = false;
 
             RotateTowardsCamera();
 

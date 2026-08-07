@@ -31,7 +31,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2772110908766861441}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -85,6 +85,7 @@ MonoBehaviour:
   gravity: -18
   groundedStickForce: -2
   cameraReference: {fileID: 0}
+  animator: {fileID: 0}
 --- !u!114 &4881924321977490226
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -114,6 +115,7 @@ MonoBehaviour:
   animator: {fileID: 1424160039300829942}
   muzzle: {fileID: 2898055706858903575}
   aimCamera: {fileID: 0}
+  playerController: {fileID: 0}
   meleeCooldown: 0.6
   meleeDamage: 20
   meleeRange: 1.4
@@ -121,6 +123,7 @@ MonoBehaviour:
   meleeHitDelay: 0.25
   fireDamage: 15
   shootBeatFraction: 0.5
+  shootBeatFractionWalk: 0.2
   maxAimDistance: 100
   aimMask:
     serializedVersion: 2
@@ -133,6 +136,13 @@ MonoBehaviour:
   tracerDuration: 0.05
   tracerWidth: 0.03
   tracerColor: {r: 0.4, g: 0.85, b: 1, a: 1}
+  muzzleFlashEffectPrefab: {fileID: 6980259576133684760, guid: 1f58a1dea6bbd9347843e4935585e6a2, type: 3}
+  muzzleFlashEffectScale: 0.3
+  impactEffectPrefab: {fileID: 0}
+  impactEffectScale: 0.4
+  projectileVisualPrefab: {fileID: 3473529909581181512, guid: bc142210df3ec4545a4e3e1f21e00da7, type: 3}
+  projectileVisualScale: 0.4
+  projectileVisualSpeed: 90
 --- !u!114 &5360215090925705334
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -169,6 +179,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Combat.Health
   maxHealth: 100
   animator: {fileID: 0}
+  hitReactCooldown: 0.35
 --- !u!114 &5761124173556375376
 MonoBehaviour:
   m_ObjectHideFlags: 0

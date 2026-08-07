@@ -6,6 +6,6 @@ namespace Combat
     {
         bool IsDead { get; }
 
-        void ApplyDamage(float amount, Vector3 hitPoint, GameObject instigator);
+        void ApplyDamage(float amount, Vector3 hitPoint, GameObject instigator, DamageType damageType = DamageType.Generic);
     }
 }

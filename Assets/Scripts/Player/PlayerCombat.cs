@@ -2,6 +2,7 @@ using System.Collections;
 using Combat;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Vfx;
 
 namespace Player
 {
@@ -11,6 +12,7 @@ namespace Player
         [SerializeField] private Animator animator;
         [SerializeField] private Transform muzzle;
         [SerializeField] private Camera aimCamera;
+        [SerializeField] private PlayerController playerController;
 
         [Header("Melee")]
         [SerializeField] private float meleeCooldown = 0.6f;
@@ -62,6 +64,24 @@ namespace Player
         [SerializeField] private float tracerWidth = 0.03f;
         [SerializeField] private Color tracerColor = new Color(0.4f, 0.85f, 1f);
 
+        [Header("Visual Assets (optional imports)")]
+        [Tooltip("Imported flash sprite (e.g. Creepy Cat's Effect_06) played at the muzzle each " +
+                 "shot, alongside the point light. Null = light only.")]
+        [SerializeField] private GameObject muzzleFlashEffectPrefab;
+        [SerializeField] private float muzzleFlashEffectScale = 0.3f;
+        [Tooltip("Imported burst (e.g. Effect_06) played at the hit point instead of the " +
+                 "procedural spark particles. Null = procedural spark.")]
+        [SerializeField] private GameObject impactEffectPrefab;
+        [SerializeField] private float impactEffectScale = 0.4f;
+        [Tooltip("Imported projectile visual (e.g. Free Quick Effects Vol.1's vfx_Projectile_01) " +
+                 "flown from the muzzle to the hit point over projectileVisualSpeed, replacing the " +
+                 "plain LineRenderer tracer below. The hit itself is still resolved instantly by " +
+                 "the raycast in FireHitscan - this is purely a cosmetic catch-up visual, same as " +
+                 "the tracer it replaces. Null falls back to the tracer.")]
+        [SerializeField] private GameObject projectileVisualPrefab;
+        [SerializeField] private float projectileVisualScale = 0.4f;
+        [SerializeField] private float projectileVisualSpeed = 90f;
+
         private static readonly int MeleeParam = Animator.StringToHash("Melee");
         private static readonly int FireStartParam = Animator.StringToHash("FireStart");
         private static readonly int FiringParam = Animator.StringToHash("Firing");
@@ -90,6 +110,7 @@ namespace Player
             if (animator == null) animator = GetComponentInChildren<Animator>();
             if (aimCamera == null) aimCamera = Camera.main;
             if (animator != null) _armsLayerIndex = animator.GetLayerIndex("Arms");
+            if (playerController == null) playerController = GetComponent<PlayerController>();
         }
 
         private void OnEnable()
@@ -115,6 +136,15 @@ namespace Player
 
         private void Update()
         {
+            // A stagger (e.g. BossMechAI's ground-slam) can land mid-hold - cut firing off
+            // immediately rather than waiting for the player to release Attack themselves, so
+            // "cannot continue shooting" holds even for an already-in-progress burst.
+            if (playerController != null && playerController.IsStaggered && _isFiring)
+            {
+                _isFiring = false;
+                StopArmsImmediately();
+            }
+
             if (_armsActive && Time.time >= _stopArmsAt)
             {
                 StopArmsImmediately();
@@ -187,6 +217,7 @@ namespace Player
 
         private void OnMeleePerformed(InputAction.CallbackContext context)
         {
+            if (playerController != null && playerController.IsStaggered) return;
             if (Time.time - _lastMeleeTime < meleeCooldown) return;
             _lastMeleeTime = Time.time;
             _attackingUntil = Time.time + meleeCooldown;
@@ -212,7 +243,7 @@ namespace Player
                 var damageable = hit.GetComponentInParent<IDamageable>();
                 if (damageable == null || damageable.IsDead) continue;
 
-                damageable.ApplyDamage(meleeDamage, hit.ClosestPoint(origin), gameObject);
+                damageable.ApplyDamage(meleeDamage, hit.ClosestPoint(origin), gameObject, DamageType.Melee);
             }
         }
 
@@ -228,6 +259,8 @@ namespace Player
         // layer poses; it's only switched on for the duration of firing.
         private void OnFireStarted(InputAction.CallbackContext context)
         {
+            if (playerController != null && playerController.IsStaggered) return;
+
             _isFiring = true;
             _hasLastArmsNormalizedTime = false;
             _stopArmsAt = float.PositiveInfinity;
@@ -277,6 +310,14 @@ namespace Player
             flashLight.intensity = muzzleFlashIntensity;
             flashLight.range = muzzleFlashRange;
 
+            if (muzzleFlashEffectPrefab != null)
+            {
+                var flashVisual = Instantiate(muzzleFlashEffectPrefab, muzzle.position, muzzle.rotation, muzzle);
+                flashVisual.transform.localScale = Vector3.one * muzzleFlashEffectScale;
+                ImportedVfxUtility.FixUrpMaterials(flashVisual);
+                Destroy(flashVisual, 1f);
+            }
+
             Destroy(flashGo, muzzleFlashDuration);
         }
 
@@ -303,7 +344,7 @@ namespace Player
                     var damageable = hit.collider.GetComponentInParent<IDamageable>();
                     if (damageable != null && !damageable.IsDead)
                     {
-                        damageable.ApplyDamage(fireDamage, hit.point, gameObject);
+                        damageable.ApplyDamage(fireDamage, hit.point, gameObject, DamageType.Ranged);
                     }
                 }
                 else
@@ -316,9 +357,43 @@ namespace Player
                 hitPoint = muzzle.position + muzzle.forward * maxAimDistance;
             }
 
-            SpawnTracer(muzzle.position, hitPoint);
+            if (projectileVisualPrefab != null)
+            {
+                StartCoroutine(FlyProjectileVisual(muzzle.position, hitPoint));
+            }
+            else
+            {
+                SpawnTracer(muzzle.position, hitPoint);
+            }
+
+            SpawnImpactSpark(hitPoint);
         }
 
+        // Cosmetic catch-up visual for hitscan fire - the hit is already resolved by the time this
+        // plays, so it purely sells "a projectile flew there," same role the tracer below plays.
+        private IEnumerator FlyProjectileVisual(Vector3 start, Vector3 end)
+        {
+            var visualGo = Instantiate(projectileVisualPrefab, start, Quaternion.LookRotation((end - start).normalized, Vector3.up));
+            visualGo.transform.localScale = Vector3.one * projectileVisualScale;
+            ImportedVfxUtility.FixUrpMaterials(visualGo);
+            ImportedVfxUtility.ForceHierarchyParticleScaling(visualGo);
+
+            float distance = Vector3.Distance(start, end);
+            float duration = Mathf.Max(distance / projectileVisualSpeed, 0.02f);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                visualGo.transform.position = Vector3.Lerp(start, end, elapsed / duration);
+                yield return null;
+            }
+
+            Destroy(visualGo);
+        }
+
+        // Tapered (thick at the muzzle, thin at the hit point) rather than a uniform-width line -
+        // reads more like an actual laser bolt than a flat ruler stroke.
         private void SpawnTracer(Vector3 start, Vector3 end)
         {
             var tracerGo = new GameObject("FireTracer");
@@ -329,12 +404,58 @@ namespace Player
             line.positionCount = 2;
             line.SetPosition(0, start);
             line.SetPosition(1, end);
-            line.startWidth = tracerWidth;
-            line.endWidth = tracerWidth;
+            line.startWidth = tracerWidth * 1.8f;
+            line.endWidth = tracerWidth * 0.4f;
             line.startColor = tracerColor;
-            line.endColor = tracerColor;
+            line.endColor = new Color(tracerColor.r, tracerColor.g, tracerColor.b, 0.3f);
 
             Destroy(tracerGo, tracerDuration);
+        }
+
+        // Small bright flash + a handful of ejecta particles where the shot actually landed - the
+        // tracer alone made a hit feel like it vanished into nothing on impact. Uses the imported
+        // effect prefab if one's assigned, otherwise falls back to the procedural burst below.
+        private void SpawnImpactSpark(Vector3 point)
+        {
+            if (impactEffectPrefab != null)
+            {
+                var impactVisual = Instantiate(impactEffectPrefab, point, Quaternion.identity);
+                impactVisual.transform.localScale = Vector3.one * impactEffectScale;
+                Destroy(impactVisual, 1.5f);
+                return;
+            }
+
+            var sparkGo = new GameObject("ImpactSpark");
+            sparkGo.transform.position = point;
+
+            var light = sparkGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = tracerColor;
+            light.range = 2f;
+            light.intensity = 6f;
+
+            var ps = sparkGo.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.duration = 0.2f;
+            main.loop = false;
+            main.startLifetime = 0.15f;
+            main.startSpeed = 3f;
+            main.startSize = 0.08f;
+            main.startColor = tracerColor;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 8) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.05f;
+
+            Shader particleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            ps.GetComponent<ParticleSystemRenderer>().material = new Material(particleShader);
+
+            Destroy(sparkGo, 0.5f);
         }
     }
 }

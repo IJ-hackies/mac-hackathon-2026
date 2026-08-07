@@ -12,11 +12,11 @@ using UnityEngine.UI;
 
 namespace EnemiesEditor
 {
-    /// Builds the three fightable enemy prefabs in-place in the Player scene (AnimatorController,
-    /// hit collider, Health, and the matching AI script), plus drops in Astronaut_BarbaraTheBee /
-    /// Mech_BarbaraTheBee as plain textured placeholders for the later boss fights. Re-run after
-    /// Tools/Player Prototype/Build Test Scene, since that command rebuilds Player.unity from an
-    /// empty scene and would otherwise wipe these out.
+    /// Builds the three basic fightable enemies in-place in the Player scene (AnimatorController,
+    /// hit collider, Health, and the matching AI script) - left in the scene but deactivated, see
+    /// AddEnemiesToScene - plus the Barbara the Bee two-stage boss fight (BossSceneSetup). Re-run
+    /// after Tools/Player Prototype/Build Test Scene, since that command rebuilds Player.unity
+    /// from an empty scene and would otherwise wipe these out.
     public static class EnemySceneSetup
     {
         private const string ScenePath = "Assets/Scenes/Player.unity";
@@ -53,11 +53,17 @@ namespace EnemiesEditor
             // agree on the same layer index either way, whichever runs first.
             int enemyLayer = ModelAnimationUtility.EnsureLayer(EnemyLayerName);
 
+            // Kept buildable (not deleted) but switched off - this scene is now built around the
+            // Barbara the Bee boss fight below. Flip SetActive(true) here to bring them back.
             BuildFlyingEnemy(parent.transform, new Vector3(-8f, 0f, 6f), enemyLayer);
             BuildSmallEnemy(parent.transform, new Vector3(-4f, 0f, 6f), enemyLayer);
             BuildLargeEnemy(parent.transform, new Vector3(0f, 0f, 6f), enemyLayer);
-            BuildPlaceholder("Astronaut_BarbaraTheBee", "Enemy_Astronaut_BarbaraTheBee", parent.transform, new Vector3(4f, 0f, 6f), enemyLayer);
-            BuildPlaceholder("Mech_BarbaraTheBee", "Enemy_Mech_BarbaraTheBee", parent.transform, new Vector3(8f, 0f, 6f), enemyLayer);
+            foreach (Transform basicEnemy in parent.transform)
+            {
+                basicEnemy.gameObject.SetActive(false);
+            }
+
+            BossSceneSetup.BuildBossFight(parent.transform, new Vector3(4f, 0f, 10f), enemyLayer, CreateOrLoadPaletteMaterial);
 
             EditorSceneManager.SaveScene(scene);
             AssetDatabase.SaveAssets();
@@ -141,15 +147,6 @@ namespace EnemiesEditor
             AddHealthBar(instance, bounds, health);
         }
 
-        private static void BuildPlaceholder(string fileName, string displayName, Transform parent, Vector3 position, int enemyLayer)
-        {
-            var model = LoadModel(fileName);
-            if (model == null) return;
-
-            var material = CreateOrLoadPaletteMaterial(MaterialFolder + "M_" + fileName + ".mat");
-            SpawnModel(model, displayName, parent, position, material, enemyLayer);
-        }
-
         private static GameObject LoadModel(string fileName)
         {
             string path = ModelFolder + fileName + ".fbx";
@@ -212,9 +209,10 @@ namespace EnemiesEditor
 
         // Builds a small world-space fill bar floating above the enemy's head, using the same
         // measured bounds already used to size its hit collider (so it sits just above the
-        // actual model height instead of a guessed constant). Not parented under the enemy -
-        // EnemyHealthBarUI drives its transform off an anchor reference itself, so the model's
-        // own rotation/scale can't distort the bar.
+        // actual model height instead of a guessed constant). Parented under the enemy purely for
+        // Hierarchy/prefab organization (see AddEnemiesToScene) - EnemyHealthBarUI still drives its
+        // transform directly off the anchor reference every LateUpdate, so the parent's own
+        // rotation/scale can't distort the bar regardless of where it sits in the hierarchy.
         private static void AddHealthBar(GameObject instance, Bounds localBounds, Health health)
         {
             const float barWidth = 1.2f;
@@ -254,6 +252,8 @@ namespace EnemiesEditor
             var healthBarUi = barGo.AddComponent<EnemyHealthBarUI>();
             healthBarUi.Initialize(instance.transform, offset, fillRect, fillImage, canvasGroup);
             healthBarUi.Bind(health);
+
+            barGo.transform.SetParent(instance.transform, false);
         }
 
         private static void WireAnimator(GameObject instance, AnimatorController controller)

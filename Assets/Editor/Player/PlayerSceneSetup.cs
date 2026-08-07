@@ -77,7 +77,7 @@ namespace PlayerEditor
 
             GameObject player = BuildPlayer(model, controller, playerLayer);
             var (cameraController, mainCamera) = BuildCamera(player, playerLayer, enemyLayer);
-            var (wheelUi, crosshairUi, healthHudUi) = BuildUI();
+            var (wheelUi, crosshairUi, healthHudUi, hudCanvasGo) = BuildUI();
 
             Animator animator = player.GetComponentInChildren<Animator>();
             var sourceClips = ModelAnimationUtility.LoadSourceClips(model, out string modelPath);
@@ -90,6 +90,15 @@ namespace PlayerEditor
             Health playerHealth = player.AddComponent<Health>();
             player.AddComponent<PlayerDeathHandler>();
             healthHudUi.Bind(playerHealth);
+
+            // Groups the player, its camera rig, and its HUD under one object so the whole setup
+            // can be saved as a single prefab from the Hierarchy, rather than three separate root
+            // objects. worldPositionStays: true - nothing above has moved yet, this is purely a
+            // re-parent.
+            var playerRig = new GameObject("PlayerRig");
+            player.transform.SetParent(playerRig.transform, true);
+            cameraController.transform.SetParent(playerRig.transform, true);
+            hudCanvasGo.transform.SetParent(playerRig.transform, true);
 
             EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -133,6 +142,7 @@ namespace PlayerEditor
             AnimationClip wave = Get("Wave");
             AnimationClip yes = Get("Yes");
             AnimationClip no = Get("No");
+            AnimationClip duck = Get("Duck");
             AnimationClip hitReact = Get("HitReact");
             AnimationClip death = Get("Death");
 
@@ -148,6 +158,7 @@ namespace PlayerEditor
             controller.AddParameter("PlayEmote", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("HitReact", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Death", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Stagger", AnimatorControllerParameterType.Trigger);
 
             AnimatorStateMachine sm = controller.layers[0].stateMachine;
             foreach (var childState in sm.states.ToList())
@@ -198,6 +209,9 @@ namespace PlayerEditor
 
             var deathState = sm.AddState("Death");
             deathState.motion = death;
+
+            var duckState = sm.AddState("Duck");
+            duckState.motion = duck;
 
             sm.defaultState = idleState;
 
@@ -323,6 +337,21 @@ namespace PlayerEditor
             anyToDeath.hasExitTime = false;
             anyToDeath.duration = 0.05f;
             anyToDeath.AddCondition(AnimatorConditionMode.If, 0, "Death");
+
+            // Stagger: one-shot Duck overlay used by boss impact attacks (see BossMechAI's
+            // ground-slam) to visually sell "the player cannot move" while PlayerController's own
+            // input lock (Stagger()/IsStaggered) does the actual movement gating. Same
+            // AnyState-trigger/exitTime pattern as Melee above.
+            var anyToDuck = sm.AddAnyStateTransition(duckState);
+            anyToDuck.canTransitionToSelf = false;
+            anyToDuck.hasExitTime = false;
+            anyToDuck.duration = 0.05f;
+            anyToDuck.AddCondition(AnimatorConditionMode.If, 0, "Stagger");
+
+            var duckToIdle = duckState.AddTransition(idleState);
+            duckToIdle.hasExitTime = true;
+            duckToIdle.exitTime = 0.9f;
+            duckToIdle.duration = 0.1f;
 
             BuildArmsLayer(controller, model, idle, idleShoot, runGunShoot, jumpShoot);
 
@@ -649,6 +678,18 @@ namespace PlayerEditor
             combatSo.FindProperty("muzzle").objectReferenceValue = muzzle;
             combatSo.FindProperty("aimCamera").objectReferenceValue = aimCamera;
             combatSo.FindProperty("aimMask").intValue = ~(1 << playerLayer);
+            // Optional imported muzzle flash (Free Quick Effects Vol.1 - the Creepy Cat pack this
+            // used to point at has been removed from the project). Null (pack not imported) falls
+            // back to PlayerCombat's own procedural light. The impact spark is left on
+            // PlayerCombat's own procedural burst deliberately - a full effects-pack burst read as
+            // out of place on a hitscan impact, so nothing is wired there.
+            combatSo.FindProperty("muzzleFlashEffectPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GabrielAguiarProductions/FreeQuickEffectsVol1/Prefabs/vfx_MuzzleFlash_01.prefab");
+            // Same projectile visual the mech's own bullets use (Free Quick Effects Vol.1) - flown
+            // from muzzle to hit point as a cosmetic catch-up for the instant hitscan resolution,
+            // replacing the plain LineRenderer tracer. Null (pack not imported) falls back to it.
+            combatSo.FindProperty("projectileVisualPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GabrielAguiarProductions/FreeQuickEffectsVol1/Prefabs/vfx_Projectile_01.prefab");
             combatSo.ApplyModifiedProperties();
 
             var emotes = player.AddComponent<PlayerEmoteController>();
@@ -665,7 +706,7 @@ namespace PlayerEditor
             emotesSo.ApplyModifiedProperties();
         }
 
-        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi, HealthHudUI healthHudUi) BuildUI()
+        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi, HealthHudUI healthHudUi, GameObject canvasGo) BuildUI()
         {
             var canvasGo = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler));
             var canvas = canvasGo.GetComponent<Canvas>();
@@ -679,7 +720,7 @@ namespace PlayerEditor
             var wheelUi = BuildEmoteWheel(canvasGo.transform);
             var healthHudUi = BuildHealthHud(canvasGo.transform);
 
-            return (wheelUi, crosshairUi, healthHudUi);
+            return (wheelUi, crosshairUi, healthHudUi, canvasGo);
         }
 
         /// Segmented "energy cell" readout, built the same way as the emote wheel/crosshair -
