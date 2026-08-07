@@ -1,8 +1,11 @@
 ---
 chunk: player-controller
-title: Single-player third-person prototype (movement, camera, combat, emotes)
+title: Single-player third-person prototype (movement, camera, emotes)
 owns:
-  - "Assets/Scripts/Player/**"
+  - "Assets/Scripts/Player/PlayerController.cs"
+  - "Assets/Scripts/Player/PlayerAnimatorRelay.cs"
+  - "Assets/Scripts/Player/PlayerEmoteController.cs"
+  - "Assets/Scripts/Player/ThirdPersonCameraController.cs"
   - "Assets/Scripts/UI/**"
   - "Assets/Editor/Player/**"
   - "Assets/Prefabs/**"

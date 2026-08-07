@@ -36,6 +36,20 @@ gravity and tangent movement, aligns to the planet, and carries an independent
 radial-up camera. The scene also has a procedural starfield and a visible sun
 whose world direction matches the planet's directional light source.
 
+A separate `Player.unity` prototype scene (not yet merged into the planet
+scene) now carries a working single-player third-person controller with
+melee/hitscan combat, health/death, three fightable basic enemy AI types, and
+a full two-stage Barbara-the-Bee boss fight (Astronaut -> Mech, unlocked via
+a scripted transformation cutscene) — all sharing a common
+`Combat.Health`/`Combat.IDamageable` damage system. The boss-fight tool
+disables the three basic enemies when it builds the boss, leaving the boss as
+the sole fightable target. See [player-controller](gameplay/
+player-controller.md), [player-combat](gameplay/player-combat.md),
+[enemies](gameplay/enemies.md), and [boss-fight](gameplay/boss-fight.md).
+Several imported VFX/audio asset packs have been added and some later
+removed during this work — see [asset-library](assets/asset-library.md) and
+[boss-fight](gameplay/boss-fight.md) Gotchas.
+
 ## Confirmed product invariants
 
 - The playable character is one astronaut, not two separate avatars.

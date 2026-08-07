@@ -419,6 +419,7 @@ RectTransform:
   m_Children:
   - {fileID: 6670762159267739192}
   - {fileID: 6753585761358850436}
+  - {fileID: 925044655438813152}
   m_Father: {fileID: 7438072864837673508}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1137,7 +1138,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 7438072864837673508}
+    m_TransformParent: {fileID: 9033118189143266991}
     m_Modifications:
     - target: {fileID: 2772110908766861441, guid: e4518b14dbf0c4a56ba7704bd6b57dca, type: 3}
       propertyPath: m_Name
