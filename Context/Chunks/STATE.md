@@ -10,7 +10,7 @@ openWork:
   - core-game-loop
   - branching-and-integration-policy
 related: [control-model, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
 lastVerified: 2026-08-07
 ---
 
@@ -19,15 +19,15 @@ lastVerified: 2026-08-07
 ## Open work
 
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
-  replace or remove remaining template content, define game-specific input
-  maps, implement planet-aligned locomotion, radial gravity, body orientation,
-  and camera conventions, then select target platforms, assembly layout, and
-  verification/build commands.
+  replace or remove remaining template content, define cooperative input and
+  authority, then select target platforms, assembly layout, and build/test
+  workflows. Planet-aligned locomotion, radial gravity, body orientation, and
+  camera conventions now exist in the single-player prototype.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
   interaction, and camera responsibilities belong to each player. A
-  single-player-only third-person controller now exists on `feat/player`
-  (see [player-controller](gameplay/player-controller.md)) but does not
-  resolve this split.
+  single-player-only third-person controller now exists (see
+  [player-controller](gameplay/player-controller.md)) but does not resolve
+  this split.
 - **`multiplayer-topology`** - decide whether two-player play is local,
   networked, or both, including input-device expectations.
 - **`core-game-loop`** - define the player's objective, failure states,

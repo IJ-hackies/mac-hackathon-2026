@@ -4,7 +4,7 @@ title: Audio and visual source asset packs
 owns:
   - "asset packs/**"
 related: [system, runtime-art]
-verifiedAtCommit: 2c0429d60b09c157356997f9eb19681221a9e274
+verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
 lastVerified: 2026-08-07
 ---
 

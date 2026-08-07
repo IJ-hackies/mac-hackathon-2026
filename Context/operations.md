@@ -20,3 +20,10 @@ local package cache has successfully recognized the repository root, loaded
 both prototype scenes, and confirmed the build-scene configuration; its
 temporary verifier is not a shared project workflow. Development is shared by
 two people and will use separate Git branches and worktrees for parallel tasks.
+
+`dotnet build Assembly-CSharp.csproj --no-restore` is a verified fast compile
+check for runtime scripts when Unity has generated the project file; it is not
+a player build or substitute for Play mode. In Unity,
+`Tools > Player Prototype > Repair Player Rig Prefab` is the safe idempotent
+command for relinking and validating `PlayerRig.prefab`. Do not use the
+destructive `Build Test Scene` command for that repair.

@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 61353141}
   - component: {fileID: 61353143}
   - component: {fileID: 61353142}
+  - component: {fileID: 61353144}
   m_Layer: 0
   m_Name: Planet Visual
   m_TagString: Untagged
@@ -209,6 +210,28 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 61353140}
   m_Mesh: {fileID: -2432090755550338912, guid: f22ef2cc40464ccb9b3f777397e47235, type: 3}
+--- !u!64 &61353144
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 61353140}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -2432090755550338912, guid: f22ef2cc40464ccb9b3f777397e47235, type: 3}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -227,7 +250,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!81 &330585544
 AudioListener:
   m_ObjectHideFlags: 0
@@ -360,15 +383,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7438072864837673508, guid: ca7d1861a9c6441288f3857e9aef4a81, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -19.19
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7438072864837673508, guid: ca7d1861a9c6441288f3857e9aef4a81, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.75
+      value: 54
       objectReference: {fileID: 0}
     - target: {fileID: 7438072864837673508, guid: ca7d1861a9c6441288f3857e9aef4a81, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 10.06
+      value: -5.65
       objectReference: {fileID: 0}
     - target: {fileID: 7438072864837673508, guid: ca7d1861a9c6441288f3857e9aef4a81, type: 3}
       propertyPath: m_LocalRotation.w
@@ -606,7 +629,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -50, z: -5.65}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 61353141}
@@ -629,7 +652,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 50
   m_Center: {x: 0, y: 0, z: 0}

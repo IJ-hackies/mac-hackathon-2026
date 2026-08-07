@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -21,6 +22,7 @@ namespace PlayerEditor
         private const string ControllerPath = "Assets/Art/Animations/AC_Player.controller";
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string PrefabPath = "Assets/Art/Models/Characters/Player.prefab";
+        private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
         private const string ProjectilePrefabPath = "Assets/Prefabs/Projectile.prefab";
         private const string PlayerLayerName = "Player";
 
@@ -67,6 +69,257 @@ namespace PlayerEditor
 
             AssetDatabase.SaveAssets();
             Debug.Log("PlayerSceneSetup: built " + ScenePath + " and " + PrefabPath);
+        }
+
+        [MenuItem("Tools/Player Prototype/Repair Player Rig Prefab")]
+        public static void RepairPlayerRigPrefab()
+        {
+            GameObject playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            if (playerPrefab == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: no player prefab found at {PrefabPath}.");
+            }
+
+            GameObject rigRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                Transform oldPlayer = RequireDirectChild(rigRoot.transform, "Player");
+                Transform cameraPivot = RequireDirectChild(rigRoot.transform, "CameraPivot");
+                Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+
+                ThirdPersonCameraController cameraController =
+                    RequireComponent<ThirdPersonCameraController>(cameraPivot.gameObject);
+                Camera aimCamera = RequireComponentInChildren<Camera>(cameraPivot.gameObject);
+                ConfigureCameraRendering(aimCamera);
+                EmoteWheelUI wheelUi = RequireComponentInChildren<EmoteWheelUI>(hudCanvas.gameObject);
+                CrosshairUI crosshairUi = RequireComponentInChildren<CrosshairUI>(hudCanvas.gameObject);
+
+                GameObject replacement;
+                Object currentPlayerSource =
+                    PrefabUtility.GetCorrespondingObjectFromSource(oldPlayer.gameObject);
+                bool alreadyLinked = currentPlayerSource == playerPrefab &&
+                    AssetDatabase.GetAssetPath(currentPlayerSource) == PrefabPath;
+                if (alreadyLinked)
+                {
+                    replacement = oldPlayer.gameObject;
+                }
+                else
+                {
+                    int playerSiblingIndex = oldPlayer.GetSiblingIndex();
+                    bool playerWasActive = oldPlayer.gameObject.activeSelf;
+                    replacement = (GameObject)PrefabUtility.InstantiatePrefab(
+                        playerPrefab,
+                        rigRoot.transform);
+                    if (replacement == null)
+                    {
+                        throw new System.InvalidOperationException(
+                            $"PlayerSceneSetup: could not instantiate {PrefabPath} inside " +
+                            $"{PlayerRigPrefabPath}.");
+                    }
+
+                    replacement.name = "Player";
+                    replacement.transform.SetSiblingIndex(playerSiblingIndex);
+                    replacement.SetActive(playerWasActive);
+                    Object.DestroyImmediate(oldPlayer.gameObject);
+                }
+
+                replacement.transform.localPosition = Vector3.zero;
+                replacement.transform.localRotation = Quaternion.identity;
+                replacement.transform.localScale = Vector3.one;
+
+                PlayerController playerController = RequireComponent<PlayerController>(replacement);
+                CharacterController characterController = RequireComponent<CharacterController>(replacement);
+                PlayerCombat combat = RequireComponent<PlayerCombat>(replacement);
+                PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(replacement);
+
+                SetObjectReference(cameraController, "target", replacement.transform);
+                SetObjectReference(playerController, "cameraReference", aimCamera.transform);
+                SetObjectReference(combat, "aimCamera", aimCamera);
+                SetObjectReference(combat, "ownCollider", characterController);
+                SetObjectReference(emotes, "playerController", playerController);
+                SetObjectReference(emotes, "playerCombat", combat);
+                SetObjectReference(emotes, "cameraController", cameraController);
+                SetObjectReference(emotes, "wheelUi", wheelUi);
+                SetObjectReference(emotes, "crosshairUi", crosshairUi);
+
+                rigRoot.transform.localPosition = Vector3.zero;
+                rigRoot.transform.localRotation = Quaternion.identity;
+                rigRoot.transform.localScale = Vector3.one;
+
+                ValidatePlayerRigContents(rigRoot, playerPrefab);
+                if (PrefabUtility.SaveAsPrefabAsset(rigRoot, PlayerRigPrefabPath) == null)
+                {
+                    throw new System.InvalidOperationException(
+                        $"PlayerSceneSetup: failed to save {PlayerRigPrefabPath}.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rigRoot);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
+
+            GameObject validationRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                ValidatePlayerRigContents(validationRoot, playerPrefab);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(validationRoot);
+            }
+
+            Debug.Log(
+                $"PlayerSceneSetup: repaired and validated {PlayerRigPrefabPath} against {PrefabPath}.");
+        }
+
+        private static Transform RequireDirectChild(Transform parent, string childName)
+        {
+            Transform child = parent.Find(childName);
+            if (child == null || child.parent != parent)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: '{parent.name}' requires a direct child named '{childName}'.");
+            }
+
+            return child;
+        }
+
+        private static T RequireComponent<T>(GameObject gameObject) where T : Component
+        {
+            T component = gameObject.GetComponent<T>();
+            if (component == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: '{gameObject.name}' requires {typeof(T).Name}.");
+            }
+
+            return component;
+        }
+
+        private static T RequireComponentInChildren<T>(GameObject gameObject) where T : Component
+        {
+            T component = gameObject.GetComponentInChildren<T>(true);
+            if (component == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: '{gameObject.name}' requires a child {typeof(T).Name}.");
+            }
+
+            return component;
+        }
+
+        private static void SetObjectReference(Object target, string propertyName, Object value)
+        {
+            var serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: {target.GetType().Name} has no serialized '{propertyName}' field.");
+            }
+
+            property.objectReferenceValue = value;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void RequireObjectReference(
+            Object target,
+            string propertyName,
+            Object expectedValue)
+        {
+            var serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property == null || property.objectReferenceValue != expectedValue)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: {target.GetType().Name}.{propertyName} is not wired to " +
+                    $"'{expectedValue?.name ?? "null"}'.");
+            }
+        }
+
+        private static Object RequireAssignedObjectReference(Object target, string propertyName)
+        {
+            var serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property == null || property.objectReferenceValue == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: {target.GetType().Name}.{propertyName} is unassigned.");
+            }
+
+            return property.objectReferenceValue;
+        }
+
+        private static void ValidatePlayerRigContents(GameObject rigRoot, GameObject playerPrefab)
+        {
+            if (rigRoot.transform.localPosition != Vector3.zero ||
+                rigRoot.transform.localRotation != Quaternion.identity ||
+                rigRoot.transform.localScale != Vector3.one)
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: PlayerRig root transform must be normalized.");
+            }
+
+            Transform player = RequireDirectChild(rigRoot.transform, "Player");
+            Transform cameraPivot = RequireDirectChild(rigRoot.transform, "CameraPivot");
+            Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+
+            if (player.localPosition != Vector3.zero ||
+                player.localRotation != Quaternion.identity ||
+                player.localScale != Vector3.one)
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: nested Player transform must be normalized.");
+            }
+
+            Object playerSource = PrefabUtility.GetCorrespondingObjectFromSource(player.gameObject);
+            if (playerSource != playerPrefab || AssetDatabase.GetAssetPath(playerSource) != PrefabPath)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: Player child is not linked to {PrefabPath}.");
+            }
+
+            PlayerController playerController = RequireComponent<PlayerController>(player.gameObject);
+            CharacterController characterController = RequireComponent<CharacterController>(player.gameObject);
+            PlayerAnimatorRelay animatorRelay = RequireComponent<PlayerAnimatorRelay>(player.gameObject);
+            PlayerCombat combat = RequireComponent<PlayerCombat>(player.gameObject);
+            PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(player.gameObject);
+            ThirdPersonCameraController cameraController =
+                RequireComponent<ThirdPersonCameraController>(cameraPivot.gameObject);
+            Camera aimCamera = RequireComponentInChildren<Camera>(cameraPivot.gameObject);
+            UniversalAdditionalCameraData cameraData =
+                RequireComponent<UniversalAdditionalCameraData>(aimCamera.gameObject);
+            EmoteWheelUI wheelUi = RequireComponentInChildren<EmoteWheelUI>(hudCanvas.gameObject);
+            CrosshairUI crosshairUi = RequireComponentInChildren<CrosshairUI>(hudCanvas.gameObject);
+            Transform muzzle = RequireDirectChild(player, "Muzzle");
+            Object animator = RequireAssignedObjectReference(animatorRelay, "animator");
+
+            RequireObjectReference(cameraController, "target", player);
+            RequireObjectReference(cameraController, "cameraTransform", aimCamera.transform);
+            if (!cameraData.renderShadows || !cameraData.renderPostProcessing)
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: rig camera must render shadows and post-processing.");
+            }
+            RequireObjectReference(playerController, "cameraReference", aimCamera.transform);
+            RequireObjectReference(combat, "animator", animator);
+            RequireObjectReference(combat, "muzzle", muzzle);
+            RequireAssignedObjectReference(combat, "projectilePrefab");
+            RequireObjectReference(combat, "aimCamera", aimCamera);
+            RequireObjectReference(combat, "ownCollider", characterController);
+            RequireObjectReference(emotes, "animator", animator);
+            RequireObjectReference(emotes, "playerController", playerController);
+            RequireObjectReference(emotes, "playerCombat", combat);
+            RequireObjectReference(emotes, "cameraController", cameraController);
+            RequireObjectReference(emotes, "wheelUi", wheelUi);
+            RequireObjectReference(emotes, "crosshairUi", crosshairUi);
+            RequireAssignedObjectReference(emotes, "waveClip");
+            RequireAssignedObjectReference(emotes, "yesClip");
+            RequireAssignedObjectReference(emotes, "noClip");
         }
 
         private static readonly string[] LoopingClipShortNames = { "Idle", "Walk", "Run", "Jump_Idle" };
@@ -422,9 +675,9 @@ namespace PlayerEditor
             root.transform.position = Vector3.zero;
 
             var characterController = root.AddComponent<CharacterController>();
-            characterController.center = new Vector3(0f, 1f, 0f);
-            characterController.height = 2f;
-            characterController.radius = 0.35f;
+            characterController.center = new Vector3(0f, 1.275f, 0f);
+            characterController.height = 2.55f;
+            characterController.radius = 0.55f;
 
             var modelInstance = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
             modelInstance.transform.localPosition = Vector3.zero;
@@ -470,6 +723,7 @@ namespace PlayerEditor
             cameraGo.transform.localPosition = new Vector3(0f, 0f, -7f);
             cameraGo.transform.localRotation = Quaternion.identity;
             var camera = cameraGo.AddComponent<Camera>();
+            ConfigureCameraRendering(camera);
             cameraGo.AddComponent<AudioListener>();
             cameraGo.tag = "MainCamera";
 
@@ -481,6 +735,14 @@ namespace PlayerEditor
             so.ApplyModifiedProperties();
 
             return (cameraController, camera);
+        }
+
+        private static void ConfigureCameraRendering(Camera camera)
+        {
+            UniversalAdditionalCameraData cameraData = camera.GetUniversalAdditionalCameraData();
+            cameraData.renderShadows = true;
+            cameraData.renderPostProcessing = true;
+            EditorUtility.SetDirty(cameraData);
         }
 
         private static GameObject BuildProjectilePrefab()
@@ -522,7 +784,7 @@ namespace PlayerEditor
             int playerLayer)
         {
             // Pushed well forward of the body: the astronaut mesh is a rounded silhouette
-            // wider than the CharacterController's collider radius (0.35), so a muzzle point
+            // wider than the CharacterController's collider radius (0.55), so a muzzle point
             // just outside the collider still rendered the flash on/inside the character mesh.
             var muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(player.transform, false);

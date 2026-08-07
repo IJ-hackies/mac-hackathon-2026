@@ -14,7 +14,7 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, git-collaboration, runtime-art, player-controller]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
 lastVerified: 2026-08-07
 ---
 
@@ -27,16 +27,22 @@ module. `Assets/Scenes/SampleScene.unity` is the only enabled build scene and is
 the current prototype scene. Other top-level scenes may be used as sandboxes
 without implying build inclusion.
 
-The sample scene contains the template camera, directional light, and global
-volume plus a static spherical `Planet Ground`. Its root has an exact 50-unit
-`SphereCollider`, with the north-pole surface at world height zero. A child
-`Planet Visual` uses a one-level Catmull-Clark
-derivative of the Ultimate Space Kit `Planet_3` crater mesh, normalized per axis
-to the collider bounds and shaded with a low-gloss warm clay/ochre material.
-The active shell has 4,802 geometric positions and 9,600 triangles; Unity
-reports 5,496 imported vertices after UV seam splits. Keeping collision on the
-root decouples future walking physics from the stylized crater geometry. A
-complete lap remains about 314 units with a gently curved horizon.
+The sample scene contains a directional light and global volume plus a static
+`Planet Ground`. Its child `Planet Visual` uses a one-level Catmull-Clark
+derivative of the Ultimate Space Kit `Planet_3` crater mesh, shaded with a
+low-gloss warm clay/ochre material. The same imported mesh now drives a
+non-convex `MeshCollider`, so the walkable crater floor matches what is
+rendered. `Planet Ground` is uniformly scaled to 2, giving the shell an
+approximately 100-unit world radius. The 50-unit root `SphereCollider` scales
+with it but remains disabled as a reference, not active ground collision. The
+active shell has 4,802 geometric positions and 9,600 triangles; Unity reports
+5,496 imported vertices after UV seam splits.
+
+`PlayerRig.prefab` is placed 104 units from the planet center near the
+north-pole crater and snaps its capsule feet to that mesh at startup. The
+template Main Camera remains in the scene but is inactive; the rig camera is
+the single runtime camera/audio listener. Its URP camera data explicitly
+enables shadow rendering and post-processing.
 
 SampleScene uses a project-owned procedural space skybox with dense stars, a
 faint galactic band, and a bloom-ready HDR sun disc. The scene's directional
@@ -45,20 +51,22 @@ faint galactic band, and a bloom-ready HDR sun disc. The scene's directional
 Skybox ambient and reflection intensities are deliberately low so unlit regions
 read as space without becoming completely black.
 
+The `Sun Light` GameObject and its `Light` component must both stay enabled.
+Disabling only the component leaves the hierarchy looking valid while removing
+all direct illumination and realtime shadows in Play mode.
+
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
 root `.gitignore`.
 
 `Assets/InputSystem_Actions.inputactions` has C# class generation enabled
-(`InputSystem_Actions` wrapper) for the `feat/player` prototype; see
+(`InputSystem_Actions` wrapper) for the current prototype; see
 [player-controller](../gameplay/player-controller.md).
 
 ## Remaining bootstrap choices
 
-- Planet-aligned 3D movement, radial gravity, body orientation, and camera
-  conventions; no player or controller exists yet.
-- Game-specific Input System maps and the abstraction for cooperative versus
-  single-player controls.
+- The cooperative versus single-player input/authority abstraction; the current
+  radial controller is deliberately single-player.
 - Target platforms, intentional package baseline, assembly layout, testing,
   and builds.
 - Whether to retain or remove the template readme and tutorial content, and

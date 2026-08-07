@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project, player-controller]
-verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
+verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
 lastVerified: 2026-08-07
 ---
 
@@ -42,6 +42,10 @@ type and gameplay role rather than separated by vendor.
   source (Ultimate Space Kit), imported with its baked animation takes
   (Idle, Walk, Run, Jump, Jump_Idle, Jump_Land, plus unused takes). See
   [player-controller](../gameplay/player-controller.md).
+- `Models/Characters/Player.prefab` - gameplay-ready astronaut root with a
+  feet-origin `CharacterController` capsule (`height 2.55`, `radius 0.55`,
+  `center.y 1.275`) and radial-controller defaults. `PlayerRig.prefab` nests
+  this asset rather than duplicating its components.
 - `Materials/M_Astronaut.mat` - URP Lit material binding the shared
   `T_SpacePalette` texture directly (unlike `M_Ground`, this mesh's UVs
   sample the atlas rather than using a flat sampled color).
