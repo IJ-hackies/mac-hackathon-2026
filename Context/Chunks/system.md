@@ -3,7 +3,7 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, asset-library, unity-project, git-collaboration]
-verifiedAtCommit: 715756ee9eda1546c17cce2c87378d684660e04f
+verifiedAtCommit: 2c0429d60b09c157356997f9eb19681221a9e274
 lastVerified: 2026-08-07
 ---
 

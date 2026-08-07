@@ -14,7 +14,7 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, git-collaboration, runtime-art]
-verifiedAtCommit: 715756ee9eda1546c17cce2c87378d684660e04f
+verifiedAtCommit: 2c0429d60b09c157356997f9eb19681221a9e274
 lastVerified: 2026-08-07
 ---
 
@@ -29,8 +29,8 @@ without implying build inclusion.
 
 The sample scene contains the template camera, directional light, and global
 volume plus a static spherical `Planet Ground`. Its root has an exact 50-unit
-`SphereCollider`, with the north-pole surface at world height zero directly
-beneath the camera. A child `Planet Visual` uses a one-level Catmull-Clark
+`SphereCollider`, with the north-pole surface at world height zero. A child
+`Planet Visual` uses a one-level Catmull-Clark
 derivative of the Ultimate Space Kit `Planet_3` crater mesh, normalized per axis
 to the collider bounds and shaded with a low-gloss warm clay/ochre material.
 The active shell has 4,802 geometric positions and 9,600 triangles; Unity
