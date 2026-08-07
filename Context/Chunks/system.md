@@ -3,23 +3,22 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, asset-library, unity-project, git-collaboration]
-verifiedAtCommit: 8a7f1dd273e1c329ecd10e4219ebdef8bd06b620
+verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
 lastVerified: 2026-08-07
 ---
 
 ## What this is
 
-A space-themed 2.5D game centered on one astronaut body. The primary
+A space-themed full-3D game centered on one astronaut body. The primary
 cooperative mode has two players sharing control of that body. A single-player
 mode gives one player control of the complete body and all required actions.
 
 ## Current stage
 
-The project is at concept/bootstrap stage. Unity is the selected engine, but
-the Unity version, render pipeline, project layout, target platforms, camera
-model, networking model, and build pipeline have not been selected. The
-repository currently contains source asset packs only; no Unity project has
-been initialized.
+The project is at early bootstrap stage. A Unity `6000.3.10f1` Universal 3D
+project exists under `MAC-gamejam/`, using Universal Render Pipeline `17.3.0`
+and Input System `1.18.0`. Target platforms, the camera model, networking model,
+game-specific input design, and build pipeline have not been selected.
 
 ## Confirmed product invariants
 
@@ -27,7 +26,7 @@ been initialized.
 - Cooperative play supports two players controlling that shared body.
 - Single-player play preserves the complete playable capability set under one
   player's control.
-- The presentation is 2.5D and the setting is space-themed.
+- The presentation and game world are full 3D, and the setting is space-themed.
 - The game will be developed in Unity.
 - The exact division of controls and responsibilities between cooperative
   players is deliberately undecided.
@@ -42,5 +41,7 @@ defined before concurrent implementation begins.
 ## Intentionally unowned
 
 Repository metadata, `Context/**`, `.agents/**`, and `.claude/**` are context
-infrastructure rather than product-source ownership. Add new product files to
-an existing chunk or explicitly classify them during context maintenance.
+infrastructure rather than product-source ownership. Unity and IDE caches,
+logs, user settings, generated solutions, and build outputs excluded by the
+root `.gitignore` are also intentionally unowned. Add new product files to an
+existing chunk or explicitly classify them during context maintenance.

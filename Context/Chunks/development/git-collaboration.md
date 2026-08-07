@@ -3,7 +3,7 @@ chunk: git-collaboration
 title: Two-person branches and worktrees
 owns: []
 related: [system, unity-project]
-verifiedAtCommit: 8a7f1dd273e1c329ecd10e4219ebdef8bd06b620
+verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
 lastVerified: 2026-08-07
 ---
 
@@ -20,6 +20,10 @@ and worktrees so contributors do not share one mutable checkout.
   overwrite, or silently absorb unrelated changes.
 - Integrate work through Git history rather than copying changed files between
   worktrees.
+- Commit every Unity `.meta` file with its corresponding asset and preserve the
+  project's Force Text serialization setting.
+- Do not commit Unity caches, logs, local user settings, generated IDE files, or
+  build outputs excluded by the repository root `.gitignore`.
 - Coordinate ownership before parallel edits to conflict-prone Unity assets,
   especially scenes, prefabs, package manifests, and project settings.
 
@@ -32,5 +36,5 @@ resolution rules have not been selected.
 ## How to extend
 
 Before parallel implementation begins, replace the undecided list with the
-agreed branch lifecycle and exact worktree commands. Once Unity is initialized,
-record how `.meta` files and serialized assets are reviewed and merged.
+agreed branch lifecycle and exact worktree commands, including how serialized
+Unity assets are reviewed and merged.

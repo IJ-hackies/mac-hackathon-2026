@@ -1,15 +1,18 @@
 ---
 stack:
-  - Unity (version and render pipeline not selected)
+  - Unity 6000.3.10f1
+  - Universal Render Pipeline 17.3.0
+  - Input System 1.18.0
+projectRoot: MAC-gamejam/
 ---
 
 # Operations
 
-Unity is the selected engine, but the editor version, render pipeline,
-dependency choices, build command, test command, and target platforms have not
-been selected. Add operational fields only after the corresponding project
-setting or command has been created and verified.
+The full-3D Unity project is rooted at `MAC-gamejam/`. It uses the Universal
+Render Pipeline with separate template PC and mobile renderer assets, Force
+Text asset serialization, and the new Input System. `Assets/Scenes/SampleScene.unity`
+is currently the only enabled build scene.
 
-The current repository is an asset-and-context bootstrap; there is no Unity
-project or runnable game yet. Development is shared by two people and will use
-separate Git branches and worktrees for parallel tasks.
+No editor launch, build, or test command has been verified, and target platforms
+remain undecided. Development is shared by two people and will use separate Git
+branches and worktrees for parallel tasks.

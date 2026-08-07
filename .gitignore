@@ -1,0 +1,51 @@
+# Unity-generated directories (the Unity project lives in MAC-gamejam/)
+MAC-gamejam/[Ll]ibrary/
+MAC-gamejam/[Tt]emp/
+MAC-gamejam/[Oo]bj/
+MAC-gamejam/[Bb]uild/
+MAC-gamejam/[Bb]uilds/
+MAC-gamejam/[Ll]ogs/
+MAC-gamejam/[Uu]ser[Ss]ettings/
+MAC-gamejam/[Mm]emoryCaptures/
+MAC-gamejam/[Rr]ecordings/
+MAC-gamejam/[Tt]est[Rr]esults/
+
+# Unity-generated IDE and solution files
+MAC-gamejam/.vs/
+MAC-gamejam/.idea/
+MAC-gamejam/.vscode/
+MAC-gamejam/.gradle/
+MAC-gamejam/*.csproj
+MAC-gamejam/*.unityproj
+MAC-gamejam/*.sln
+MAC-gamejam/*.sln.iml
+MAC-gamejam/*.suo
+MAC-gamejam/*.tmp
+MAC-gamejam/*.user
+MAC-gamejam/*.userprefs
+MAC-gamejam/*.pidb
+MAC-gamejam/*.booproj
+MAC-gamejam/*.svd
+MAC-gamejam/*.pdb
+MAC-gamejam/*.mdb
+MAC-gamejam/*.opendb
+MAC-gamejam/*.VC.db
+MAC-gamejam/*.pidb.meta
+MAC-gamejam/*.pdb.meta
+MAC-gamejam/*.mdb.meta
+
+# Unity crash reports and exported artifacts
+MAC-gamejam/sysinfo.txt
+MAC-gamejam/*.stacktrace
+MAC-gamejam/*.apk
+MAC-gamejam/*.aab
+MAC-gamejam/*.app
+MAC-gamejam/*.unitypackage
+
+# Future local data store
+/dstore/
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

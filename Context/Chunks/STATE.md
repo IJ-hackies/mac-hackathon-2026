@@ -10,7 +10,7 @@ openWork:
   - core-game-loop
   - branching-and-integration-policy
 related: [control-model, unity-project, git-collaboration]
-verifiedAtCommit: 8a7f1dd273e1c329ecd10e4219ebdef8bd06b620
+verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
 lastVerified: 2026-08-07
 ---
 
@@ -18,9 +18,10 @@ lastVerified: 2026-08-07
 
 ## Open work
 
-- **`unity-project-bootstrap`** - select the Unity version, render pipeline,
-  input approach, physics model, target platforms, project layout, and
-  verification/build commands before initializing the project.
+- **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
+  replace or remove template content, define game-specific input maps, select
+  3D movement and camera conventions, target platforms, assembly layout, and
+  verification/build commands.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
   interaction, and camera responsibilities belong to each player.
 - **`multiplayer-topology`** - decide whether two-player play is local,
