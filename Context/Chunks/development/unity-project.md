@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, git-collaboration, runtime-art]
-verifiedAtCommit: 2c0429d60b09c157356997f9eb19681221a9e274
+related: [system, control-model, git-collaboration, runtime-art, player-controller]
+verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
 lastVerified: 2026-08-07
 ---
 
@@ -48,6 +48,10 @@ read as space without becoming completely black.
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
 root `.gitignore`.
+
+`Assets/InputSystem_Actions.inputactions` has C# class generation enabled
+(`InputSystem_Actions` wrapper) for the `feat/player` prototype; see
+[player-controller](../gameplay/player-controller.md).
 
 ## Remaining bootstrap choices
 
