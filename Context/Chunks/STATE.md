@@ -9,8 +9,8 @@ openWork:
   - multiplayer-topology
   - core-game-loop
   - branching-and-integration-policy
-related: [control-model, unity-project, git-collaboration]
-verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
+related: [control-model, unity-project, git-collaboration, player-controller]
+verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
 lastVerified: 2026-08-07
 ---
 
@@ -23,7 +23,10 @@ lastVerified: 2026-08-07
   3D movement and camera conventions, target platforms, assembly layout, and
   verification/build commands.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
-  interaction, and camera responsibilities belong to each player.
+  interaction, and camera responsibilities belong to each player. A
+  single-player-only third-person controller now exists on `feat/player`
+  (see [player-controller](gameplay/player-controller.md)) but does not
+  resolve this split.
 - **`multiplayer-topology`** - decide whether two-player play is local,
   networked, or both, including input-device expectations.
 - **`core-game-loop`** - define the player's objective, failure states,

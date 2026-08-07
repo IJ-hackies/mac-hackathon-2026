@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, git-collaboration, runtime-art]
-verifiedAtCommit: a80a51fe877d37e45775ce047baf8b28caaddf41
+related: [system, control-model, git-collaboration, runtime-art, player-controller]
+verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
 lastVerified: 2026-08-07
 ---
 
@@ -34,6 +34,10 @@ palette through the project-owned solid-color `M_Ground` URP Lit material.
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
 root `.gitignore`.
+
+`Assets/InputSystem_Actions.inputactions` has C# class generation enabled
+(`InputSystem_Actions` wrapper) for the `feat/player` prototype; see
+[player-controller](../gameplay/player-controller.md).
 
 ## Remaining bootstrap choices
 
