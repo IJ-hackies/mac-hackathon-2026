@@ -147,20 +147,11 @@ namespace Player
         private void Update()
         {
             JumpTriggeredThisFrame = false;
-            IsGrounded = _controller.isGrounded;
 
             bool staggered = IsStaggered;
             Vector2 moveInput = staggered ? Vector2.zero : _actions.Player.Move.ReadValue<Vector2>();
             bool sprinting = !staggered && _actions.Player.Sprint.IsPressed();
             if (staggered) _jumpQueued = false;
-
-            RotateTowardsCamera();
-
-            // Facing is now locked to the camera (see RotateTowardsCamera), not to movement
-            // input, so this is a plain camera-relative direction: pressing "back" moves behind
-            // the character it's already facing instead of turning the character around to
-            // face wherever it's moving (that was the old Genshin-style behavior).
-            Vector3 moveDirection = CameraRelativeDirection(moveInput);
 
             Vector3 radialUp = GetUpDirection();
 
@@ -169,11 +160,14 @@ namespace Player
                 cameraReference = Camera.main.transform;
             }
 
-            Vector2 moveInput = _actions.Player.Move.ReadValue<Vector2>();
-            bool sprinting = _actions.Player.Sprint.IsPressed();
+            AlignUpContinuous(radialUp);
+            RotateTowardsCamera(radialUp);
 
+            // Facing is locked to the camera (see RotateTowardsCamera), not to movement input,
+            // so this is a plain camera-relative direction: pressing "back" moves behind the
+            // character it's already facing instead of turning the character around to face
+            // wherever it's moving (that was the old face-your-movement-direction model).
             Vector3 moveDirection = CameraRelativeDirection(moveInput, radialUp);
-            AlignToPlanet(radialUp, moveDirection);
 
             float maxSpeed = sprinting ? sprintSpeed : walkSpeed;
             float targetHorizontalSpeed = maxSpeed * Mathf.Clamp01(moveInput.magnitude);
@@ -246,7 +240,7 @@ namespace Player
             return (forward * input.y + right * input.x).normalized;
         }
 
-        private void AlignToPlanet(Vector3 radialUp, Vector3 moveDirection)
+        private void AlignUpContinuous(Vector3 radialUp)
         {
             Quaternion upAlignedRotation =
                 Quaternion.FromToRotation(transform.up, radialUp) * transform.rotation;
@@ -254,24 +248,22 @@ namespace Player
                 transform.rotation,
                 upAlignedRotation,
                 Mathf.Max(0f, radialAlignmentDegreesPerSecond) * Time.deltaTime);
+        }
 
-            if (moveDirection.sqrMagnitude < DirectionEpsilon)
-            {
-                return;
-            }
+        // Character yaw always tracks the camera's yaw (projected onto the planet's local
+        // tangent plane), whether or not there's move input - this is what makes movement
+        // direction (forward/back/strafe) read relative to where the player is looking,
+        // matching a standard third-person-shooter control scheme.
+        private void RotateTowardsCamera(Vector3 radialUp)
+        {
+            if (cameraReference == null) return;
 
-            Vector3 currentForward = Vector3.ProjectOnPlane(transform.forward, radialUp);
-            if (currentForward.sqrMagnitude < DirectionEpsilon)
-            {
-                currentForward = GetFallbackTangent(radialUp);
-            }
+            Vector3 forward = Vector3.ProjectOnPlane(cameraReference.forward, radialUp);
+            if (forward.sqrMagnitude < DirectionEpsilon) return;
 
-            float angle = Vector3.SignedAngle(currentForward, moveDirection, radialUp);
-            float turn = Mathf.Clamp(
-                angle,
-                -Mathf.Max(0f, rotationDegreesPerSecond) * Time.deltaTime,
-                Mathf.Max(0f, rotationDegreesPerSecond) * Time.deltaTime);
-            transform.rotation = Quaternion.AngleAxis(turn, radialUp) * transform.rotation;
+            Quaternion targetRotation = Quaternion.LookRotation(forward.normalized, radialUp);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation, targetRotation, rotationDegreesPerSecond * Time.deltaTime);
         }
 
         private void AlignUpImmediately(Vector3 radialUp)

@@ -25,7 +25,6 @@ namespace PlayerEditor
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string PrefabPath = "Assets/Art/Models/Characters/Player.prefab";
         private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
-        private const string ProjectilePrefabPath = "Assets/Prefabs/Projectile.prefab";
         private const string PlayerLayerName = "Player";
         private const string EnemyLayerName = "Enemy";
 
@@ -51,6 +50,11 @@ namespace PlayerEditor
         private static readonly string[] LowerBodyBoneNameFragments =
         {
             "leg", "foot", "toe", "hip", "pelvis", "thigh", "shin", "calf",
+        };
+
+        private static readonly string[] LoopingClipShortNames =
+        {
+            "Idle_Gun", "Walk_Gun", "Run_Gun", "Jump_Idle", "Idle_Shoot", "Run_Gun_Shoot", "Jump_Shoot",
         };
 
         [MenuItem("Tools/Player Prototype/Build Test Scene")]
@@ -113,7 +117,12 @@ namespace PlayerEditor
             Debug.Log("PlayerSceneSetup: built " + ScenePath + " and " + PrefabPath);
         }
 
-        private static readonly string[] LoopingClipShortNames =
+        // Re-links Assets/Prefabs/PlayerRig.prefab's nested Player instance to the current
+        // Assets/Art/Models/Characters/Player.prefab (rebuilt above) and re-wires the camera/HUD
+        // cross-references that Unity's prefab-instance overrides otherwise silently drop when the
+        // source prefab's component layout changes (e.g. new PlayerCombat/PlayerEmoteController
+        // fields). Kept as a separate, idempotent tool from BuildTestScene since PlayerRig.prefab
+        // is the version actually placed in gameplay scenes, not the Player.unity test scene.
         [MenuItem("Tools/Player Prototype/Repair Player Rig Prefab")]
         public static void RepairPlayerRigPrefab()
         {
@@ -137,6 +146,7 @@ namespace PlayerEditor
                 ConfigureCameraRendering(aimCamera);
                 EmoteWheelUI wheelUi = RequireComponentInChildren<EmoteWheelUI>(hudCanvas.gameObject);
                 CrosshairUI crosshairUi = RequireComponentInChildren<CrosshairUI>(hudCanvas.gameObject);
+                HealthHudUI healthHudUi = RequireComponentInChildren<HealthHudUI>(hudCanvas.gameObject);
 
                 GameObject replacement;
                 Object currentPlayerSource =
@@ -175,16 +185,17 @@ namespace PlayerEditor
                 CharacterController characterController = RequireComponent<CharacterController>(replacement);
                 PlayerCombat combat = RequireComponent<PlayerCombat>(replacement);
                 PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(replacement);
+                Health health = RequireComponent<Health>(replacement);
 
                 SetObjectReference(cameraController, "target", replacement.transform);
                 SetObjectReference(playerController, "cameraReference", aimCamera.transform);
                 SetObjectReference(combat, "aimCamera", aimCamera);
-                SetObjectReference(combat, "ownCollider", characterController);
                 SetObjectReference(emotes, "playerController", playerController);
                 SetObjectReference(emotes, "playerCombat", combat);
                 SetObjectReference(emotes, "cameraController", cameraController);
                 SetObjectReference(emotes, "wheelUi", wheelUi);
                 SetObjectReference(emotes, "crosshairUi", crosshairUi);
+                healthHudUi.Bind(health);
 
                 rigRoot.transform.localPosition = Vector3.zero;
                 rigRoot.transform.localRotation = Quaternion.identity;
@@ -331,6 +342,7 @@ namespace PlayerEditor
             PlayerAnimatorRelay animatorRelay = RequireComponent<PlayerAnimatorRelay>(player.gameObject);
             PlayerCombat combat = RequireComponent<PlayerCombat>(player.gameObject);
             PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(player.gameObject);
+            Health health = RequireComponent<Health>(player.gameObject);
             ThirdPersonCameraController cameraController =
                 RequireComponent<ThirdPersonCameraController>(cameraPivot.gameObject);
             Camera aimCamera = RequireComponentInChildren<Camera>(cameraPivot.gameObject);
@@ -338,6 +350,7 @@ namespace PlayerEditor
                 RequireComponent<UniversalAdditionalCameraData>(aimCamera.gameObject);
             EmoteWheelUI wheelUi = RequireComponentInChildren<EmoteWheelUI>(hudCanvas.gameObject);
             CrosshairUI crosshairUi = RequireComponentInChildren<CrosshairUI>(hudCanvas.gameObject);
+            HealthHudUI healthHudUi = RequireComponentInChildren<HealthHudUI>(hudCanvas.gameObject);
             Transform muzzle = RequireDirectChild(player, "Muzzle");
             Object animator = RequireAssignedObjectReference(animatorRelay, "animator");
 
@@ -351,9 +364,7 @@ namespace PlayerEditor
             RequireObjectReference(playerController, "cameraReference", aimCamera.transform);
             RequireObjectReference(combat, "animator", animator);
             RequireObjectReference(combat, "muzzle", muzzle);
-            RequireAssignedObjectReference(combat, "projectilePrefab");
             RequireObjectReference(combat, "aimCamera", aimCamera);
-            RequireObjectReference(combat, "ownCollider", characterController);
             RequireObjectReference(emotes, "animator", animator);
             RequireObjectReference(emotes, "playerController", playerController);
             RequireObjectReference(emotes, "playerCombat", combat);
@@ -364,140 +375,6 @@ namespace PlayerEditor
             RequireAssignedObjectReference(emotes, "yesClip");
             RequireAssignedObjectReference(emotes, "noClip");
         }
-
-        private static readonly string[] LoopingClipShortNames = { "Idle", "Walk", "Run", "Jump_Idle" };
-
-        private static string ShortClipName(string fullName)
-        {
-            int pipe = fullName.LastIndexOf('|');
-            return pipe >= 0 ? fullName.Substring(pipe + 1) : fullName;
-        }
-
-        private static bool ShouldLoop(string fullClipName)
-        {
-            string shortName = ShortClipName(fullClipName);
-            foreach (var loopingName in LoopingClipShortNames)
-            {
-                if (string.Equals(shortName, loopingName, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// Forces "Loop Time" on the locomotion clips (Idle/Walk/Run/Jump_Idle) via the FBX's
-        /// ModelImporter, since Blender-exported clips import as non-looping by default and
-        /// otherwise this requires manually ticking checkboxes per clip in the Inspector.
-        private static void ConfigureAnimationLooping(GameObject model)
-        {
-            string modelPath = AssetDatabase.GetAssetPath(model);
-            var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
-            if (importer == null) return;
-
-            var sourceClips = LoadSourceClips(model, out _);
-
-            var existing = importer.clipAnimations;
-            bool alreadyExplicit = existing != null && existing.Length > 0;
-
-            var entries = new List<ModelImporterClipAnimation>();
-            bool changed = false;
-
-            foreach (var clip in sourceClips)
-            {
-                ModelImporterClipAnimation entry = alreadyExplicit
-                    ? System.Array.Find(existing, e => e.takeName == clip.name || e.name == clip.name)
-                    : null;
-
-                bool wantLoop = ShouldLoop(clip.name);
-
-                if (entry == null)
-                {
-                    entry = new ModelImporterClipAnimation
-                    {
-                        name = clip.name,
-                        takeName = clip.name,
-                        firstFrame = 0,
-                        lastFrame = clip.length * clip.frameRate,
-                    };
-                    changed = true;
-                }
-
-                if (entry.loopTime != wantLoop)
-                {
-                    entry.loopTime = wantLoop;
-                    changed = true;
-                }
-
-                entries.Add(entry);
-            }
-
-            if (changed)
-            {
-                importer.clipAnimations = entries.ToArray();
-                importer.SaveAndReimport();
-            }
-        }
-
-        private static int EnsurePlayerLayer()
-        {
-            var tagManagerAssets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");
-            var tagManager = new SerializedObject(tagManagerAssets[0]);
-            SerializedProperty layers = tagManager.FindProperty("layers");
-
-            for (int i = 8; i < layers.arraySize; i++)
-            {
-                if (layers.GetArrayElementAtIndex(i).stringValue == PlayerLayerName)
-                {
-                    return i;
-                }
-            }
-
-            for (int i = 8; i < layers.arraySize; i++)
-            {
-                SerializedProperty layerProp = layers.GetArrayElementAtIndex(i);
-                if (string.IsNullOrEmpty(layerProp.stringValue))
-                {
-                    layerProp.stringValue = PlayerLayerName;
-                    tagManager.ApplyModifiedProperties();
-                    return i;
-                }
-            }
-
-            Debug.LogWarning("PlayerSceneSetup: no free layer slot for a \"Player\" layer; using Default (0).");
-            return 0;
-        }
-
-        // Blender exports take names as "<ArmatureName>|<ActionName>" (e.g.
-        // "CharacterArmature|Idle"); Unity keeps that full string as the clip name.
-        // Match by exact name first, then by the suffix after the last '|'.
-        private static AnimationClip GetClip(List<AnimationClip> sourceClips, string modelPath, string clipName)
-        {
-            var exact = sourceClips.FirstOrDefault(c =>
-                string.Equals(c.name.Trim(), clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (exact != null) return exact;
-
-            var bySuffix = sourceClips.FirstOrDefault(c =>
-                c.name.Trim().EndsWith("|" + clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (bySuffix != null) return bySuffix;
-
-            // Some takes come through with stray whitespace/suffixes from the FBX's binary
-            // data (seen on a couple of clips in this pack); fall back to comparing the
-            // trimmed short name after the last '|' rather than an exact substring match.
-            var loose = sourceClips.FirstOrDefault(c =>
-                string.Equals(ShortClipName(c.name).Trim(), clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (loose != null) return loose;
-
-            Debug.LogWarning($"PlayerSceneSetup: no animation clip matching \"{clipName}\" " +
-                              $"found on {modelPath}. Found clips: " +
-                              string.Join(", ", sourceClips.Select(c => c.name)));
-            return null;
-        }
-
-        private static List<AnimationClip> LoadSourceClips(GameObject model, out string modelPath)
-        {
-            "Idle_Gun", "Walk_Gun", "Run_Gun", "Jump_Idle", "Idle_Shoot", "Run_Gun_Shoot", "Jump_Shoot",
-        };
 
         private static AnimatorController BuildAnimatorController(GameObject model)
         {
@@ -968,9 +845,9 @@ namespace PlayerEditor
             root.transform.position = Vector3.zero;
 
             var characterController = root.AddComponent<CharacterController>();
-            characterController.center = new Vector3(0f, 1.275f, 0f);
-            characterController.height = 2.55f;
-            characterController.radius = 0.55f;
+            characterController.center = new Vector3(0f, 1f, 0f);
+            characterController.height = 2f;
+            characterController.radius = 0.35f;
 
             var modelInstance = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
             modelInstance.transform.localPosition = Vector3.zero;
@@ -1044,31 +921,6 @@ namespace PlayerEditor
             EditorUtility.SetDirty(cameraData);
         }
 
-        private static GameObject BuildProjectilePrefab()
-        {
-            EnsureFolder("Assets/Prefabs");
-
-            var temp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            temp.name = "Projectile";
-            temp.transform.localScale = Vector3.one * 0.25f;
-
-            Object.DestroyImmediate(temp.GetComponent<SphereCollider>());
-            var trigger = temp.AddComponent<SphereCollider>();
-            trigger.isTrigger = true;
-
-            temp.AddComponent<Projectile>();
-
-            var material = AssetDatabase.LoadAssetAtPath<Material>(ProjectileMaterialPath);
-            if (material != null)
-            {
-                temp.GetComponent<Renderer>().sharedMaterial = material;
-            }
-
-            var prefab = PrefabUtility.SaveAsPrefabAsset(temp, ProjectilePrefabPath);
-            Object.DestroyImmediate(temp);
-            return prefab;
-        }
-
         private static void BuildCombatAndEmotes(
             GameObject player,
             Animator animator,
@@ -1082,7 +934,7 @@ namespace PlayerEditor
             int playerLayer)
         {
             // Pushed well forward of the body: the astronaut mesh is a rounded silhouette
-            // wider than the CharacterController's collider radius (0.55), so a muzzle point
+            // wider than the CharacterController's collider radius (0.35), so a muzzle point
             // just outside the collider still rendered the flash on/inside the character mesh.
             var muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(player.transform, false);
