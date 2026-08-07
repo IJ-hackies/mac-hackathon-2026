@@ -10,7 +10,7 @@ openWork:
   - core-game-loop
   - branching-and-integration-policy
 related: [control-model, unity-project, git-collaboration]
-verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
+verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
 lastVerified: 2026-08-07
 ---
 
@@ -19,8 +19,9 @@ lastVerified: 2026-08-07
 ## Open work
 
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
-  replace or remove template content, define game-specific input maps, select
-  3D movement and camera conventions, target platforms, assembly layout, and
+  replace or remove remaining template content, define game-specific input
+  maps, implement planet-aligned locomotion, radial gravity, body orientation,
+  and camera conventions, then select target platforms, assembly layout, and
   verification/build commands.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
   interaction, and camera responsibilities belong to each player.

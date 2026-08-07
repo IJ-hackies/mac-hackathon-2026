@@ -3,7 +3,7 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, asset-library, unity-project, git-collaboration]
-verifiedAtCommit: a80a51fe877d37e45775ce047baf8b28caaddf41
+verifiedAtCommit: 1a62b900ec593300f3b8cd68ec32e2df106d6e9c
 lastVerified: 2026-08-07
 ---
 
@@ -20,7 +20,12 @@ The project is at early bootstrap stage. The repository root is a Unity
 Input System `1.18.0`. The prototype sample scene now has its first collidable
 ground surface and runtime art material. Target platforms, the camera model,
 networking model, game-specific input design, and build pipeline have not been
-selected.
+selected. The prototype world is now a small spherical planet intended for
+circumnavigation, with a 50-unit radius that keeps the horizon gently curved
+and a full lap compact. Its current visual treatment is the pale, cratered
+`Planet_3` mesh from the Ultimate Space Kit over a separate spherical collider.
+The scene now has a procedural starfield and a visible sun whose world direction
+matches the planet's directional light source.
 
 ## Confirmed product invariants
 
@@ -29,6 +34,7 @@ selected.
 - Single-player play preserves the complete playable capability set under one
   player's control.
 - The presentation and game world are full 3D, and the setting is space-themed.
+- The playable world is a spherical planet that players travel around.
 - The game will be developed in Unity.
 - The exact division of controls and responsibilities between cooperative
   players is deliberately undecided.
