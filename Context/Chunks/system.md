@@ -2,24 +2,29 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, asset-library, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
-lastVerified: 2026-08-07
+related: [control-model, core-loop, asset-library, unity-project, git-collaboration, player-controller]
+verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+lastVerified: 2026-08-08
 ---
 
 ## What this is
 
-A space-themed full-3D game centered on one astronaut body. The primary
-cooperative mode has two players sharing control of that body. A single-player
-mode gives one player control of the complete body and all required actions.
+A space-themed full-3D wave-survival game centered on one astronaut body. The
+astronaut has crash-landed on a small spherical planet. Gameplay begins with a
+walled base and perimeter already established in the landing crater, then the
+astronaut survives timed enemy waves and ventures around the planet for loot.
+The primary cooperative mode has two players sharing control of that body. A
+single-player mode gives one player control of the complete body and all
+required actions.
 
 ## Current stage
 
 The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
 Input System `1.18.0`. Target platforms, networking topology, cooperative input
-ownership, and the build pipeline have not been selected. The prototype world
-is a small spherical planet intended for
+ownership, and the build pipeline have not been selected. Enemy, wave, damage,
+loot, economy, base, and scoring systems are not implemented. The prototype
+world is a small spherical planet intended for
 circumnavigation, with an approximately 100-unit radius and 628-unit full lap.
 Its current visual treatment is the pale, cratered
 `Planet_3` mesh from the Ultimate Space Kit, subdivided once to smooth its
@@ -38,6 +43,13 @@ the planet's directional light source.
   player's control.
 - The presentation and game world are full 3D, and the setting is space-themed.
 - The playable world is a spherical planet that players travel around.
+- The landing crater is the crash site and home base for the survival loop.
+- The base and perimeter are complete when gameplay begins; there is no
+  construction phase or building mechanic.
+- Enemy waves are time-based, with enemies spawning around the planet.
+- The pistol is the sole player weapon used to defeat enemies.
+- Kills award gold and may drop items; progression at the base uses buying,
+  upgrading, and crafting, while kill score scales through a wave multiplier.
 - The game will be developed in Unity.
 - The exact division of controls and responsibilities between cooperative
   players is deliberately undecided.

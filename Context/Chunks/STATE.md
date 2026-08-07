@@ -8,10 +8,12 @@ openWork:
   - cooperative-control-partition
   - multiplayer-topology
   - core-game-loop
+  - enemy-wave-prototype
+  - progression-economy
   - branching-and-integration-policy
-related: [control-model, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
-lastVerified: 2026-08-07
+related: [control-model, core-loop, unity-project, git-collaboration, player-controller]
+verifiedAtCommit: 096b84e8301a4065fb73c05b7361c435a0f861b8
+lastVerified: 2026-08-08
 ---
 
 # STATE
@@ -30,8 +32,16 @@ lastVerified: 2026-08-07
   this split.
 - **`multiplayer-topology`** - decide whether two-player play is local,
   networked, or both, including input-device expectations.
-- **`core-game-loop`** - define the player's objective, failure states,
-  progression, session structure, and the role shared-body coordination plays.
+- **`core-game-loop`** - turn the confirmed crash-site defense and planetary
+  scavenging loop into exact phases. Decide wave timing/scaling, breaks,
+  residual enemies, failure states, dark-region risk/reward behavior,
+  progression persistence, and the endgame.
+- **`enemy-wave-prototype`** - implement enemies, planet-wide spawning, a timed
+  wave director, health/damage, pistol kills, drops, and player/base failure.
+  The current shooting prototype is visual and has no damage system.
+- **`progression-economy`** - define and implement gold, dropped/scavenged
+  items, buying, pistol/player/equipment upgrades, crafting, loot tables, and
+  the kill-score formula with its wave multiplier.
 - **`branching-and-integration-policy`** - define branch naming, worktree
   placement, integration and review rules, and ownership of conflict-prone
   Unity scenes, prefabs, and project settings.
