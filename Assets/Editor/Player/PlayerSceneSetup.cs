@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using CharacterEditor;
+using Combat;
 using Player;
 using Player.UI;
 using UnityEditor;
@@ -17,12 +19,36 @@ namespace PlayerEditor
         private const string ModelPath = "Assets/Art/Models/Characters/Astronaut_FinnTheFrog.fbx";
         private const string AstronautMaterialPath = "Assets/Art/Materials/M_Astronaut.mat";
         private const string GroundMaterialPath = "Assets/Art/Materials/M_Ground.mat";
-        private const string ProjectileMaterialPath = "Assets/Art/Materials/M_Projectile.mat";
         private const string ControllerPath = "Assets/Art/Animations/AC_Player.controller";
+        private const string UpperBodyMaskPath = "Assets/Art/Animations/AM_UpperBody.mask";
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string PrefabPath = "Assets/Art/Models/Characters/Player.prefab";
-        private const string ProjectilePrefabPath = "Assets/Prefabs/Projectile.prefab";
         private const string PlayerLayerName = "Player";
+        private const string EnemyLayerName = "Enemy";
+
+        // Walking plays Run_Gun_Shoot slowed (Arms_Shoot_Walk below) so its swing doesn't read as
+        // an exaggerated wave against the much slower leg cycle; sprinting keeps it at full speed
+        // (Arms_Shoot_Run). PlayerCombat.CheckShootBeat reads this state's playback live off the
+        // Animator (AnimatorStateInfo.normalizedTime), so walking-while-shooting fires slower
+        // than running-while-shooting purely as a side effect of this speed difference, not a
+        // separately tuned rate.
+        private const float WalkShootAnimSpeed = 0.6f;
+
+        // PlayerController normalizes Speed against sprintSpeed (walkSpeed / sprintSpeed = 3.5 /
+        // 6.5 =~ 0.538), so a walking player never exceeds ~0.54 and only sprinting reaches
+        // above it. Used to tell walking-while-shooting (slowed arm swing) apart from sprinting-
+        // while-shooting (full speed) on the Arms layer.
+        private const float SprintSpeedThreshold = 0.55f;
+
+        // Bone-name fragments (case-insensitive substring match) used to build the upper-body
+        // AvatarMask below - anything matching stays driven by the base locomotion layer instead
+        // of the Shoot overlay layer, so legs keep running normally while only the arms react to
+        // firing. The rig (CharacterArmature) is a Generic avatar, not Humanoid, so this has to
+        // be done by transform name rather than AvatarMaskBodyPart.
+        private static readonly string[] LowerBodyBoneNameFragments =
+        {
+            "leg", "foot", "toe", "hip", "pelvis", "thigh", "shin", "calf",
+        };
 
         [MenuItem("Tools/Player Prototype/Build Test Scene")]
         public static void BuildTestScene()
@@ -35,11 +61,14 @@ namespace PlayerEditor
                 return;
             }
 
-            ConfigureAnimationLooping(model);
+            ModelAnimationUtility.ConfigureAnimationLooping(model, LoopingClipShortNames);
 
-            int playerLayer = EnsurePlayerLayer();
+            int playerLayer = ModelAnimationUtility.EnsureLayer(PlayerLayerName);
+            // Ensured here (even though no enemies exist yet at this point) purely so its layer
+            // index is stable and known for the camera's collision mask below - EnemySceneSetup
+            // ensures the same layer again (idempotent) and assigns it to enemy models.
+            int enemyLayer = ModelAnimationUtility.EnsureLayer(EnemyLayerName);
             AnimatorController controller = BuildAnimatorController(model);
-            GameObject projectilePrefab = BuildProjectilePrefab();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -47,17 +76,20 @@ namespace PlayerEditor
             CreateGround();
 
             GameObject player = BuildPlayer(model, controller, playerLayer);
-            var (cameraController, mainCamera) = BuildCamera(player, playerLayer);
-            var (wheelUi, crosshairUi) = BuildUI();
+            var (cameraController, mainCamera) = BuildCamera(player, playerLayer, enemyLayer);
+            var (wheelUi, crosshairUi, healthHudUi) = BuildUI();
 
             Animator animator = player.GetComponentInChildren<Animator>();
-            var sourceClips = LoadSourceClips(model, out string modelPath);
-            AnimationClip wave = GetClip(sourceClips, modelPath, "Wave");
-            AnimationClip yes = GetClip(sourceClips, modelPath, "Yes");
-            AnimationClip no = GetClip(sourceClips, modelPath, "No");
-
-            BuildCombatAndEmotes(player, animator, projectilePrefab, mainCamera, cameraController,
+            var sourceClips = ModelAnimationUtility.LoadSourceClips(model, out string modelPath);
+            AnimationClip wave = ModelAnimationUtility.GetClip(sourceClips, modelPath, "Wave");
+            AnimationClip yes = ModelAnimationUtility.GetClip(sourceClips, modelPath, "Yes");
+            AnimationClip no = ModelAnimationUtility.GetClip(sourceClips, modelPath, "No");
+            BuildCombatAndEmotes(player, animator, mainCamera, cameraController,
                 wheelUi, crosshairUi, wave, yes, no, playerLayer);
+
+            Health playerHealth = player.AddComponent<Health>();
+            player.AddComponent<PlayerDeathHandler>();
+            healthHudUi.Bind(playerHealth);
 
             EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -69,143 +101,10 @@ namespace PlayerEditor
             Debug.Log("PlayerSceneSetup: built " + ScenePath + " and " + PrefabPath);
         }
 
-        private static readonly string[] LoopingClipShortNames = { "Idle", "Walk", "Run", "Jump_Idle" };
-
-        private static string ShortClipName(string fullName)
+        private static readonly string[] LoopingClipShortNames =
         {
-            int pipe = fullName.LastIndexOf('|');
-            return pipe >= 0 ? fullName.Substring(pipe + 1) : fullName;
-        }
-
-        private static bool ShouldLoop(string fullClipName)
-        {
-            string shortName = ShortClipName(fullClipName);
-            foreach (var loopingName in LoopingClipShortNames)
-            {
-                if (string.Equals(shortName, loopingName, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// Forces "Loop Time" on the locomotion clips (Idle/Walk/Run/Jump_Idle) via the FBX's
-        /// ModelImporter, since Blender-exported clips import as non-looping by default and
-        /// otherwise this requires manually ticking checkboxes per clip in the Inspector.
-        private static void ConfigureAnimationLooping(GameObject model)
-        {
-            string modelPath = AssetDatabase.GetAssetPath(model);
-            var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
-            if (importer == null) return;
-
-            var sourceClips = LoadSourceClips(model, out _);
-
-            var existing = importer.clipAnimations;
-            bool alreadyExplicit = existing != null && existing.Length > 0;
-
-            var entries = new List<ModelImporterClipAnimation>();
-            bool changed = false;
-
-            foreach (var clip in sourceClips)
-            {
-                ModelImporterClipAnimation entry = alreadyExplicit
-                    ? System.Array.Find(existing, e => e.takeName == clip.name || e.name == clip.name)
-                    : null;
-
-                bool wantLoop = ShouldLoop(clip.name);
-
-                if (entry == null)
-                {
-                    entry = new ModelImporterClipAnimation
-                    {
-                        name = clip.name,
-                        takeName = clip.name,
-                        firstFrame = 0,
-                        lastFrame = clip.length * clip.frameRate,
-                    };
-                    changed = true;
-                }
-
-                if (entry.loopTime != wantLoop)
-                {
-                    entry.loopTime = wantLoop;
-                    changed = true;
-                }
-
-                entries.Add(entry);
-            }
-
-            if (changed)
-            {
-                importer.clipAnimations = entries.ToArray();
-                importer.SaveAndReimport();
-            }
-        }
-
-        private static int EnsurePlayerLayer()
-        {
-            var tagManagerAssets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");
-            var tagManager = new SerializedObject(tagManagerAssets[0]);
-            SerializedProperty layers = tagManager.FindProperty("layers");
-
-            for (int i = 8; i < layers.arraySize; i++)
-            {
-                if (layers.GetArrayElementAtIndex(i).stringValue == PlayerLayerName)
-                {
-                    return i;
-                }
-            }
-
-            for (int i = 8; i < layers.arraySize; i++)
-            {
-                SerializedProperty layerProp = layers.GetArrayElementAtIndex(i);
-                if (string.IsNullOrEmpty(layerProp.stringValue))
-                {
-                    layerProp.stringValue = PlayerLayerName;
-                    tagManager.ApplyModifiedProperties();
-                    return i;
-                }
-            }
-
-            Debug.LogWarning("PlayerSceneSetup: no free layer slot for a \"Player\" layer; using Default (0).");
-            return 0;
-        }
-
-        // Blender exports take names as "<ArmatureName>|<ActionName>" (e.g.
-        // "CharacterArmature|Idle"); Unity keeps that full string as the clip name.
-        // Match by exact name first, then by the suffix after the last '|'.
-        private static AnimationClip GetClip(List<AnimationClip> sourceClips, string modelPath, string clipName)
-        {
-            var exact = sourceClips.FirstOrDefault(c =>
-                string.Equals(c.name.Trim(), clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (exact != null) return exact;
-
-            var bySuffix = sourceClips.FirstOrDefault(c =>
-                c.name.Trim().EndsWith("|" + clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (bySuffix != null) return bySuffix;
-
-            // Some takes come through with stray whitespace/suffixes from the FBX's binary
-            // data (seen on a couple of clips in this pack); fall back to comparing the
-            // trimmed short name after the last '|' rather than an exact substring match.
-            var loose = sourceClips.FirstOrDefault(c =>
-                string.Equals(ShortClipName(c.name).Trim(), clipName, System.StringComparison.OrdinalIgnoreCase));
-            if (loose != null) return loose;
-
-            Debug.LogWarning($"PlayerSceneSetup: no animation clip matching \"{clipName}\" " +
-                              $"found on {modelPath}. Found clips: " +
-                              string.Join(", ", sourceClips.Select(c => c.name)));
-            return null;
-        }
-
-        private static List<AnimationClip> LoadSourceClips(GameObject model, out string modelPath)
-        {
-            modelPath = AssetDatabase.GetAssetPath(model);
-            return AssetDatabase.LoadAllAssetsAtPath(modelPath)
-                .OfType<AnimationClip>()
-                .Where(c => !c.name.StartsWith("__preview__"))
-                .ToList();
-        }
+            "Idle_Gun", "Walk_Gun", "Run_Gun", "Jump_Idle", "Idle_Shoot", "Run_Gun_Shoot", "Jump_Shoot",
+        };
 
         private static AnimatorController BuildAnimatorController(GameObject model)
         {
@@ -218,30 +117,37 @@ namespace PlayerEditor
                 AssetDatabase.DeleteAsset(ControllerPath);
             }
 
-            var sourceClips = LoadSourceClips(model, out string modelPath);
-            AnimationClip Get(string clipName) => GetClip(sourceClips, modelPath, clipName);
+            var sourceClips = ModelAnimationUtility.LoadSourceClips(model, out string modelPath);
+            AnimationClip Get(string clipName) => ModelAnimationUtility.GetClip(sourceClips, modelPath, clipName);
 
-            AnimationClip idle = Get("Idle");
-            AnimationClip walk = Get("Walk");
-            AnimationClip run = Get("Run");
+            AnimationClip idle = Get("Idle_Gun");
+            AnimationClip walk = Get("Walk_Gun");
+            AnimationClip run = Get("Run_Gun");
             AnimationClip jump = Get("Jump");
             AnimationClip jumpIdle = Get("Jump_Idle");
             AnimationClip jumpLand = Get("Jump_Land");
             AnimationClip punch = Get("Punch");
             AnimationClip runGunShoot = Get("Run_Gun_Shoot");
+            AnimationClip idleShoot = Get("Idle_Shoot");
+            AnimationClip jumpShoot = Get("Jump_Shoot");
             AnimationClip wave = Get("Wave");
             AnimationClip yes = Get("Yes");
             AnimationClip no = Get("No");
+            AnimationClip hitReact = Get("HitReact");
+            AnimationClip death = Get("Death");
 
             var controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
             controller.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Melee", AnimatorControllerParameterType.Trigger);
-            controller.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("FireStart", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Firing", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Emoting", AnimatorControllerParameterType.Bool);
             controller.AddParameter("EmoteIndex", AnimatorControllerParameterType.Int);
             controller.AddParameter("PlayEmote", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("HitReact", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Death", AnimatorControllerParameterType.Trigger);
 
             AnimatorStateMachine sm = controller.layers[0].stateMachine;
             foreach (var childState in sm.states.ToList())
@@ -278,9 +184,6 @@ namespace PlayerEditor
             var meleeState = sm.AddState("Melee");
             meleeState.motion = punch;
 
-            var shootState = sm.AddState("Shoot");
-            shootState.motion = runGunShoot;
-
             var emoteWaveState = sm.AddState("Emote_Wave");
             emoteWaveState.motion = wave;
 
@@ -289,6 +192,12 @@ namespace PlayerEditor
 
             var emoteNoState = sm.AddState("Emote_No");
             emoteNoState.motion = no;
+
+            var hitReactState = sm.AddState("HitReact");
+            hitReactState.motion = hitReact;
+
+            var deathState = sm.AddState("Death");
+            deathState.motion = death;
 
             sm.defaultState = idleState;
 
@@ -324,15 +233,35 @@ namespace PlayerEditor
             jumpToFall.exitTime = 0.8f;
             jumpToFall.duration = 0.1f;
 
+            // Landing only plays the stand-still Land pose (feet-planted recovery) when there's
+            // no move input at touchdown. Landing while still holding a move direction skips
+            // straight into Move instead - playing Land there froze the legs in that stand-still
+            // recovery pose for its whole duration despite the character continuing to run,
+            // which is what looked like standing still on landing while moving.
             var fallToLand = fallState.AddTransition(landState);
             fallToLand.hasExitTime = false;
             fallToLand.duration = 0.05f;
             fallToLand.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            fallToLand.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+
+            var fallToMove = fallState.AddTransition(moveState);
+            fallToMove.hasExitTime = false;
+            fallToMove.duration = 0.15f;
+            fallToMove.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            fallToMove.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
 
             var landToIdle = landState.AddTransition(idleState);
             landToIdle.hasExitTime = true;
             landToIdle.exitTime = 0.9f;
             landToIdle.duration = 0.15f;
+
+            // If move input starts partway through the stand-still Land pose (rather than being
+            // held from before touchdown), still break out into Move instead of finishing the
+            // whole recovery animation stationary.
+            var landToMove = landState.AddTransition(moveState);
+            landToMove.hasExitTime = false;
+            landToMove.duration = 0.15f;
+            landToMove.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
 
             // Melee: one-shot from any state, back to Idle when it finishes.
             var anyToMelee = sm.AddAnyStateTransition(meleeState);
@@ -345,19 +274,6 @@ namespace PlayerEditor
             meleeToIdle.hasExitTime = true;
             meleeToIdle.exitTime = 0.9f;
             meleeToIdle.duration = 0.1f;
-
-            // Shoot: one-shot from any state (only clip available is the running-gun pose;
-            // reused regardless of locomotion state), back to Idle when it finishes.
-            var anyToShoot = sm.AddAnyStateTransition(shootState);
-            anyToShoot.canTransitionToSelf = false;
-            anyToShoot.hasExitTime = false;
-            anyToShoot.duration = 0.05f;
-            anyToShoot.AddCondition(AnimatorConditionMode.If, 0, "Fire");
-
-            var shootToIdle = shootState.AddTransition(idleState);
-            shootToIdle.hasExitTime = true;
-            shootToIdle.exitTime = 0.9f;
-            shootToIdle.duration = 0.1f;
 
             // Emotes: entry is gated by the PlayEmote trigger (+ EmoteIndex), not the held
             // Emoting bool. A trigger auto-consumes after one use, same as Jump/Melee/Fire, so
@@ -386,8 +302,225 @@ namespace PlayerEditor
                 emoteInterrupt.AddCondition(AnimatorConditionMode.IfNot, 0, "Emoting");
             }
 
+            // HitReact: one-shot overlay from any state, back to Idle when it finishes. Health
+            // fires this trigger without waiting on it, so PlayerController/PlayerCombat keep
+            // driving movement and input underneath the reaction pose instead of stalling.
+            var anyToHitReact = sm.AddAnyStateTransition(hitReactState);
+            anyToHitReact.canTransitionToSelf = false;
+            anyToHitReact.hasExitTime = false;
+            anyToHitReact.duration = 0.05f;
+            anyToHitReact.AddCondition(AnimatorConditionMode.If, 0, "HitReact");
+
+            var hitReactToIdle = hitReactState.AddTransition(idleState);
+            hitReactToIdle.hasExitTime = true;
+            hitReactToIdle.exitTime = 0.9f;
+            hitReactToIdle.duration = 0.1f;
+
+            // Death: terminal, no return transition. PlayerDeathHandler disables movement/combat
+            // input separately so this doesn't need to gate anything itself.
+            var anyToDeath = sm.AddAnyStateTransition(deathState);
+            anyToDeath.canTransitionToSelf = false;
+            anyToDeath.hasExitTime = false;
+            anyToDeath.duration = 0.05f;
+            anyToDeath.AddCondition(AnimatorConditionMode.If, 0, "Death");
+
+            BuildArmsLayer(controller, model, idle, idleShoot, runGunShoot, jumpShoot);
+
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        // A second, upper-body-masked layer carrying just the Shoot poses, separate from the
+        // base layer's full-body locomotion. Originally Shoot/Idle_Shoot/Jump_Shoot lived on the
+        // base layer as full-body one-shots, same as Melee - which meant every shot replaced the
+        // *entire* pose, legs included, so continuously firing while moving fought the Move blend
+        // tree every retrigger (legs stuttering/snapping between the run cycle and the shoot
+        // clip's own leg pose). Splitting the arms onto their own Override layer means the base
+        // layer keeps driving Move/Idle continuously and untouched while this layer only ever
+        // touches upper-body bones (see the mask). PlayerCombat toggles this layer's weight
+        // (0 while not firing, 1 while firing) rather than letting it sit at weight 1 all the
+        // time - a masked-but-always-on layer would otherwise still fight the base layer's arms
+        // during Melee/Emotes/HitReact/Death, all of which stay full-body on the base layer.
+        private static void BuildArmsLayer(
+            AnimatorController controller,
+            GameObject model,
+            AnimationClip idleClip,
+            AnimationClip idleShootClip,
+            AnimationClip runGunShootClip,
+            AnimationClip jumpShootClip)
+        {
+            controller.AddLayer("Arms");
+            AnimatorControllerLayer[] layers = controller.layers;
+            AnimatorControllerLayer armsLayer = layers[layers.Length - 1];
+            armsLayer.blendingMode = AnimatorLayerBlendingMode.Override;
+            armsLayer.defaultWeight = 0f;
+            armsLayer.avatarMask = BuildUpperBodyMask(model);
+
+            AnimatorStateMachine armsSm = armsLayer.stateMachine;
+
+            var armsIdleState = armsSm.AddState("Arms_Idle");
+            armsIdleState.motion = idleClip;
+            armsSm.defaultState = armsIdleState;
+
+            // Run_Gun_Shoot's arm swing reads as an exaggerated wave at full speed while only
+            // walking (much less horizontal motion to sell the same swing amplitude against), so
+            // it's slowed just for the walking case - sprinting keeps the clip at full speed,
+            // where the same swing reads fine against the faster leg cycle. Two separate states
+            // (rather than one state with a runtime speed multiplier) so each can also be
+            // targeted directly by the Grounded/Speed-branched entry/exit transitions below.
+            var armsShootState = armsSm.AddState("Arms_Shoot_Walk");
+            armsShootState.motion = runGunShootClip;
+            armsShootState.speed = WalkShootAnimSpeed;
+
+            var armsShootRunState = armsSm.AddState("Arms_Shoot_Run");
+            armsShootRunState.motion = runGunShootClip;
+
+            var armsIdleShootState = armsSm.AddState("Arms_Idle_Shoot");
+            armsIdleShootState.motion = idleShootClip;
+
+            var armsJumpShootState = armsSm.AddState("Arms_Jump_Shoot");
+            armsJumpShootState.motion = jumpShootClip;
+
+            // Entry is gated by a one-shot FireStart trigger (+ Grounded/Speed for which pose),
+            // not by the Firing bool directly - same reasoning as the emote wheel above: gating
+            // AnyState entry on a bool that stays true for the whole action causes it to keep
+            // re-satisfying and restart the clip from frame 0 every frame. FireStart only fires
+            // once per firing session (PlayerCombat.OnFireStarted), not once per shot - the clips
+            // themselves now loop (see LoopingClipShortNames), so holding Fire plays one smooth,
+            // continuous recoil/fire cycle instead of retriggering (and re-blending) the same
+            // one-shot clip from scratch on every damage tick, which is what was reading as
+            // flicker at a fast fireCooldown. The discrete hitscan/damage/muzzle-flash rate in
+            // PlayerCombat is unaffected - only the arm's visual retrigger was decoupled from it.
+            var armsAnyToIdleShoot = armsSm.AddAnyStateTransition(armsIdleShootState);
+            armsAnyToIdleShoot.canTransitionToSelf = false;
+            armsAnyToIdleShoot.hasExitTime = false;
+            armsAnyToIdleShoot.duration = 0.15f;
+            armsAnyToIdleShoot.AddCondition(AnimatorConditionMode.If, 0, "FireStart");
+            armsAnyToIdleShoot.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            armsAnyToIdleShoot.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+
+            var armsAnyToShoot = armsSm.AddAnyStateTransition(armsShootState);
+            armsAnyToShoot.canTransitionToSelf = false;
+            armsAnyToShoot.hasExitTime = false;
+            armsAnyToShoot.duration = 0.15f;
+            armsAnyToShoot.AddCondition(AnimatorConditionMode.If, 0, "FireStart");
+            armsAnyToShoot.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            armsAnyToShoot.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            armsAnyToShoot.AddCondition(AnimatorConditionMode.Less, SprintSpeedThreshold, "Speed");
+
+            var armsAnyToShootRun = armsSm.AddAnyStateTransition(armsShootRunState);
+            armsAnyToShootRun.canTransitionToSelf = false;
+            armsAnyToShootRun.hasExitTime = false;
+            armsAnyToShootRun.duration = 0.15f;
+            armsAnyToShootRun.AddCondition(AnimatorConditionMode.If, 0, "FireStart");
+            armsAnyToShootRun.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            armsAnyToShootRun.AddCondition(AnimatorConditionMode.Greater, SprintSpeedThreshold, "Speed");
+
+            var armsAnyToJumpShoot = armsSm.AddAnyStateTransition(armsJumpShootState);
+            armsAnyToJumpShoot.canTransitionToSelf = false;
+            armsAnyToJumpShoot.hasExitTime = false;
+            armsAnyToJumpShoot.duration = 0.15f;
+            armsAnyToJumpShoot.AddCondition(AnimatorConditionMode.If, 0, "FireStart");
+            armsAnyToJumpShoot.AddCondition(AnimatorConditionMode.IfNot, 0, "Grounded");
+
+            // While still firing, let the pose follow locomotion context live (e.g. the player
+            // starts walking, or breaks into a sprint, partway through a sustained burst) instead
+            // of only being decided once at FireStart. Airborne transitions in/out of Jump_Shoot
+            // mid-burst are skipped as a rare enough edge case not worth the extra transitions.
+            var armsIdleShootToShoot = armsIdleShootState.AddTransition(armsShootState);
+            armsIdleShootToShoot.hasExitTime = false;
+            armsIdleShootToShoot.duration = 0.15f;
+            armsIdleShootToShoot.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsIdleShootToShoot.AddCondition(AnimatorConditionMode.Greater, 0.1f, "Speed");
+            armsIdleShootToShoot.AddCondition(AnimatorConditionMode.Less, SprintSpeedThreshold, "Speed");
+
+            var armsIdleShootToShootRun = armsIdleShootState.AddTransition(armsShootRunState);
+            armsIdleShootToShootRun.hasExitTime = false;
+            armsIdleShootToShootRun.duration = 0.15f;
+            armsIdleShootToShootRun.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsIdleShootToShootRun.AddCondition(AnimatorConditionMode.Greater, SprintSpeedThreshold, "Speed");
+
+            var armsShootToIdleShoot = armsShootState.AddTransition(armsIdleShootState);
+            armsShootToIdleShoot.hasExitTime = false;
+            armsShootToIdleShoot.duration = 0.15f;
+            armsShootToIdleShoot.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsShootToIdleShoot.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+
+            var armsShootToShootRun = armsShootState.AddTransition(armsShootRunState);
+            armsShootToShootRun.hasExitTime = false;
+            armsShootToShootRun.duration = 0.15f;
+            armsShootToShootRun.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsShootToShootRun.AddCondition(AnimatorConditionMode.Greater, SprintSpeedThreshold, "Speed");
+
+            var armsShootRunToIdleShoot = armsShootRunState.AddTransition(armsIdleShootState);
+            armsShootRunToIdleShoot.hasExitTime = false;
+            armsShootRunToIdleShoot.duration = 0.15f;
+            armsShootRunToIdleShoot.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsShootRunToIdleShoot.AddCondition(AnimatorConditionMode.Less, 0.1f, "Speed");
+
+            var armsShootRunToShoot = armsShootRunState.AddTransition(armsShootState);
+            armsShootRunToShoot.hasExitTime = false;
+            armsShootRunToShoot.duration = 0.15f;
+            armsShootRunToShoot.AddCondition(AnimatorConditionMode.If, 0, "Firing");
+            armsShootRunToShoot.AddCondition(AnimatorConditionMode.Less, SprintSpeedThreshold, "Speed");
+
+            // Exit only happens when Firing goes false (PlayerCombat.OnFireCanceled) - the shoot
+            // clips loop indefinitely otherwise, so there's no natural "finished" exitTime to key
+            // off like the old one-shot states had.
+            var armsShootToIdle = armsShootState.AddTransition(armsIdleState);
+            armsShootToIdle.hasExitTime = false;
+            armsShootToIdle.duration = 0.15f;
+            armsShootToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Firing");
+
+            var armsShootRunToIdle = armsShootRunState.AddTransition(armsIdleState);
+            armsShootRunToIdle.hasExitTime = false;
+            armsShootRunToIdle.duration = 0.15f;
+            armsShootRunToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Firing");
+
+            var armsIdleShootToIdle = armsIdleShootState.AddTransition(armsIdleState);
+            armsIdleShootToIdle.hasExitTime = false;
+            armsIdleShootToIdle.duration = 0.15f;
+            armsIdleShootToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Firing");
+
+            var armsJumpShootToIdle = armsJumpShootState.AddTransition(armsIdleState);
+            armsJumpShootToIdle.hasExitTime = false;
+            armsJumpShootToIdle.duration = 0.15f;
+            armsJumpShootToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Firing");
+
+            layers[layers.Length - 1] = armsLayer;
+            controller.layers = layers;
+        }
+
+        // Builds a transform-path AvatarMask limiting the Arms layer to upper-body bones, so its
+        // Override blend only ever replaces arm/hand/spine poses and never touches the legs the
+        // base layer is driving. Computed from the actual model hierarchy (by bone-name fragment,
+        // see LowerBodyBoneNameFragments) rather than hardcoded paths, since the rig is a Generic
+        // avatar (not Humanoid) imported from Blender.
+        private static AvatarMask BuildUpperBodyMask(GameObject model)
+        {
+            if (AssetDatabase.LoadAssetAtPath<AvatarMask>(UpperBodyMaskPath) != null)
+            {
+                AssetDatabase.DeleteAsset(UpperBodyMaskPath);
+            }
+
+            var mask = new AvatarMask();
+            mask.AddTransformPath(model.transform, true);
+
+            for (int i = 0; i < mask.transformCount; i++)
+            {
+                string path = mask.GetTransformPath(i);
+                string boneName = path.Substring(path.LastIndexOf('/') + 1);
+                bool isLowerBody = LowerBodyBoneNameFragments.Any(fragment =>
+                    boneName.IndexOf(fragment, System.StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (isLowerBody)
+                {
+                    mask.SetTransformActive(i, false);
+                }
+            }
+
+            AssetDatabase.CreateAsset(mask, UpperBodyMaskPath);
+            return mask;
         }
 
         private static void CreateLighting()
@@ -460,7 +593,8 @@ namespace PlayerEditor
             return root;
         }
 
-        private static (ThirdPersonCameraController controller, Camera camera) BuildCamera(GameObject player, int playerLayer)
+        private static (ThirdPersonCameraController controller, Camera camera) BuildCamera(
+            GameObject player, int playerLayer, int enemyLayer)
         {
             var pivot = new GameObject("CameraPivot");
             pivot.transform.position = player.transform.position + new Vector3(0f, 1.6f, 0f);
@@ -477,41 +611,20 @@ namespace PlayerEditor
             var so = new SerializedObject(cameraController);
             so.FindProperty("target").objectReferenceValue = player.transform;
             so.FindProperty("cameraTransform").objectReferenceValue = cameraGo.transform;
-            so.FindProperty("collisionMask").intValue = ~(1 << playerLayer);
+            // Excludes both Player and Enemy from what can push the camera in: collision should
+            // only come from static level geometry (ground/walls), not other characters. Without
+            // the Enemy exclusion, any enemy standing between the pivot and the desired camera
+            // position (including circling around/behind it while swarming) would SphereCast-clip
+            // the camera in close, effectively letting enemies block your own view of yourself.
+            so.FindProperty("collisionMask").intValue = ~((1 << playerLayer) | (1 << enemyLayer));
             so.ApplyModifiedProperties();
 
             return (cameraController, camera);
         }
 
-        private static GameObject BuildProjectilePrefab()
-        {
-            EnsureFolder("Assets/Prefabs");
-
-            var temp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            temp.name = "Projectile";
-            temp.transform.localScale = Vector3.one * 0.25f;
-
-            Object.DestroyImmediate(temp.GetComponent<SphereCollider>());
-            var trigger = temp.AddComponent<SphereCollider>();
-            trigger.isTrigger = true;
-
-            temp.AddComponent<Projectile>();
-
-            var material = AssetDatabase.LoadAssetAtPath<Material>(ProjectileMaterialPath);
-            if (material != null)
-            {
-                temp.GetComponent<Renderer>().sharedMaterial = material;
-            }
-
-            var prefab = PrefabUtility.SaveAsPrefabAsset(temp, ProjectilePrefabPath);
-            Object.DestroyImmediate(temp);
-            return prefab;
-        }
-
         private static void BuildCombatAndEmotes(
             GameObject player,
             Animator animator,
-            GameObject projectilePrefab,
             Camera aimCamera,
             ThirdPersonCameraController cameraController,
             EmoteWheelUI wheelUi,
@@ -526,18 +639,15 @@ namespace PlayerEditor
             // just outside the collider still rendered the flash on/inside the character mesh.
             var muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(player.transform, false);
-            muzzle.localPosition = new Vector3(0.952f, 1.2f, 1.602f);
+            muzzle.localPosition = new Vector3(0.383f, 1.863f, 2.661f);
 
-            var characterController = player.GetComponent<CharacterController>();
             var playerController = player.GetComponent<PlayerController>();
 
             var combat = player.AddComponent<PlayerCombat>();
             var combatSo = new SerializedObject(combat);
             combatSo.FindProperty("animator").objectReferenceValue = animator;
             combatSo.FindProperty("muzzle").objectReferenceValue = muzzle;
-            combatSo.FindProperty("projectilePrefab").objectReferenceValue = projectilePrefab;
             combatSo.FindProperty("aimCamera").objectReferenceValue = aimCamera;
-            combatSo.FindProperty("ownCollider").objectReferenceValue = characterController;
             combatSo.FindProperty("aimMask").intValue = ~(1 << playerLayer);
             combatSo.ApplyModifiedProperties();
 
@@ -555,7 +665,7 @@ namespace PlayerEditor
             emotesSo.ApplyModifiedProperties();
         }
 
-        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi) BuildUI()
+        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi, HealthHudUI healthHudUi) BuildUI()
         {
             var canvasGo = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler));
             var canvas = canvasGo.GetComponent<Canvas>();
@@ -567,8 +677,71 @@ namespace PlayerEditor
 
             var crosshairUi = BuildCrosshair(canvasGo.transform);
             var wheelUi = BuildEmoteWheel(canvasGo.transform);
+            var healthHudUi = BuildHealthHud(canvasGo.transform);
 
-            return (wheelUi, crosshairUi);
+            return (wheelUi, crosshairUi, healthHudUi);
+        }
+
+        /// Segmented "energy cell" readout, built the same way as the emote wheel/crosshair -
+        /// generated UI rects, no external art - so a health bar doesn't require an extra asset
+        /// pack dependency. Anchored top-right per the game's HUD layout.
+        private static HealthHudUI BuildHealthHud(Transform parent)
+        {
+            const int segmentCount = 12;
+            const float segmentWidth = 16f;
+            const float segmentHeight = 16f;
+            const float segmentGap = 3f;
+            const float panelWidth = 260f;
+            const float panelHeight = 86f;
+            float rowWidth = segmentCount * segmentWidth + (segmentCount - 1) * segmentGap;
+
+            var topRight = new Vector2(1f, 1f);
+            var topLeft = new Vector2(0f, 1f);
+
+            var root = CreateUiRect("HealthHud", parent, new Vector2(panelWidth, panelHeight),
+                new Vector2(-24f, -24f), topRight);
+            var hud = root.gameObject.AddComponent<HealthHudUI>();
+
+            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, topRight);
+            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+
+            var labelRect = CreateUiRect("Label", root, new Vector2(panelWidth - 24f, 18f),
+                new Vector2(-12f, -10f), topRight);
+            var label = labelRect.gameObject.AddComponent<Text>();
+            label.text = "HULL INTEGRITY";
+            label.alignment = TextAnchor.MiddleRight;
+            label.color = new Color(0.75f, 0.92f, 1f);
+            label.fontSize = 13;
+            label.fontStyle = FontStyle.Bold;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.raycastTarget = false;
+
+            var rowRect = CreateUiRect("SegmentsRow", root, new Vector2(rowWidth, segmentHeight),
+                new Vector2(-12f, -32f), topRight);
+
+            var segments = new Image[segmentCount];
+            for (int i = 0; i < segmentCount; i++)
+            {
+                var segmentRect = CreateUiRect($"Segment_{i}", rowRect, new Vector2(segmentWidth, segmentHeight),
+                    new Vector2(i * (segmentWidth + segmentGap), 0f), topLeft);
+                var segmentImage = segmentRect.gameObject.AddComponent<Image>();
+                segmentImage.raycastTarget = false;
+                segments[i] = segmentImage;
+            }
+
+            var percentRect = CreateUiRect("Percent", root, new Vector2(panelWidth - 24f, 16f),
+                new Vector2(-12f, -52f), topRight);
+            var percentText = percentRect.gameObject.AddComponent<Text>();
+            percentText.alignment = TextAnchor.MiddleRight;
+            percentText.color = Color.white;
+            percentText.fontSize = 12;
+            percentText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            percentText.raycastTarget = false;
+
+            hud.SetSegments(segments);
+            hud.SetPercentText(percentText);
+
+            return hud;
         }
 
         private static CrosshairUI BuildCrosshair(Transform parent)
@@ -711,13 +884,19 @@ namespace PlayerEditor
 
         private static RectTransform CreateUiRect(string name, Transform parent, Vector2 size, Vector2 anchoredPosition)
         {
+            return CreateUiRect(name, parent, size, anchoredPosition, new Vector2(0.5f, 0.5f));
+        }
+
+        private static RectTransform CreateUiRect(
+            string name, Transform parent, Vector2 size, Vector2 anchoredPosition, Vector2 anchor)
+        {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
 
             var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = anchor;
             rect.sizeDelta = size;
             rect.anchoredPosition = anchoredPosition;
 

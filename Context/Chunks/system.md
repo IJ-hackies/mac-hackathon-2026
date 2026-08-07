@@ -2,9 +2,9 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, asset-library, unity-project, git-collaboration]
-verifiedAtCommit: 2c0429d60b09c157356997f9eb19681221a9e274
-lastVerified: 2026-08-07
+related: [control-model, asset-library, unity-project, git-collaboration, player-controller, player-combat, enemies]
+verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
+lastVerified: 2026-08-08
 ---
 
 ## What this is
@@ -27,6 +27,13 @@ and a full lap compact. Its current visual treatment is the pale, cratered
 silhouette and finished in a matte warm clay/ochre color over a separate
 spherical collider. The scene now has a procedural starfield and a visible sun
 whose world direction matches the planet's directional light source.
+
+A separate `Player.unity` prototype scene (not yet merged into the planet
+scene) now carries a working single-player third-person controller with
+melee/hitscan combat, health/death, and three fightable enemy AI types
+sharing a common damage system — see [player-controller](gameplay/
+player-controller.md), [player-combat](gameplay/player-combat.md), and
+[enemies](gameplay/enemies.md).
 
 ## Confirmed product invariants
 

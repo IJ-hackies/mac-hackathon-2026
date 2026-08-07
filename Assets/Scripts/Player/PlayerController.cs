@@ -70,14 +70,13 @@ namespace Player
             Vector2 moveInput = _actions.Player.Move.ReadValue<Vector2>();
             bool sprinting = _actions.Player.Sprint.IsPressed();
 
-            Vector3 moveDirection = CameraRelativeDirection(moveInput);
+            RotateTowardsCamera();
 
-            if (moveDirection.sqrMagnitude > 0.0001f)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-                transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, targetRotation, rotationDegreesPerSecond * Time.deltaTime);
-            }
+            // Facing is now locked to the camera (see RotateTowardsCamera), not to movement
+            // input, so this is a plain camera-relative direction: pressing "back" moves behind
+            // the character it's already facing instead of turning the character around to
+            // face wherever it's moving (that was the old Genshin-style behavior).
+            Vector3 moveDirection = CameraRelativeDirection(moveInput);
 
             float maxSpeed = sprinting ? sprintSpeed : walkSpeed;
             float targetHorizontalSpeed = maxSpeed * Mathf.Clamp01(moveInput.magnitude);
@@ -113,6 +112,23 @@ namespace Player
             }
 
             _jumpQueued = false;
+        }
+
+        // Character yaw always tracks the camera's yaw, whether or not there's move input -
+        // this is what makes movement direction (forward/back/strafe) read relative to where
+        // the player is looking, matching a standard third-person-shooter control scheme
+        // instead of the previous face-your-movement-direction model.
+        private void RotateTowardsCamera()
+        {
+            if (cameraReference == null) return;
+
+            Vector3 forward = cameraReference.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.0001f) return;
+
+            Quaternion targetRotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation, targetRotation, rotationDegreesPerSecond * Time.deltaTime);
         }
 
         private Vector3 CameraRelativeDirection(Vector2 input)

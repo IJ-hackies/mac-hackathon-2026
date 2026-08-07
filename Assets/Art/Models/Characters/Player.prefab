@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 4881924321977490226}
   - component: {fileID: 5645547821882719250}
   - component: {fileID: 5360215090925705334}
+  - component: {fileID: 2010552431361617059}
+  - component: {fileID: 5761124173556375376}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -111,20 +113,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCombat
   animator: {fileID: 1424160039300829942}
   muzzle: {fileID: 2898055706858903575}
-  projectilePrefab: {fileID: 4231920801888759421, guid: 7f81a812afd424c078e8d6b2fc166f43, type: 3}
   aimCamera: {fileID: 0}
-  ownCollider: {fileID: 3883685232175998377}
   meleeCooldown: 0.6
-  fireCooldown: 0.35
-  projectileSpeed: 30
+  meleeDamage: 20
+  meleeRange: 1.4
+  meleeRadius: 0.9
+  meleeHitDelay: 0.25
+  fireDamage: 15
+  shootBeatFraction: 0.5
   maxAimDistance: 100
   aimMask:
     serializedVersion: 2
     m_Bits: 4294967039
+  armsStopGrace: 0.3
   muzzleFlashDuration: 0.05
   muzzleFlashIntensity: 10
   muzzleFlashRange: 1.5
   muzzleFlashColor: {r: 0.15, g: 0.45, b: 1, a: 1}
+  tracerDuration: 0.05
+  tracerWidth: 0.03
+  tracerColor: {r: 0.4, g: 0.85, b: 1, a: 1}
 --- !u!114 &5360215090925705334
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -147,6 +155,34 @@ MonoBehaviour:
   yesClip: {fileID: -8174297497461417188, guid: bcf0a01bd46b940f798b144283b083f0, type: 3}
   noClip: {fileID: 380537578229758779, guid: bcf0a01bd46b940f798b144283b083f0, type: 3}
   wheelSensitivity: 0.012
+--- !u!114 &2010552431361617059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2772110908766861441}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45bf186f4f47e4dcc8b977fe5fbb25a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.Health
+  maxHealth: 100
+  animator: {fileID: 0}
+--- !u!114 &5761124173556375376
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2772110908766861441}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30cc8e4cc93dc4bb885f128eb8961520, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerDeathHandler
+  controller: {fileID: 0}
+  combat: {fileID: 0}
 --- !u!1 &4040120029771822334
 GameObject:
   m_ObjectHideFlags: 0
@@ -172,7 +208,7 @@ Transform:
   m_GameObject: {fileID: 4040120029771822334}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.952, y: 1.2, z: 1.602}
+  m_LocalPosition: {x: 0.383, y: 1.863, z: 2.661}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
