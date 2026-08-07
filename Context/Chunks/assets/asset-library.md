@@ -3,8 +3,8 @@ chunk: asset-library
 title: Audio and visual source asset packs
 owns:
   - "asset packs/**"
-related: [system]
-verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
+related: [system, runtime-art]
+verifiedAtCommit: a80a51fe877d37e45775ce047baf8b28caaddf41
 lastVerified: 2026-08-07
 ---
 
@@ -16,18 +16,19 @@ The repository currently carries five third-party source packs:
 - Visuals: Modular SciFi MegaKit Standard and Ultimate Space Kit.
 
 The library contains OGG audio plus source and interchange 3D formats including
-Blend, FBX, glTF, OBJ/MTL, textures, and preview images. These files are source
-material, not evidence of an established runtime import pipeline.
+Blend, FBX, glTF, OBJ/MTL, textures, and preview images. These files remain the
+vendor source library. Unity-ready copies and game-specific derivatives live in
+the project-owned runtime-art area documented separately.
 
 ## Invariants
 
 - Preserve every pack's license file alongside the source assets.
 - Check the applicable license before distributing raw or derived assets.
 - Do not edit vendor source files in place when creating game-specific
-  variants; place derived/runtime-ready assets in a separate project-owned
-  location once the engine and import layout are selected.
-- Do not assume every duplicated format should ship with the game. Choose the
-  canonical runtime format after selecting the engine.
+  variants; place derived/runtime-ready assets under `Assets/Art/`.
+- Do not ship every duplicated source representation. FBX is the default Unity
+  runtime format; retain OBJ, glTF, and Blend variants in the vendor source
+  library unless a specific asset requires otherwise.
 
 ## Gotchas
 

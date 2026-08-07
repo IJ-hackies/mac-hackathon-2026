@@ -2,29 +2,34 @@
 chunk: unity-project
 title: Unity project foundation
 owns:
-  - "MAC-gamejam/.vsconfig"
-  - "MAC-gamejam/Packages/**"
-  - "MAC-gamejam/ProjectSettings/**"
-  - "MAC-gamejam/Assets/InputSystem_Actions.inputactions*"
-  - "MAC-gamejam/Assets/Readme.asset*"
-  - "MAC-gamejam/Assets/Scenes.meta"
-  - "MAC-gamejam/Assets/Scenes/SampleScene.unity*"
-  - "MAC-gamejam/Assets/Settings.meta"
-  - "MAC-gamejam/Assets/Settings/**"
-  - "MAC-gamejam/Assets/TutorialInfo.meta"
-  - "MAC-gamejam/Assets/TutorialInfo/**"
-related: [system, control-model, git-collaboration]
-verifiedAtCommit: fe8fdaab6f46c2c16e89bea445042fdb31134a1d
+  - ".vsconfig"
+  - "Packages/**"
+  - "ProjectSettings/**"
+  - "Assets/InputSystem_Actions.inputactions*"
+  - "Assets/Readme.asset*"
+  - "Assets/Scenes.meta"
+  - "Assets/Scenes/*.unity*"
+  - "Assets/Settings.meta"
+  - "Assets/Settings/**"
+  - "Assets/TutorialInfo.meta"
+  - "Assets/TutorialInfo/**"
+related: [system, control-model, git-collaboration, runtime-art]
+verifiedAtCommit: a80a51fe877d37e45775ce047baf8b28caaddf41
 lastVerified: 2026-08-07
 ---
 
 ## What this is
 
-The full-3D game is initialized under `MAC-gamejam/` with Unity `6000.3.10f1`
-and the Universal Render Pipeline empty template. The project uses Universal
-Render Pipeline `17.3.0` and Input System `1.18.0`, and includes Unity's 3D
-physics module. The template's `Assets/Scenes/SampleScene.unity` is the only
-enabled build scene.
+The repository root is the Unity `6000.3.10f1` project root, initialized from
+the Universal Render Pipeline empty template. The project uses Universal Render
+Pipeline `17.3.0` and Input System `1.18.0`, and includes Unity's 3D physics
+module. `Assets/Scenes/SampleScene.unity` is the only enabled build scene and is
+the current prototype scene. Other top-level scenes may be used as sandboxes
+without implying build inclusion.
+
+The sample scene contains the template camera, directional light, and global
+volume plus a collidable `Ground` plane. The ground uses the Ultimate Space Kit
+palette through the project-owned solid-color `M_Ground` URP Lit material.
 
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
@@ -37,7 +42,8 @@ root `.gitignore`.
   single-player controls.
 - Target platforms, intentional package baseline, assembly layout, testing,
   and builds.
-- Whether to retain or remove the template readme, tutorial, and sample scene.
+- Whether to retain or remove the template readme and tutorial content, and
+  when to rename or replace the prototype sample scene.
 
 ## How to extend
 
