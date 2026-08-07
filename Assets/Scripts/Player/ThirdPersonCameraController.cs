@@ -11,7 +11,8 @@ namespace Player
                  "into the back of the character's head, keeping them pinned near screen center " +
                  "no matter how you pitch. Elevating the rig pushes the character into the lower " +
                  "part of the frame and opens up the space around the (fixed, center-screen) " +
-                 "crosshair.")]
+                 "crosshair. The offset is target-local, so its Y axis follows the player's " +
+                 "radial up direction around a spherical world.")]
         [SerializeField] private Vector3 targetOffset = new Vector3(0f, 2.3f, 0f);
 
         [Header("Orbit")]
@@ -43,13 +44,15 @@ namespace Player
         public bool InputSuspended;
 
         private InputSystem_Actions _actions;
-        private float _yaw;
         private float _pitch = 15f;
         private Vector3 _followVelocity;
         private Vector3 _shakeOffset;
         private float _shakeUntil = -1f;
         private float _shakeDuration;
         private float _shakeMagnitude;
+        private Vector3 _orbitForward;
+        private Vector3 _lastTargetUp;
+        private bool _orbitInitialized;
 
         private void Awake()
         {
@@ -74,12 +77,19 @@ namespace Player
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
-            _yaw = transform.eulerAngles.y;
+
+            if (target != null)
+            {
+                InitializeOrbit(target.up);
+            }
         }
 
         public void SetTarget(Transform newTarget)
         {
+            if (target == newTarget) return;
+
             target = newTarget;
+            _orbitInitialized = false;
         }
 
         // Lets a cutscene (BossFightController's Stage 1 -> Stage 2 transition) blend Camera.main
@@ -118,16 +128,36 @@ namespace Player
         {
             if (target == null || cameraTransform == null) return;
 
+            Vector3 targetUp = target.up.normalized;
+            if (!_orbitInitialized)
+            {
+                InitializeOrbit(targetUp);
+            }
+            else
+            {
+                // Carry the horizontal orbit direction across the changing tangent plane using
+                // the smallest rotation between consecutive radial-up vectors. In particular,
+                // target yaw never enters this calculation, so turning the character to face its
+                // movement direction cannot drag or snap the independently controlled camera.
+                Quaternion tangentTransport = Quaternion.FromToRotation(_lastTargetUp, targetUp);
+                _orbitForward = ProjectOntoTangent(tangentTransport * _orbitForward, targetUp);
+                _lastTargetUp = targetUp;
+            }
+
             if (!InputSuspended)
             {
                 Vector2 look = _actions.Player.Look.ReadValue<Vector2>();
-                _yaw += look.x * mouseSensitivity;
+                _orbitForward = ProjectOntoTangent(
+                    Quaternion.AngleAxis(look.x * mouseSensitivity, targetUp) * _orbitForward,
+                    targetUp);
                 _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity, minPitch, maxPitch);
             }
 
-            Vector3 desiredPosition = target.position + targetOffset;
+            Vector3 desiredPosition = target.position + target.TransformDirection(targetOffset);
             transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref _followVelocity, followSmoothTime);
-            transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+
+            Quaternion tangentFrame = Quaternion.LookRotation(_orbitForward, targetUp);
+            transform.rotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
 
             if (Time.time < _shakeUntil)
             {
@@ -149,6 +179,37 @@ namespace Player
 
             cameraTransform.localPosition = new Vector3(shoulderOffsetX, shoulderOffsetY, -clampedDistance);
             cameraTransform.localRotation = Quaternion.identity;
+        }
+
+        private void InitializeOrbit(Vector3 targetUp)
+        {
+            targetUp.Normalize();
+
+            Vector3 initialForward = Vector3.ProjectOnPlane(transform.forward, targetUp);
+            if (initialForward.sqrMagnitude < 0.000001f)
+            {
+                initialForward = Vector3.ProjectOnPlane(target.forward, targetUp);
+            }
+
+            _orbitForward = ProjectOntoTangent(initialForward, targetUp);
+            _lastTargetUp = targetUp;
+            _orbitInitialized = true;
+        }
+
+        private static Vector3 ProjectOntoTangent(Vector3 direction, Vector3 up)
+        {
+            Vector3 tangent = Vector3.ProjectOnPlane(direction, up);
+            if (tangent.sqrMagnitude >= 0.000001f)
+            {
+                return tangent.normalized;
+            }
+
+            // Only reachable for a degenerate initial orientation. Pick a deterministic axis
+            // that is not parallel to up so Quaternion.LookRotation always receives a basis.
+            Vector3 fallback = Mathf.Abs(Vector3.Dot(up, Vector3.forward)) < 0.99f
+                ? Vector3.forward
+                : Vector3.right;
+            return Vector3.ProjectOnPlane(fallback, up).normalized;
         }
     }
 }

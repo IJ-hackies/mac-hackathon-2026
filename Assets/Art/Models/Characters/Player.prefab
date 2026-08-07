@@ -58,13 +58,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 2
-  m_Radius: 0.35
+  m_Height: 2.55
+  m_Radius: 0.55
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 1, z: 0}
+  m_Center: {x: 0, y: 1.275, z: 0}
 --- !u!114 &8952502220684115085
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81,9 +81,21 @@ MonoBehaviour:
   sprintSpeed: 6.5
   acceleration: 18
   rotationDegreesPerSecond: 540
+  planetCenter: {fileID: 0}
+  radialAlignmentDegreesPerSecond: 360
   jumpHeight: 1.4
-  gravity: -18
-  groundedStickForce: -2
+  gravityAcceleration: 6.5
+  groundedStickSpeed: 2
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  groundProbeDistance: 0.35
+  groundProbeStartOffset: 0.1
+  groundProbeRadiusScale: 0.85
+  snapToGroundOnStart: 1
+  spawnRaycastOutwardOffset: 10
+  spawnRaycastDistance: 100
+  spawnSurfaceOffset: 0.02
   cameraReference: {fileID: 0}
   animator: {fileID: 0}
 --- !u!114 &4881924321977490226

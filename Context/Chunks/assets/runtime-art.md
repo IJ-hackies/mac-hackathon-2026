@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project, player-controller]
-verifiedAtCommit: 99146a500bb84fc2d74955cca7988e918c9092e2
+verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
 lastVerified: 2026-08-08
 ---
 
@@ -29,6 +29,9 @@ type and gameplay role rather than separated by vendor.
   visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
   geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
   5,496 render vertices after the authored UV seams are split.
+- `Prefabs/Planet.prefab` - reusable approximately 150-unit-radius planet
+  hierarchy. Its stable `Planet Ground` root contains the scaled shell, active
+  crater-matched `MeshCollider`, and disabled reference `SphereCollider`.
 - `Materials/M_PlanetCrateredMoon.mat` - matte warm clay/ochre URP Lit material
   used as the planet's clean base for later terrain layers. It deliberately
   does not sample the source palette atlas.
@@ -39,13 +42,13 @@ type and gameplay role rather than separated by vendor.
 - `Models/` - canonical FBX imports grouped into `Characters`, `Environment`,
   `Props`, and `Vehicles`, regardless of the source pack.
 - `Models/Characters/Astronaut_FinnTheFrog.fbx` - rigged playable-character
-  source (Ultimate Space Kit), imported with its baked animation takes.
-  Swapped for a version with additional takes since first import —
-  `Idle_Gun`/`Walk_Gun`/`Run_Gun` (gun-raised locomotion), `Idle_Shoot`/
-  `Jump_Shoot` (added later; `Run_Gun_Shoot` was already present) — plus
-  `Idle`/`Walk`/`Run`/`Jump`/`Jump_Idle`/`Jump_Land` and other unused takes.
-  See [player-controller](../gameplay/player-controller.md)/
-  [player-combat](../gameplay/player-combat.md).
+  source (Ultimate Space Kit), imported with its baked animation takes
+  (Idle, Walk, Run, Jump, Jump_Idle, Jump_Land, plus unused takes). See
+  [player-controller](../gameplay/player-controller.md).
+- `Models/Characters/Player.prefab` - gameplay-ready astronaut root with a
+  feet-origin `CharacterController` capsule (`height 2.55`, `radius 0.55`,
+  `center.y 1.275`) and radial-controller defaults. `PlayerRig.prefab` nests
+  this asset rather than duplicating its components.
 - `Materials/M_Astronaut.mat` - URP Lit material binding the shared
   `T_SpacePalette` texture directly (unlike `M_Ground`, this mesh's UVs
   sample the atlas rather than using a flat sampled color).
@@ -86,6 +89,8 @@ type and gameplay role rather than separated by vendor.
   out of the Unity project unless a concrete requirement justifies them.
 - Prefer one shared palette import over duplicating the same texture per model
   category.
+- Keep the planet prefab root named `Planet Ground`; the radial player
+  controller resolves that exact active scene name when no center is assigned.
 
 ## Gotchas
 
