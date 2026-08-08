@@ -7,3 +7,5 @@
 - [player-combat](player-combat.md) - player melee/hitscan combat, health, and death
 - [enemies](enemies.md) - three basic enemy AI/attack patterns and the shared player+enemy damage/health system
 - [boss-fight](boss-fight.md) - Barbara the Bee two-stage boss fight (Astronaut -> Mech)
+- [items](items.md) - Health/Ammo/Thunder power-up pickups and the ammo/reload system
+- [ultimate](ultimate.md) - Thunder-activated Mech mode, Dash/Shield abilities, secondary attacks

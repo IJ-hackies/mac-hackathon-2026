@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!319 &31900000
+AvatarMask:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: AM_MechUpperBody
+  m_Mask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+  m_Elements:
+  - m_Path: 
+    m_Weight: 1
+  - m_Path: FinnTheFrog
+    m_Weight: 1
+  - m_Path: RobotArmature
+    m_Weight: 1
+  - m_Path: RobotArmature/Body
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/PoleTarget.L
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/PoleTarget.L/PoleTarget.L_end
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/PoleTarget.R
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/PoleTarget.R/PoleTarget.R_end
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/Torso
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/Torso/Chest
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/Torso/Chest/Neck
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/Torso/Chest/Neck/Head
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/Torso/Chest/Neck/Head/Head_end
+    m_Weight: 1
+  - m_Path: RobotArmature/Body/UpperLeg.L
+    m_Weight: 0
+  - m_Path: RobotArmature/Body/UpperLeg.L/LowerLeg.L
+    m_Weight: 0
+  - m_Path: RobotArmature/Body/UpperLeg.L/LowerLeg.L/LowerLeg.L_end
+    m_Weight: 0
+  - m_Path: RobotArmature/Body/UpperLeg.R
+    m_Weight: 0
+  - m_Path: RobotArmature/Body/UpperLeg.R/LowerLeg.R
+    m_Weight: 0
+  - m_Path: RobotArmature/Body/UpperLeg.R/LowerLeg.R/LowerLeg.R_end
+    m_Weight: 0
+  - m_Path: RobotArmature/Foot.L
+    m_Weight: 0
+  - m_Path: RobotArmature/Foot.L/Foot.L_end
+    m_Weight: 0
+  - m_Path: RobotArmature/Foot.R
+    m_Weight: 0
+  - m_Path: RobotArmature/Foot.R/Foot.R_end
+    m_Weight: 0

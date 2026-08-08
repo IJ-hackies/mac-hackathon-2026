@@ -10,6 +10,7 @@ namespace Player
         [SerializeField] private Animator animator;
         [SerializeField] private PlayerController playerController;
         [SerializeField] private PlayerCombat playerCombat;
+        [SerializeField] private PlayerUltimate playerUltimate;
         [SerializeField] private ThirdPersonCameraController cameraController;
         [SerializeField] private EmoteWheelUI wheelUi;
         [SerializeField] private CrosshairUI crosshairUi;
@@ -18,6 +19,18 @@ namespace Player
         [SerializeField] private AnimationClip waveClip;
         [SerializeField] private AnimationClip yesClip;
         [SerializeField] private AnimationClip noClip;
+
+        [Header("Mech-only emote clips (own skeleton, own clip lengths)")]
+        [SerializeField] private AnimationClip mechWaveClip;
+        [SerializeField] private AnimationClip mechYesClip;
+        [SerializeField] private AnimationClip mechNoClip;
+        [Tooltip("Mech-only 4th wheel option ('Dance') - loops until interrupted (movement/" +
+                 "attack/re-selecting), unlike Wave/Yes/No which play once and return to Idle.")]
+        [SerializeField] private AnimationClip danceClip;
+
+        private static readonly string[] BaseLabels = { "Wave", "Yes", "No" };
+        private static readonly string[] MechLabels = { "Wave", "Yes", "No", "Dance" };
+        private const int DanceIndex = 3;
 
         [Tooltip("The wheel is driven by the same mouse-delta Look input the camera uses, " +
                  "accumulated into a virtual joystick direction while the wheel is held open " +
@@ -30,7 +43,8 @@ namespace Player
         private static readonly int PlayEmoteParam = Animator.StringToHash("PlayEmote");
 
         private InputSystem_Actions _actions;
-        private AnimationClip[] _clips;
+        private AnimationClip[] _baseClips;
+        private AnimationClip[] _mechClips;
         private Vector2 _wheelDirection;
         private bool _wheelOpen;
         private bool _isEmoting;
@@ -42,7 +56,23 @@ namespace Player
             if (animator == null) animator = GetComponentInChildren<Animator>();
             if (playerController == null) playerController = GetComponent<PlayerController>();
             if (playerCombat == null) playerCombat = GetComponent<PlayerCombat>();
-            _clips = new[] { waveClip, yesClip, noClip };
+            if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
+            _baseClips = new[] { waveClip, yesClip, noClip };
+            _mechClips = new[] { mechWaveClip, mechYesClip, mechNoClip, danceClip };
+        }
+
+        // Wave/Yes/No/Dance actually play via the Animator state machine (EmoteIndex + PlayEmote,
+        // built identically on both controllers) - this array only supplies clip.length for
+        // _emoteEndTime timing, so it has to match whichever skeleton/clip set is actually active
+        // or the "when does this finish" timer would use the wrong model's clip duration.
+        private AnimationClip[] ActiveClips =>
+            (playerUltimate != null && playerUltimate.IsActive) ? _mechClips : _baseClips;
+
+        // Called by PlayerUltimate on activate/end, mirroring PlayerCombat.SetAnimator - both
+        // controllers share the Emoting/EmoteIndex/PlayEmote param contract.
+        public void SetAnimator(Animator target)
+        {
+            animator = target;
         }
 
         private void OnEnable()
@@ -66,7 +96,12 @@ namespace Player
 
             if (cameraController != null) cameraController.InputSuspended = true;
             if (crosshairUi != null) crosshairUi.SetVisible(false);
-            if (wheelUi != null) wheelUi.Show();
+            if (wheelUi != null)
+            {
+                bool mech = playerUltimate != null && playerUltimate.IsActive;
+                wheelUi.Configure(mech ? MechLabels : BaseLabels);
+                wheelUi.Show();
+            }
         }
 
         private void OnWheelCanceled(InputAction.CallbackContext context)
@@ -87,16 +122,22 @@ namespace Player
 
         private void TriggerEmote(int index)
         {
-            if (_clips == null || index >= _clips.Length || _clips[index] == null)
+            AnimationClip[] clips = ActiveClips;
+            if (clips == null || index >= clips.Length || clips[index] == null)
             {
                 Debug.LogWarning($"PlayerEmoteController: no clip wired for emote index {index}; " +
-                                  "check the waveClip/yesClip/noClip references (rerun Build Test " +
-                                  "Scene if the FBX's clip lookup warned about a missing take).");
+                                  "check the waveClip/yesClip/noClip (or mech equivalents) " +
+                                  "references (rerun Build Test Scene if the FBX's clip lookup " +
+                                  "warned about a missing take).");
                 return;
             }
 
             _isEmoting = true;
-            _emoteEndTime = Time.time + _clips[index].length;
+            // Dance loops until interrupted (movement/attack/re-opening the wheel) rather than
+            // finishing on its own - see Update()'s interrupt check, which already applies to
+            // every emote; Dance just never reaches the natural "clip finished" branch since
+            // there's no end time to reach.
+            _emoteEndTime = index == DanceIndex ? float.PositiveInfinity : Time.time + clips[index].length;
 
             if (animator != null)
             {

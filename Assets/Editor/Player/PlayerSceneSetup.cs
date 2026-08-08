@@ -29,6 +29,32 @@ namespace PlayerEditor
         private const string PlayerLayerName = "Player";
         private const string EnemyLayerName = "Enemy";
 
+        private const string LanaVfxFolder = "Assets/Lana Studio/Casual RPG VFX/Prefabs/";
+        private const string PlayerProjectileVisualPath = LanaVfxFolder + "Range_attack/Projectiles_dark_magic.prefab";
+        private const string PlayerProjectileImpactPath = LanaVfxFolder + "Range_attack/Hit_dark_magic.prefab";
+        private const string MeleeHitEffectPath = LanaVfxFolder + "Slash/Hit_stone.prefab";
+        private const string StunVfxPath = LanaVfxFolder + "States/Stun.prefab";
+
+        // Ultimate (Mech mode) - electric machine guns, lightning-circle secondary, base-player
+        // beam-dot secondary, and the shield.
+        private const string VendorMechModelPath =
+            "asset packs/visuals/Ultimate Space Kit - March 2023/Characters/FBX/Mech_FinnTheFrog.fbx";
+        private const string MechModelPath = "Assets/Art/Models/Characters/Mech_FinnTheFrog.fbx";
+        // Shared by PlayerCombat.aimViewportY and BuildCrosshair - moved up from dead-center
+        // (0.5) so the crosshair/actual aim point open up more visible ground ahead instead of
+        // landing on the character/mech's own body. Keep these two wiring points in sync.
+        private const float CrosshairViewportY = 0.62f;
+        private const string MechMaterialPath = "Assets/Art/Materials/M_MechFinnTheFrog.mat";
+        private const string SpacePaletteTexturePath = "Assets/Art/Textures/T_SpacePalette.png";
+        private const string MechControllerPath = "Assets/Art/Animations/AC_PlayerMech.controller";
+        private const string MechUpperBodyMaskPath = "Assets/Art/Animations/AM_MechUpperBody.mask";
+        private const string ElectricProjectilePath = LanaVfxFolder + "Range_attack/Projectiles_electric.prefab";
+        private const string ElectricImpactPath = LanaVfxFolder + "Range_attack/Hit_electric.prefab";
+        private const string TopDownBeamDotPurplePath = LanaVfxFolder + "Top_down_attack/top_down_beam_dot_purple.prefab";
+        private const string TopDownLightningCircleBluePath = LanaVfxFolder + "Top_down_attack/top_down_lightning_circle_blue.prefab";
+        private const string ShieldElectricPath = LanaVfxFolder + "Shields/Shield_electric.prefab";
+        private const string DashVfxPath = LanaVfxFolder + "Burst/Poof_electric.prefab";
+
         // Walking plays Run_Gun_Shoot slowed (Arms_Shoot_Walk below) so its swing doesn't read as
         // an exaggerated wave against the much slower leg cycle; sprinting keeps it at full speed
         // (Arms_Shoot_Run). PlayerCombat.CheckShootBeat reads this state's playback live off the
@@ -37,10 +63,16 @@ namespace PlayerEditor
         // separately tuned rate.
         private const float WalkShootAnimSpeed = 0.6f;
 
-        // PlayerController normalizes Speed against sprintSpeed (walkSpeed / sprintSpeed = 3.5 /
-        // 6.5 =~ 0.538), so a walking player never exceeds ~0.54 and only sprinting reaches
-        // above it. Used to tell walking-while-shooting (slowed arm swing) apart from sprinting-
-        // while-shooting (full speed) on the Arms layer.
+        // Historical: PlayerController used to normalize Speed against sprintSpeed with a
+        // separate, slower walkSpeed tier (walkSpeed / sprintSpeed =~ 0.538), so a walking player
+        // stayed below this threshold and only sprinting crossed it - used to tell walking-while-
+        // shooting (slowed arm swing) apart from sprinting-while-shooting (full speed) on the
+        // Arms layer. The walk/sprint split was removed (single moveSpeed, "the character
+        // doesn't even walk") - keyboard input now jumps straight to normalizedSpeed 1 the
+        // instant the player moves, so Arms_Shoot_Walk/this threshold in practice only matters
+        // for analog gamepad stick input at partial magnitude. Left in place rather than ripped
+        // out, since the Arms_Shoot_Walk clip/states still exist and still work correctly for
+        // that case.
         private const float SprintSpeedThreshold = 0.55f;
 
         // Bone-name fragments (case-insensitive substring match) used to build the upper-body
@@ -85,7 +117,7 @@ namespace PlayerEditor
 
             GameObject player = BuildPlayer(model, controller, playerLayer);
             var (cameraController, mainCamera) = BuildCamera(player, playerLayer, enemyLayer);
-            var (wheelUi, crosshairUi, healthHudUi, hudCanvasGo) = BuildUI();
+            var (wheelUi, crosshairUi, healthHudUi, abilityHudUi, ultimateHudUi, ammoHudUi, hudCanvasGo) = BuildUI();
 
             Animator animator = player.GetComponentInChildren<Animator>();
             var sourceClips = ModelAnimationUtility.LoadSourceClips(model, out string modelPath);
@@ -97,7 +129,27 @@ namespace PlayerEditor
 
             Health playerHealth = player.AddComponent<Health>();
             player.AddComponent<PlayerDeathHandler>();
+            PlayerAmmo playerAmmo = player.AddComponent<PlayerAmmo>();
+
+            // Health/PlayerAnimatorRelay/PlayerEmoteController didn't exist yet when BuildUltimate
+            // wired PlayerUltimate's other references - finish wiring the animator-swap targets
+            // now that all of them exist.
+            var ultimateForWiring = player.GetComponent<PlayerUltimate>();
+            if (ultimateForWiring != null)
+            {
+                var ultimateSo2 = new SerializedObject(ultimateForWiring);
+                ultimateSo2.FindProperty("playerHealth").objectReferenceValue = playerHealth;
+                ultimateSo2.FindProperty("animatorRelay").objectReferenceValue = player.GetComponent<PlayerAnimatorRelay>();
+                ultimateSo2.FindProperty("emoteController").objectReferenceValue = player.GetComponent<PlayerEmoteController>();
+                ultimateSo2.FindProperty("playerAmmo").objectReferenceValue = playerAmmo;
+                ultimateSo2.ApplyModifiedProperties();
+            }
+
             healthHudUi.Bind(playerHealth);
+            abilityHudUi.Bind(player.GetComponent<PlayerDash>(), player.GetComponent<PlayerShield>(),
+                player.GetComponent<PlayerCombat>(), player.GetComponent<PlayerUltimate>());
+            ultimateHudUi.Bind(player.GetComponent<PlayerUltimate>());
+            ammoHudUi.Bind(playerAmmo);
 
             // Groups the player, its camera rig, and its HUD under one object so the whole setup
             // can be saved as a single prefab from the Hierarchy, rather than three separate root
@@ -846,6 +898,283 @@ namespace PlayerEditor
             controller.layers = layers;
         }
 
+        // Mech AnimatorController (Ultimate mode) - deliberately shares the astronaut
+        // controller's parameter/state-NAME contract (Speed, Grounded, Jump, Melee, FireStart,
+        // Firing, Emoting/EmoteIndex/PlayEmote, Death, an "Arms" layer with an "Arms_Idle" state)
+        // so PlayerController/PlayerCombat/PlayerAnimatorRelay/PlayerEmoteController/Health can
+        // just retarget which Animator they drive (see each's SetAnimator) on Ultimate activate/
+        // end and keep working unmodified - CheckShootBeat's ArmsIdleHash detection in particular
+        // relies on "Arms_Idle" hashing the same regardless of which controller it's read from.
+        // Simpler than the astronaut's controller: one Walk clip (no run tier), one Shoot_Small
+        // loop (no walk/run split), Shoot_Big as a one-shot Arms-layer overlay (not full-body, so
+        // legs keep walking/idling under it per spec), no HitReact/Stagger/Duck states (the mech
+        // FBX has no matching clips - SetTrigger on an undeclared param is a harmless no-op).
+        private static AnimatorController BuildMechAnimatorController(GameObject model)
+        {
+            EnsureFolder("Assets/Art/Animations");
+            if (AssetDatabase.LoadAssetAtPath<AnimatorController>(MechControllerPath) != null)
+            {
+                AssetDatabase.DeleteAsset(MechControllerPath);
+            }
+
+            var sourceClips = ModelAnimationUtility.LoadSourceClips(model, out string modelPath);
+            AnimationClip Get(string clipName) => ModelAnimationUtility.GetClip(sourceClips, modelPath, clipName);
+
+            AnimationClip idle = Get("Idle");
+            AnimationClip walk = Get("Walk");
+            AnimationClip jump = Get("Jump");
+            AnimationClip kick = Get("Kick");
+            AnimationClip death = Get("Death");
+            AnimationClip shootSmall = Get("Shoot_Small");
+            AnimationClip shootBig = Get("Shoot_Big");
+            // The Mech's own take is named "Hello", not "Wave" like the astronaut's (confirmed
+            // via the ModelAnimationUtility "no clip matching Wave" warning listing the model's
+            // actual clips) - still played through the shared "Emote_Wave" state/EmoteIndex 0.
+            AnimationClip wave = Get("Hello");
+            AnimationClip yes = Get("Yes");
+            AnimationClip no = Get("No");
+            AnimationClip dance = Get("Dance");
+            // Played for the duration of a stagger (e.g. BossMechAI's own ground-slam landing on
+            // the player) in place of the astronaut's "Duck" clip, which the mech doesn't have -
+            // "play the pickup animation for the mech for the duration it is stunned."
+            AnimationClip pickup = Get("Pickup");
+
+            var controller = AnimatorController.CreateAnimatorControllerAtPath(MechControllerPath);
+            controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+            controller.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Melee", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("FireStart", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Firing", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("ShootBig", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Emoting", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("EmoteIndex", AnimatorControllerParameterType.Int);
+            controller.AddParameter("PlayEmote", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Death", AnimatorControllerParameterType.Trigger);
+            // Same param name/hash PlayerController.Stagger() already fires on the astronaut
+            // controller (Animator.StringToHash("Stagger") is a plain string hash, not scoped to
+            // a specific controller instance) - declaring it here means Stagger() driving the
+            // Mech's animator "just works" with no PlayerController code changes, same as every
+            // other shared-name param in this controller.
+            controller.AddParameter("Stagger", AnimatorControllerParameterType.Trigger);
+
+            AnimatorStateMachine sm = controller.layers[0].stateMachine;
+            foreach (var childState in sm.states.ToList())
+            {
+                sm.RemoveState(childState.state);
+            }
+
+            var idleState = sm.AddState("Idle");
+            idleState.motion = idle;
+
+            var moveState = sm.AddState("Move");
+            moveState.motion = walk;
+
+            var jumpState = sm.AddState("Jump");
+            jumpState.motion = jump;
+
+            var kickState = sm.AddState("Kick");
+            kickState.motion = kick;
+
+            var emoteWaveState = sm.AddState("Emote_Wave");
+            emoteWaveState.motion = wave;
+
+            var emoteYesState = sm.AddState("Emote_Yes");
+            emoteYesState.motion = yes;
+
+            var emoteNoState = sm.AddState("Emote_No");
+            emoteNoState.motion = no;
+
+            var emoteDanceState = sm.AddState("Emote_Dance");
+            emoteDanceState.motion = dance;
+
+            var deathState = sm.AddState("Death");
+            deathState.motion = death;
+
+            var staggerState = sm.AddState("Stagger");
+            staggerState.motion = pickup;
+
+            sm.defaultState = idleState;
+
+            var idleToMove = idleState.AddTransition(moveState);
+            idleToMove.hasExitTime = false;
+            idleToMove.duration = 0.15f;
+            idleToMove.AddCondition(AnimatorConditionMode.Greater, 0.05f, "Speed");
+
+            var moveToIdle = moveState.AddTransition(idleState);
+            moveToIdle.hasExitTime = false;
+            moveToIdle.duration = 0.15f;
+            moveToIdle.AddCondition(AnimatorConditionMode.Less, 0.05f, "Speed");
+
+            // No separate fall/land clips (only one "Jump" clip provided) - one-shot from
+            // AnyState. Exiting used to be gated purely by exitTime (90% of the Jump clip's own,
+            // short, authored length), completely independent of whether the character had
+            // actually landed - since PlayerController's jump physics/airtime has nothing to do
+            // with the clip's length (especially after jumpHeight x3, which lengthens real
+            // airtime further), this made the mech visibly land/stand while still physically
+            // airborne. Exit is now gated on the same "Grounded" bool PlayerAnimatorRelay already
+            // drives every frame (mirroring the astronaut controller's Fall/Land pattern above),
+            // not exit-time - Mecanim holds on the Jump clip's last frame once it finishes playing
+            // (it's non-looping) rather than popping back to Idle, which reads fine as a "hang
+            // time" airborne pose until Grounded actually goes true.
+            var anyToJump = sm.AddAnyStateTransition(jumpState);
+            anyToJump.canTransitionToSelf = false;
+            anyToJump.hasExitTime = false;
+            anyToJump.duration = 0.05f;
+            anyToJump.AddCondition(AnimatorConditionMode.If, 0, "Jump");
+
+            var jumpToIdle = jumpState.AddTransition(idleState);
+            jumpToIdle.hasExitTime = false;
+            jumpToIdle.duration = 0.15f;
+            jumpToIdle.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            jumpToIdle.AddCondition(AnimatorConditionMode.Less, 0.05f, "Speed");
+
+            var jumpToMove = jumpState.AddTransition(moveState);
+            jumpToMove.hasExitTime = false;
+            jumpToMove.duration = 0.15f;
+            jumpToMove.AddCondition(AnimatorConditionMode.If, 0, "Grounded");
+            jumpToMove.AddCondition(AnimatorConditionMode.Greater, 0.05f, "Speed");
+
+            // Kick (melee): full-body one-shot, same AnyState/exitTime shape as the astronaut's
+            // Punch - a melee swing isn't expected to blend with locomotion the way shooting is.
+            var anyToKick = sm.AddAnyStateTransition(kickState);
+            anyToKick.canTransitionToSelf = false;
+            anyToKick.hasExitTime = false;
+            anyToKick.duration = 0.05f;
+            anyToKick.AddCondition(AnimatorConditionMode.If, 0, "Melee");
+
+            var kickToIdle = kickState.AddTransition(idleState);
+            kickToIdle.hasExitTime = true;
+            kickToIdle.exitTime = 0.9f;
+            kickToIdle.duration = 0.1f;
+
+            // Stagger (e.g. BossMechAI's ground-slam landing on the player): one-shot Pickup
+            // overlay, same AnyState/exitTime shape as Kick above. PlayerController.Stagger()
+            // already extends its own lock duration to at least the astronaut's Duck clip length
+            // when driving that controller; the Mech has no clip named "Duck" so that extension
+            // is a no-op here and the lock instead just uses the caller's raw duration - the
+            // Pickup clip is short enough that this reads fine without a matching extension.
+            var anyToStagger = sm.AddAnyStateTransition(staggerState);
+            anyToStagger.canTransitionToSelf = false;
+            anyToStagger.hasExitTime = false;
+            anyToStagger.duration = 0.05f;
+            anyToStagger.AddCondition(AnimatorConditionMode.If, 0, "Stagger");
+
+            var staggerToIdle = staggerState.AddTransition(idleState);
+            staggerToIdle.hasExitTime = true;
+            staggerToIdle.exitTime = 0.9f;
+            staggerToIdle.duration = 0.15f;
+
+            // Emotes: same PlayEmote+EmoteIndex-gated AnyState entry as the astronaut controller
+            // (see BuildAnimatorController's comment on why a Trigger, not the held Emoting bool,
+            // drives entry). Wave(0)/Yes(1)/No(2) finish naturally (exit-time) or on interrupt;
+            // Dance(3) has NO exit-time transition - it only ever leaves via the Emoting-false
+            // interrupt below, so it keeps looping (clip itself is also set to loop, see
+            // ConfigureAnimationLooping's "Dance" entry in BuildUltimate) until PlayerEmoteController
+            // clears Emoting (movement/attack/re-opening the wheel).
+            var emoteStates = new[] { emoteWaveState, emoteYesState, emoteNoState, emoteDanceState };
+            for (int i = 0; i < emoteStates.Length; i++)
+            {
+                var anyToEmote = sm.AddAnyStateTransition(emoteStates[i]);
+                anyToEmote.canTransitionToSelf = false;
+                anyToEmote.hasExitTime = false;
+                anyToEmote.duration = 0.15f;
+                anyToEmote.AddCondition(AnimatorConditionMode.If, 0, "PlayEmote");
+                anyToEmote.AddCondition(AnimatorConditionMode.Equals, i, "EmoteIndex");
+
+                bool isDance = emoteStates[i] == emoteDanceState;
+                if (!isDance)
+                {
+                    var emoteFinish = emoteStates[i].AddTransition(idleState);
+                    emoteFinish.hasExitTime = true;
+                    emoteFinish.exitTime = 0.95f;
+                    emoteFinish.duration = 0.15f;
+                }
+
+                var emoteInterrupt = emoteStates[i].AddTransition(idleState);
+                emoteInterrupt.hasExitTime = false;
+                emoteInterrupt.duration = 0.1f;
+                emoteInterrupt.AddCondition(AnimatorConditionMode.IfNot, 0, "Emoting");
+            }
+
+            // Death: terminal, no return transition - PlayerDeathHandler disables movement/combat
+            // input separately.
+            var anyToDeath = sm.AddAnyStateTransition(deathState);
+            anyToDeath.canTransitionToSelf = false;
+            anyToDeath.hasExitTime = false;
+            anyToDeath.duration = 0.05f;
+            anyToDeath.AddCondition(AnimatorConditionMode.If, 0, "Death");
+
+            BuildMechArmsLayer(controller, model, idle, shootSmall, shootBig);
+
+            EditorUtility.SetDirty(controller);
+            return controller;
+        }
+
+        // Upper-body-masked Arms layer, same Override/weight-toggle shape as the astronaut's
+        // BuildArmsLayer - Shoot_Small loops while Firing is held (entered once via FireStart,
+        // exited when Firing goes false, exactly the pattern CheckShootBeat's normalizedTime-
+        // crossing beat detection expects - "Arms_Idle" is named identically to the astronaut's
+        // so ArmsIdleHash matches on either controller). Shoot_Big is a one-shot AnyState overlay
+        // on this SAME layer (not the base layer) specifically so the legs keep playing Idle/Move
+        // underneath it while it plays - "top half using shooting animations" even while jumping/
+        // moving, per spec.
+        private static void BuildMechArmsLayer(
+            AnimatorController controller,
+            GameObject model,
+            AnimationClip idleClip,
+            AnimationClip shootSmallClip,
+            AnimationClip shootBigClip)
+        {
+            controller.AddLayer("Arms");
+            AnimatorControllerLayer[] layers = controller.layers;
+            AnimatorControllerLayer armsLayer = layers[layers.Length - 1];
+            armsLayer.blendingMode = AnimatorLayerBlendingMode.Override;
+            armsLayer.defaultWeight = 0f;
+            armsLayer.avatarMask = BuildUpperBodyMask(model, MechUpperBodyMaskPath);
+
+            AnimatorStateMachine armsSm = armsLayer.stateMachine;
+
+            var armsIdleState = armsSm.AddState("Arms_Idle");
+            armsIdleState.motion = idleClip;
+            armsSm.defaultState = armsIdleState;
+
+            var armsShootState = armsSm.AddState("Arms_Shoot_Small");
+            armsShootState.motion = shootSmallClip;
+
+            var armsShootBigState = armsSm.AddState("Arms_Shoot_Big");
+            armsShootBigState.motion = shootBigClip;
+            // Sped up 1.6x - the lightning-circle cast's actual damage timing (PlayerCombat.
+            // ultimateSecondaryTelegraphDelay) is already fast, but the full-length windup clip
+            // made the attack read as slower than it actually is.
+            armsShootBigState.speed = 1.6f;
+
+            var armsAnyToShoot = armsSm.AddAnyStateTransition(armsShootState);
+            armsAnyToShoot.canTransitionToSelf = false;
+            armsAnyToShoot.hasExitTime = false;
+            armsAnyToShoot.duration = 0.15f;
+            armsAnyToShoot.AddCondition(AnimatorConditionMode.If, 0, "FireStart");
+
+            var armsShootToIdle = armsShootState.AddTransition(armsIdleState);
+            armsShootToIdle.hasExitTime = false;
+            armsShootToIdle.duration = 0.15f;
+            armsShootToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Firing");
+
+            var armsAnyToShootBig = armsSm.AddAnyStateTransition(armsShootBigState);
+            armsAnyToShootBig.canTransitionToSelf = false;
+            armsAnyToShootBig.hasExitTime = false;
+            armsAnyToShootBig.duration = 0.1f;
+            armsAnyToShootBig.AddCondition(AnimatorConditionMode.If, 0, "ShootBig");
+
+            var armsShootBigToIdle = armsShootBigState.AddTransition(armsIdleState);
+            armsShootBigToIdle.hasExitTime = true;
+            armsShootBigToIdle.exitTime = 0.9f;
+            armsShootBigToIdle.duration = 0.15f;
+
+            layers[layers.Length - 1] = armsLayer;
+            controller.layers = layers;
+        }
+
         // Builds a transform-path AvatarMask limiting the Arms layer to upper-body bones, so its
         // Override blend only ever replaces arm/hand/spine poses and never touches the legs the
         // base layer is driving. Computed from the actual model hierarchy (by bone-name fragment,
@@ -853,9 +1182,17 @@ namespace PlayerEditor
         // avatar (not Humanoid) imported from Blender.
         private static AvatarMask BuildUpperBodyMask(GameObject model)
         {
-            if (AssetDatabase.LoadAssetAtPath<AvatarMask>(UpperBodyMaskPath) != null)
+            return BuildUpperBodyMask(model, UpperBodyMaskPath);
+        }
+
+        // Parametrized on assetPath so the Mech's own upper-body mask (MechUpperBodyMaskPath)
+        // doesn't overwrite the astronaut's (both call this same bone-name-fragment logic, just
+        // against different rigs/asset paths).
+        private static AvatarMask BuildUpperBodyMask(GameObject model, string assetPath)
+        {
+            if (AssetDatabase.LoadAssetAtPath<AvatarMask>(assetPath) != null)
             {
-                AssetDatabase.DeleteAsset(UpperBodyMaskPath);
+                AssetDatabase.DeleteAsset(assetPath);
             }
 
             var mask = new AvatarMask();
@@ -874,7 +1211,7 @@ namespace PlayerEditor
                 }
             }
 
-            AssetDatabase.CreateAsset(mask, UpperBodyMaskPath);
+            AssetDatabase.CreateAsset(mask, assetPath);
             return mask;
         }
 
@@ -1026,9 +1363,21 @@ namespace PlayerEditor
             Transform visualRoot = RequireDirectChild(player.transform, "VisualRoot");
             var muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(visualRoot, false);
-            muzzle.localPosition = new Vector3(0.383f, 1.863f, 2.661f);
+            muzzle.localPosition = new Vector3(0.0448f, 1.707f, 2.648f); // hand-tuned in Editor
+
+            // Above the head, roughly centered - not sourced from a humanoid bone (the rig is
+            // Generic, not Humanoid - see BuildArmsLayer), so authored the same way Muzzle is:
+            // a hand-picked local offset checked against the model in-editor.
+            var headAnchor = new GameObject("HeadAnchor").transform;
+            headAnchor.SetParent(visualRoot, false);
+            headAnchor.localPosition = new Vector3(0f, 2.15f, 0.1f);
 
             var playerController = player.GetComponent<PlayerController>();
+            var playerControllerSo = new SerializedObject(playerController);
+            playerControllerSo.FindProperty("headAnchor").objectReferenceValue = headAnchor;
+            playerControllerSo.FindProperty("stunVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(StunVfxPath);
+            playerControllerSo.ApplyModifiedProperties();
 
             var combat = player.AddComponent<PlayerCombat>();
             var combatSo = new SerializedObject(combat);
@@ -1036,19 +1385,42 @@ namespace PlayerEditor
             combatSo.FindProperty("muzzle").objectReferenceValue = muzzle;
             combatSo.FindProperty("aimCamera").objectReferenceValue = aimCamera;
             combatSo.FindProperty("aimMask").intValue = ~(1 << playerLayer);
+            // Moved up from dead-center (0.5) - a center-screen crosshair left too little visible
+            // ground ahead with the character/camera rig this tall. CrosshairViewportY (used to
+            // position the visual reticle in BuildCrosshair) must match this exactly.
+            combatSo.FindProperty("aimViewportY").floatValue = CrosshairViewportY;
+            combatSo.FindProperty("enemyHitMask").intValue = LayerMask.GetMask(EnemyLayerName);
             // Optional imported muzzle flash (Free Quick Effects Vol.1 - the Creepy Cat pack this
             // used to point at has been removed from the project). Null (pack not imported) falls
-            // back to PlayerCombat's own procedural light. The impact spark is left on
-            // PlayerCombat's own procedural burst deliberately - a full effects-pack burst read as
-            // out of place on a hitscan impact, so nothing is wired there.
+            // back to PlayerCombat's own procedural light.
             combatSo.FindProperty("muzzleFlashEffectPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GabrielAguiarProductions/FreeQuickEffectsVol1/Prefabs/vfx_MuzzleFlash_01.prefab");
-            // Same projectile visual the mech's own bullets use (Free Quick Effects Vol.1) - flown
-            // from muzzle to hit point as a cosmetic catch-up for the instant hitscan resolution,
-            // replacing the plain LineRenderer tracer. Null (pack not imported) falls back to it.
+            // The player's shot is now a real travelling, damage-dealing projectile (Lana Studio's
+            // dark-magic bolt) rather than a cosmetic catch-up for an instant hitscan - see
+            // PlayerCombat.FireProjectile/BossProjectile. Null falls back to the old tracer+
+            // instant-raycast behavior.
             combatSo.FindProperty("projectileVisualPrefab").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GabrielAguiarProductions/FreeQuickEffectsVol1/Prefabs/vfx_Projectile_01.prefab");
+                AssetDatabase.LoadAssetAtPath<GameObject>(PlayerProjectileVisualPath);
+            combatSo.FindProperty("impactEffectPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(PlayerProjectileImpactPath);
+            combatSo.FindProperty("meleeHitEffectPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(MeleeHitEffectPath);
+            combatSo.FindProperty("topDownBeamDotPurplePrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(TopDownBeamDotPurplePath);
+            combatSo.FindProperty("lightningCirclePrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(TopDownLightningCircleBluePath);
+            combatSo.FindProperty("electricProjectilePrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(ElectricProjectilePath);
+            combatSo.FindProperty("electricImpactPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(ElectricImpactPath);
+            // Lana Studio's Range_attack prefabs are authored travelling along local +Y, not the
+            // +Z BossProjectile's LookRotation aligns to the aim direction - without this the
+            // bolt rendered as a near-vertical column at the muzzle regardless of aim direction.
+            combatSo.FindProperty("projectileVisualRotationOffsetEuler").vector3Value = new Vector3(0f, 90f, 0f);
+            combatSo.FindProperty("electricProjectileRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
             combatSo.ApplyModifiedProperties();
+
+            BuildUltimate(player, visualRoot, animator.gameObject, playerLayer, combat, cameraController);
 
             var emotes = player.AddComponent<PlayerEmoteController>();
             var emotesSo = new SerializedObject(emotes);
@@ -1061,10 +1433,214 @@ namespace PlayerEditor
             emotesSo.FindProperty("waveClip").objectReferenceValue = waveClip;
             emotesSo.FindProperty("yesClip").objectReferenceValue = yesClip;
             emotesSo.FindProperty("noClip").objectReferenceValue = noClip;
+            emotesSo.FindProperty("playerUltimate").objectReferenceValue = player.GetComponent<PlayerUltimate>();
+
+            // Mech's own Wave/Yes/No/Dance clips (separate skeleton/clip lengths from the
+            // astronaut's) - only used for _emoteEndTime timing (see ActiveClips); the actual
+            // playback comes from the mech's own AnimatorController, built in BuildUltimate.
+            GameObject mechModelForClips = AssetDatabase.LoadAssetAtPath<GameObject>(MechModelPath);
+            if (mechModelForClips != null)
+            {
+                var mechClips = ModelAnimationUtility.LoadSourceClips(mechModelForClips, out string mechClipsPath);
+                AnimationClip MechGet(string n) => ModelAnimationUtility.GetClip(mechClips, mechClipsPath, n);
+                emotesSo.FindProperty("mechWaveClip").objectReferenceValue = MechGet("Hello"); // see BuildMechAnimatorController's comment
+                emotesSo.FindProperty("mechYesClip").objectReferenceValue = MechGet("Yes");
+                emotesSo.FindProperty("mechNoClip").objectReferenceValue = MechGet("No");
+                emotesSo.FindProperty("danceClip").objectReferenceValue = MechGet("Dance");
+            }
+
             emotesSo.ApplyModifiedProperties();
         }
 
-        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi, HealthHudUI healthHudUi, GameObject canvasGo) BuildUI()
+        // Builds the pre-built-but-inactive Mech visual (astronaut model stays the active one
+        // until PlayerUltimate toggles them) plus PlayerDash/PlayerShield/PlayerUltimate/
+        // PlayerAbilityInput. Mirrors ItemAssetSetup's "copy vendor FBX into Assets/Art on first
+        // use" pattern for the Mech model, in miniature.
+        // Mirrors EnemySceneSetup.CreateOrLoadPaletteMaterial - a fresh URP/Lit material bound to
+        // the shared T_SpacePalette atlas, cached at its own asset path rather than reusing
+        // M_Astronaut.mat (which rendered the mech solid white - see the call site's comment).
+        private static Material CreateOrLoadMechMaterial()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(MechMaterialPath);
+            if (existing != null) return existing;
+
+            EnsureFolder("Assets/Art/Materials");
+
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            var material = new Material(shader) { name = "M_MechFinnTheFrog" };
+
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(SpacePaletteTexturePath);
+            if (texture != null)
+            {
+                material.SetTexture("_BaseMap", texture);
+            }
+
+            AssetDatabase.CreateAsset(material, MechMaterialPath);
+            return material;
+        }
+
+        private static void BuildUltimate(GameObject player, Transform visualRoot,
+            GameObject astronautVisual, int playerLayer, PlayerCombat combat,
+            ThirdPersonCameraController cameraController)
+        {
+            GameObject mechModel = AssetDatabase.LoadAssetAtPath<GameObject>(MechModelPath);
+            if (mechModel == null)
+            {
+                // VendorMechModelPath lives under "asset packs/" - outside Assets/, so it isn't a
+                // Unity-tracked asset and AssetDatabase.CopyAsset can't touch it (that API only
+                // works between two paths already inside Assets/). Needs a raw filesystem copy
+                // resolved against the actual project root, then an explicit Refresh so Unity
+                // notices the new file - same pattern as ItemAssetSetup.CopyVendorModelsWhenMissing.
+                string projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+                if (!string.IsNullOrWhiteSpace(projectRoot))
+                {
+                    string source = Path.Combine(projectRoot, VendorMechModelPath.Replace('/', Path.DirectorySeparatorChar));
+                    string destination = Path.Combine(projectRoot, MechModelPath.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(source) && !File.Exists(destination))
+                    {
+                        EnsureFolder("Assets/Art/Models/Characters");
+                        File.Copy(source, destination, overwrite: false);
+                        AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                    }
+                }
+
+                mechModel = AssetDatabase.LoadAssetAtPath<GameObject>(MechModelPath);
+            }
+
+            GameObject mechInstance = null;
+            Transform mechMuzzleLeft = null;
+            Transform mechMuzzleRight = null;
+            Transform mechHeadAnchor = null;
+            Animator mechAnimator = null;
+
+            if (mechModel != null)
+            {
+                mechInstance = (GameObject)PrefabUtility.InstantiatePrefab(mechModel, visualRoot);
+                mechInstance.name = "MechVisual";
+                mechInstance.transform.localPosition = Vector3.zero;
+                mechInstance.transform.localRotation = Quaternion.identity;
+                foreach (Transform child in mechInstance.GetComponentsInChildren<Transform>(true))
+                {
+                    child.gameObject.layer = playerLayer;
+                }
+
+                // Hand-offset arm-cannon points, same convention as the astronaut's single
+                // Muzzle/HeadAnchor - no bone data to query on a Generic-rig import, nudge by eye
+                // in the Inspector if they don't line up once the model is visible. Spread wide
+                // (well past the mech's own body width) so the two bolts read as distinct twin
+                // cannons rather than firing from almost the same point.
+                mechMuzzleLeft = new GameObject("MechMuzzleLeft").transform;
+                mechMuzzleLeft.SetParent(mechInstance.transform, false);
+                mechMuzzleLeft.localPosition = new Vector3(-1.035f, 2.505f, 0.657f); // hand-tuned in Editor
+
+                mechMuzzleRight = new GameObject("MechMuzzleRight").transform;
+                mechMuzzleRight.SetParent(mechInstance.transform, false);
+                mechMuzzleRight.localPosition = new Vector3(1.026f, 2.478f, 0.582f); // hand-tuned in Editor
+
+                // Child of the mech (not VisualRoot) so it automatically inherits the mech's own
+                // localScale (mechScale, applied at ActivateUltimate time) - the Stun VFX placed
+                // here reads at the right size next to the bigger Mech with no extra scale math.
+                // Placeholder offset like the muzzles above - nudge by eye once visible.
+                mechHeadAnchor = new GameObject("MechHeadAnchor").transform;
+                mechHeadAnchor.SetParent(mechInstance.transform, false);
+                // Raised from 2f - the muzzles sit around Y~2.5 (see MechMuzzleLeft/Right, hand-
+                // tuned by the user), and the head/dome sits well above that, so 2f rendered the
+                // Stun VFX inside the mech's own body instead of above its head.
+                mechHeadAnchor.localPosition = new Vector3(0f, 3.6f, 0.2f);
+
+                // ConfigureAnimationLooping calls ModelImporter.SaveAndReimport() on the mech FBX -
+                // reimporting a Model asset re-syncs every existing scene instance of it back to
+                // the importer's own default material mapping ("Atlas"), silently discarding any
+                // renderer.sharedMaterial(s) assignment made *before* this point (confirmed: the
+                // material was correctly applied and logged, then reverted to Atlas by the time it
+                // was inspected - this reimport, which used to run after the material assignment,
+                // was why). Every FBX-reimport-triggering call (ConfigureAnimationLooping,
+                // BuildMechAnimatorController's own clip lookups don't reimport, only this one
+                // does) must run BEFORE the material fixup below, not after.
+                ModelAnimationUtility.ConfigureAnimationLooping(mechModel, new[] { "Idle", "Walk", "Dance" });
+                AnimatorController mechController = BuildMechAnimatorController(mechModel);
+                mechAnimator = mechInstance.GetComponent<Animator>();
+                if (mechAnimator == null) mechAnimator = mechInstance.AddComponent<Animator>();
+                mechAnimator.runtimeAnimatorController = mechController;
+                mechAnimator.applyRootMotion = false;
+
+                // Reusing M_Astronaut.mat rendered the mech solid white - that material's atlas
+                // binding assumes the astronaut's own UV layout, and the mech's completely
+                // different (Blender-baked) UVs sampled outside the intended region. Every other
+                // character in this project (enemies, bosses) instead gets its own dedicated
+                // material bound to the same shared T_SpacePalette atlas (see EnemySceneSetup.
+                // CreateOrLoadPaletteMaterial) - mirrored here rather than reusing the astronaut's.
+                // Runs LAST (after every FBX-reimport-triggering call above) so a reimport can't
+                // wipe it out again - see the comment above ConfigureAnimationLooping.
+                Material mechMaterial = CreateOrLoadMechMaterial();
+                if (mechMaterial != null)
+                {
+                    foreach (var renderer in mechInstance.GetComponentsInChildren<Renderer>(true))
+                    {
+                        // sharedMaterial only ever touches slot 0 - if this mesh has multiple
+                        // material slots (separate submeshes), the others silently kept whatever
+                        // the FBX importer's own extracted material was (often untextured/white).
+                        var slots = renderer.sharedMaterials;
+                        for (int i = 0; i < slots.Length; i++)
+                        {
+                            slots[i] = mechMaterial;
+                        }
+                        renderer.sharedMaterials = slots;
+                    }
+                }
+
+                mechInstance.SetActive(false);
+            }
+            else
+            {
+                Debug.LogWarning($"PlayerSceneSetup: no Mech model at {MechModelPath} (or vendor " +
+                                  $"source {VendorMechModelPath}) - Ultimate will have no mech visual.");
+            }
+
+            var combatSo = new SerializedObject(combat);
+            combatSo.FindProperty("mechMuzzleLeft").objectReferenceValue = mechMuzzleLeft;
+            combatSo.FindProperty("mechMuzzleRight").objectReferenceValue = mechMuzzleRight;
+            combatSo.ApplyModifiedProperties();
+
+            var dash = player.AddComponent<PlayerDash>();
+            var dashSo = new SerializedObject(dash);
+            dashSo.FindProperty("dashVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(DashVfxPath);
+            dashSo.ApplyModifiedProperties();
+
+            var shield = player.AddComponent<PlayerShield>();
+            var shieldSo = new SerializedObject(shield);
+            shieldSo.FindProperty("mechVisualRoot").objectReferenceValue = mechInstance != null ? mechInstance.transform : null;
+            shieldSo.FindProperty("shieldVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(ShieldElectricPath);
+            // Just large enough to wrap the 1.2x mech, not the oversized sphere it was before.
+            shieldSo.FindProperty("shieldVfxScale").floatValue = 0.9f;
+            shieldSo.ApplyModifiedProperties();
+
+            var ultimate = player.AddComponent<PlayerUltimate>();
+            var ultimateSo = new SerializedObject(ultimate);
+            ultimateSo.FindProperty("astronautVisualRoot").objectReferenceValue = astronautVisual;
+            ultimateSo.FindProperty("mechVisualRoot").objectReferenceValue = mechInstance;
+            ultimateSo.FindProperty("playerController").objectReferenceValue = player.GetComponent<PlayerController>();
+            ultimateSo.FindProperty("playerCombat").objectReferenceValue = combat;
+            ultimateSo.FindProperty("playerShield").objectReferenceValue = shield;
+            ultimateSo.FindProperty("cameraController").objectReferenceValue = cameraController;
+            ultimateSo.FindProperty("astronautAnimator").objectReferenceValue = astronautVisual.GetComponent<Animator>();
+            ultimateSo.FindProperty("mechAnimator").objectReferenceValue = mechAnimator;
+            ultimateSo.FindProperty("mechHeadAnchor").objectReferenceValue = mechHeadAnchor;
+            ultimateSo.ApplyModifiedProperties();
+
+            var abilityInput = player.AddComponent<PlayerAbilityInput>();
+            var abilityInputSo = new SerializedObject(abilityInput);
+            abilityInputSo.FindProperty("playerUltimate").objectReferenceValue = ultimate;
+            abilityInputSo.FindProperty("playerDash").objectReferenceValue = dash;
+            abilityInputSo.FindProperty("playerShield").objectReferenceValue = shield;
+            abilityInputSo.ApplyModifiedProperties();
+        }
+
+        private static (EmoteWheelUI wheelUi, CrosshairUI crosshairUi, HealthHudUI healthHudUi,
+            Player.UI.AbilityHudUI abilityHudUi, Player.UI.UltimateHudUI ultimateHudUi,
+            Player.UI.AmmoHudUI ammoHudUi, GameObject canvasGo) BuildUI()
         {
             var canvasGo = new GameObject("HUD Canvas", typeof(Canvas), typeof(CanvasScaler));
             var canvas = canvasGo.GetComponent<Canvas>();
@@ -1077,8 +1653,176 @@ namespace PlayerEditor
             var crosshairUi = BuildCrosshair(canvasGo.transform);
             var wheelUi = BuildEmoteWheel(canvasGo.transform);
             var healthHudUi = BuildHealthHud(canvasGo.transform);
+            var abilityHudUi = BuildAbilityHud(canvasGo.transform);
+            var ultimateHudUi = BuildUltimateHud(canvasGo.transform);
+            var ammoHudUi = BuildAmmoHud(canvasGo.transform);
 
-            return (wheelUi, crosshairUi, healthHudUi, canvasGo);
+            return (wheelUi, crosshairUi, healthHudUi, abilityHudUi, ultimateHudUi, ammoHudUi, canvasGo);
+        }
+
+        /// Bottom-right magazine/storage readout. Same generated-rect convention as
+        /// BuildHealthHud/BuildAbilityHud - the corner opposite Ability (bottom-left) and below
+        /// Health (top-right) so none of the HUD panels overlap.
+        private static Player.UI.AmmoHudUI BuildAmmoHud(Transform parent)
+        {
+            const float panelWidth = 220f;
+            const float panelHeight = 64f;
+            var bottomRight = new Vector2(1f, 0f);
+
+            var root = CreateUiRect("AmmoHud", parent, new Vector2(panelWidth, panelHeight),
+                new Vector2(-24f, 24f), bottomRight);
+            var hud = root.gameObject.AddComponent<Player.UI.AmmoHudUI>();
+
+            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, bottomRight);
+            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+
+            var ammoRect = CreateUiRect("AmmoText", root, new Vector2(panelWidth - 24f, 28f),
+                new Vector2(-12f, 26f), bottomRight);
+            var ammoText = ammoRect.gameObject.AddComponent<Text>();
+            ammoText.alignment = TextAnchor.MiddleRight;
+            ammoText.color = Color.white;
+            ammoText.fontSize = 22;
+            ammoText.fontStyle = FontStyle.Bold;
+            ammoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            ammoText.raycastTarget = false;
+            ammoText.text = "0 / 0";
+
+            var reloadingRect = CreateUiRect("ReloadingText", root, new Vector2(panelWidth - 24f, 16f),
+                new Vector2(-12f, 6f), bottomRight);
+            var reloadingText = reloadingRect.gameObject.AddComponent<Text>();
+            reloadingText.alignment = TextAnchor.MiddleRight;
+            reloadingText.color = new Color(1f, 0.6f, 0.2f);
+            reloadingText.fontSize = 13;
+            reloadingText.fontStyle = FontStyle.Bold;
+            reloadingText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            reloadingText.raycastTarget = false;
+            reloadingText.text = "RELOADING";
+            reloadingText.enabled = false;
+
+            hud.SetAmmoText(ammoText);
+            hud.SetReloadingText(reloadingText);
+
+            return hud;
+        }
+
+        /// Bottom-left ability cooldowns (Dash/Shield + secondary attack). Same generated-rect
+        /// convention as BuildHealthHud, anchored to the opposite corner.
+        private static Player.UI.AbilityHudUI BuildAbilityHud(Transform parent)
+        {
+            const float panelWidth = 220f;
+            const float panelHeight = 64f;
+            const float barHeight = 14f;
+
+            var bottomLeft = new Vector2(0f, 0f);
+
+            var root = CreateUiRect("AbilityHud", parent, new Vector2(panelWidth, panelHeight),
+                new Vector2(24f, 24f), bottomLeft);
+            var hud = root.gameObject.AddComponent<Player.UI.AbilityHudUI>();
+
+            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, bottomLeft);
+            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+
+            var (slotAFill, slotALabel) = BuildAbilitySlot(root, "SlotA", new Vector2(8f, panelHeight - 26f),
+                panelWidth - 16f, barHeight, "DASH", new Color(0.6f, 0.85f, 1f));
+            var (slotBFill, slotBLabel) = BuildAbilitySlot(root, "SlotB", new Vector2(8f, panelHeight - 26f - barHeight - 8f),
+                panelWidth - 16f, barHeight, "BEAM", new Color(0.75f, 0.5f, 1f));
+
+            hud.SetWidgets(slotAFill, slotALabel, slotBFill, slotBLabel);
+            return hud;
+        }
+
+        private static Sprite _solidSprite;
+
+        // Wraps Unity's built-in 1x1 white texture as a Sprite - Image.Type.Filled silently
+        // renders as an unclipped full rect when Image.sprite is null (the built-in white
+        // texture fallback a bare Image uses doesn't support fill clipping), so every filled
+        // progress-bar Image in this file needs an explicit sprite even though it's just a
+        // plain color. Cached/shared since it's the same tiny sprite everywhere it's used.
+        private static Sprite GetOrCreateSolidSprite()
+        {
+            if (_solidSprite != null) return _solidSprite;
+            var texture = Texture2D.whiteTexture;
+            _solidSprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+            return _solidSprite;
+        }
+
+        private static (Image fill, Text label) BuildAbilitySlot(Transform parent, string name,
+            Vector2 anchoredPosition, float width, float height, string labelText, Color fillColor)
+        {
+            var bottomLeft = new Vector2(0f, 0f);
+            var slotRect = CreateUiRect(name, parent, new Vector2(width, height), anchoredPosition, bottomLeft);
+
+            var track = CreateUiRect("Track", slotRect, new Vector2(width, height), Vector2.zero, bottomLeft);
+            track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+
+            var fillRect = CreateUiRect("Fill", slotRect, new Vector2(width, height), Vector2.zero, bottomLeft);
+            var fill = fillRect.gameObject.AddComponent<Image>();
+            fill.sprite = GetOrCreateSolidSprite(); // Image.Type.Filled needs a real sprite - a
+            // null sprite renders as a plain unclipped rect regardless of fillAmount, which is
+            // why these bars looked "always full" no matter what PlayerDash/PlayerShield/
+            // PlayerCombat's cooldown values actually were.
+            fill.color = fillColor;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillAmount = 1f;
+            fill.raycastTarget = false;
+
+            var labelRect = CreateUiRect("Label", slotRect, new Vector2(width - 8f, height), new Vector2(4f, 0f), bottomLeft);
+            var label = labelRect.gameObject.AddComponent<Text>();
+            label.text = labelText;
+            label.alignment = TextAnchor.MiddleLeft;
+            label.color = Color.white;
+            label.fontSize = 11;
+            label.fontStyle = FontStyle.Bold;
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.raycastTarget = false;
+
+            return (fill, label);
+        }
+
+        /// Top-left ultimate time-remaining bar, hidden unless PlayerUltimate.IsActive.
+        private static Player.UI.UltimateHudUI BuildUltimateHud(Transform parent)
+        {
+            const float panelWidth = 260f;
+            const float panelHeight = 36f;
+
+            var topLeft = new Vector2(0f, 1f);
+
+            // The UltimateHudUI component lives on this always-active host, separate from the
+            // "panel" GameObject it toggles - a component can't stay subscribed/updating once
+            // its own GameObject is deactivated, so the hideable visuals must be a child instead.
+            var host = CreateUiRect("UltimateHud", parent, new Vector2(panelWidth, panelHeight),
+                new Vector2(24f, -24f), topLeft);
+            var hud = host.gameObject.AddComponent<Player.UI.UltimateHudUI>();
+
+            var panel = CreateUiRect("Panel", host, new Vector2(panelWidth, panelHeight), Vector2.zero, topLeft);
+
+            var backdrop = CreateUiRect("Backdrop", panel, new Vector2(panelWidth, panelHeight), Vector2.zero, topLeft);
+            backdrop.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.03f, 0.08f, 0.6f);
+
+            var track = CreateUiRect("Track", panel, new Vector2(panelWidth - 16f, 12f), new Vector2(8f, -8f), topLeft);
+            track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+
+            var fillRect = CreateUiRect("Fill", panel, new Vector2(panelWidth - 16f, 12f), new Vector2(8f, -8f), topLeft);
+            var fill = fillRect.gameObject.AddComponent<Image>();
+            fill.sprite = GetOrCreateSolidSprite(); // see BuildAbilitySlot's comment on this
+            fill.color = new Color(0.85f, 0.4f, 1f);
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillAmount = 1f;
+            fill.raycastTarget = false;
+
+            var textRect = CreateUiRect("Time", panel, new Vector2(panelWidth - 16f, 16f), new Vector2(8f, -22f), topLeft);
+            var text = textRect.gameObject.AddComponent<Text>();
+            text.alignment = TextAnchor.MiddleLeft;
+            text.color = new Color(0.95f, 0.85f, 1f);
+            text.fontSize = 12;
+            text.fontStyle = FontStyle.Bold;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.raycastTarget = false;
+
+            hud.SetWidgets(panel.gameObject, fill, text);
+            return hud;
         }
 
         /// Segmented "energy cell" readout, built the same way as the emote wheel/crosshair -
@@ -1145,7 +1889,17 @@ namespace PlayerEditor
 
         private static CrosshairUI BuildCrosshair(Transform parent)
         {
-            var root = CreateUiRect("Crosshair", parent, new Vector2(24f, 24f), Vector2.zero);
+            // Anchor fraction (0.5, CrosshairViewportY), not a pixel offset from center - anchors
+            // are true fractions of the parent Canvas rect, so this lines up exactly with
+            // PlayerCombat.ComputeAimDirection's ViewportPointToRay(0.5, aimViewportY) regardless
+            // of the actual screen/game-view aspect ratio. The previous approach assumed a fixed
+            // 1920x1080 reference resolution pixel offset, which only mapped correctly onto real
+            // viewport fractions when the screen aspect happened to exactly match 16:9 - at
+            // aimViewportY 0.5 (dead-center) that assumption was invisible (offset was always 0
+            // either way), but moving the aim point off-center exposed it as the reticle visibly
+            // drifting from where shots actually went.
+            var crosshairAnchor = new Vector2(0.5f, CrosshairViewportY);
+            var root = CreateUiRect("Crosshair", parent, new Vector2(24f, 24f), Vector2.zero, crosshairAnchor);
             var canvasGroup = root.gameObject.AddComponent<CanvasGroup>();
             var crosshairUi = root.gameObject.AddComponent<CrosshairUI>();
 
@@ -1231,50 +1985,15 @@ namespace PlayerEditor
             backdrop.color = new Color(0f, 0f, 0f, 0.55f);
             backdrop.raycastTarget = false;
 
-            // Angle 0 = top, increasing clockwise, matching EmoteWheelUI's hover-angle math.
-            string[] labels = { "Wave", "Yes", "No" };
-            var slices = new Image[labels.Length];
-            float sliceDegrees = 360f / labels.Length;
-            const float labelRadius = 130f;
-
-            for (int i = 0; i < labels.Length; i++)
-            {
-                var sliceRect = CreateUiRect($"Slice_{labels[i]}", root, new Vector2(wheelSize, wheelSize), Vector2.zero);
-                sliceRect.localRotation = Quaternion.Euler(0f, 0f, -(i * sliceDegrees));
-
-                var slice = sliceRect.gameObject.AddComponent<Image>();
-                slice.sprite = ringSprite;
-                slice.type = Image.Type.Filled;
-                slice.fillMethod = Image.FillMethod.Radial360;
-                slice.fillOrigin = (int)Image.Origin360.Top;
-                slice.fillClockwise = true;
-                slice.fillAmount = 1f / labels.Length;
-                slice.raycastTarget = false;
-                slices[i] = slice;
-
-                float midAngle = (i + 0.5f) * sliceDegrees * Mathf.Deg2Rad;
-                var labelPos = new Vector2(Mathf.Sin(midAngle) * labelRadius, Mathf.Cos(midAngle) * labelRadius);
-                var labelRect = CreateUiRect($"Label_{labels[i]}", root, new Vector2(100f, 30f), labelPos);
-
-                var text = labelRect.gameObject.AddComponent<Text>();
-                text.text = labels[i];
-                text.alignment = TextAnchor.MiddleCenter;
-                text.color = Color.white;
-                text.fontSize = 16;
-                text.fontStyle = FontStyle.Bold;
-                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                text.raycastTarget = false;
-            }
-
             var so = new SerializedObject(wheelUi);
             so.FindProperty("root").objectReferenceValue = root;
-            var slicesProp = so.FindProperty("slices");
-            slicesProp.arraySize = slices.Length;
-            for (int i = 0; i < slices.Length; i++)
-            {
-                slicesProp.GetArrayElementAtIndex(i).objectReferenceValue = slices[i];
-            }
+            so.FindProperty("ringSprite").objectReferenceValue = ringSprite;
             so.ApplyModifiedProperties();
+
+            // Builds the default 3-wedge (Wave/Yes/No) layout via the same runtime Configure path
+            // PlayerEmoteController uses to switch to the Mech's 4-wedge (+Dance) layout - see
+            // EmoteWheelUI.Configure. Angle 0 = top, increasing clockwise.
+            wheelUi.Configure(new[] { "Wave", "Yes", "No" });
 
             root.gameObject.SetActive(false);
 

@@ -1,19 +1,23 @@
 using System.Collections;
+using Combat;
 using Player;
 using UnityEngine;
+using Vfx;
 
 namespace Enemies
 {
     /// Boss Stage 2: the mech form. Wanders within [minRange, maxRange] of the player (movement
     /// direction is independent of the player's position - only the distance band matters, per
     /// spec) while facing/aiming at the player, and works through a *fixed* round-robin attack
-    /// rotation (Dance -> Shoot_Small -> Jump -> Shoot_Big -> repeat) - deliberately predictable,
-    /// the mirror image of BossAstronautAI's weighted-random pool, so "the player can understand
-    /// and counter" per spec.
+    /// rotation (TopDownBeam -> ShootSmall -> Jump -> ShootBig -> TopDownRocket -> ShootSmall ->
+    /// Jump -> ShootBig -> repeat) - deliberately predictable, the mirror image of
+    /// BossAstronautAI's weighted-random pool, so "the player can understand and counter" per
+    /// spec. The two top-down ground-target attacks (Lana Studio's top_down_beam_line_blue /
+    /// top_down_rocket_circle_red) replaced the old Dance homing-fireball attack entirely.
     [RequireComponent(typeof(CharacterController))]
     public class BossMechAI : EnemyBase
     {
-        private enum AttackKind { Dance, ShootSmall, Jump, ShootBig }
+        private enum AttackKind { TopDownBeam, ShootSmall, Jump, ShootBig, TopDownRocket }
 
         [Header("Movement")]
         // Tightened from 5/12 - "move less by being in range with the player more": a narrower
@@ -34,27 +38,23 @@ namespace Enemies
         // Shortened from 1.2 - "attacking in general needs to be more frequent."
         [SerializeField] private float postAttackGap = 0.35f;
 
-        [Header("Dance - Homing Fireballs")]
-        [Tooltip("Fireballs spawn at a random point on a ring around the mech at this radius " +
-                 "(scaled by the mech's own lossyScale), rather than always from one fixed muzzle " +
-                 "- reads as the mech surrounding itself with fire while dancing.")]
-        [SerializeField] private float fireballSpawnRadius = 2.5f;
-        [SerializeField] private float fireballSpawnHeight = 1.5f;
-        [SerializeField] private float danceDuration = 3.2f;
-        [SerializeField] private float fireballInterval = 0.5f;
-        [SerializeField] private float fireballSpeed = 7f;
-        [SerializeField] private float fireballDamage = 8f;
-        [SerializeField] private float fireballLifetime = 2.5f;
-        [Tooltip("Beyond this distance from the player, a fireball flies straight instead of " +
-                 "steering - moving far enough away is a valid way to dodge it.")]
-        [SerializeField] private float fireballHomingRange = 9f;
-        [SerializeField] private float fireballTurnDegreesPerSecond = 70f;
-        [SerializeField] private Color fireballColor = new Color(1f, 0.45f, 0.1f);
-        [Tooltip("How many fireballs launch from each portal, one shortly after another.")]
-        [SerializeField] private int fireballsPerPortal = 2;
-        [SerializeField] private float fireballLaunchStagger = 0.1f;
+        [Header("Top-Down Ground-Target Attacks")]
+        [Tooltip("Ground-targets the player's position at the moment the attack starts, shows " +
+                 "the imported prefab's own telegraph (shot_controller) for this long before the " +
+                 "hit visual (hit_controller) and damage land - extended well past the pack's " +
+                 "authored controller length so the windup reads as a fair dodge window.")]
+        [SerializeField] private float topDownTelegraphDelay = 2f;
+        [SerializeField] private float topDownDamage = 18f;
+        [SerializeField] private float topDownHitRadius = 2.2f;
+        [Tooltip("How long the hit visual is left alive after damage lands before being cleaned " +
+                 "up, on top of whatever its own particle systems' authored duration is.")]
+        [SerializeField] private float topDownVfxLingerAfterHit = 1.5f;
+        [Tooltip("Lana Studio's top_down_beam_line_blue.prefab.")]
+        [SerializeField] private GameObject topDownBeamPrefab;
+        [Tooltip("Lana Studio's top_down_rocket_circle_red.prefab.")]
+        [SerializeField] private GameObject topDownRocketPrefab;
 
-        [Header("Shoot Small - Fast Bullet")]
+        [Header("Shoot Small - Fast Light Bolts")]
         [Tooltip("Gun muzzle points, one per arm cannon - bullets alternate left/right per shot " +
                  "in the burst, like an actual machine gun, instead of all firing from one point. " +
                  "Both default to the mech's own root transform if left unassigned.")]
@@ -62,25 +62,29 @@ namespace Enemies
         [SerializeField] private Transform firePointRight;
         [SerializeField] private float shootSmallDelay = 0.4f;
         [Tooltip("Bullets fire as a burst (this many, one bulletBurstInterval apart) each time " +
-                 "the round-robin lands on Shoot_Small - firerate (burstInterval) stays the same, " +
-                 "this just controls how long the mech keeps firing each time it's its turn.")]
-        [SerializeField] private int bulletBurstCount = 55;
-        [SerializeField] private float bulletBurstInterval = 0.08f;
-        [SerializeField] private float bulletSpeed = 22f;
-        [SerializeField] private float bulletDamage = 9f;
+                 "the round-robin lands on Shoot_Small - reskinned to Projectiles_light: a higher " +
+                 "fire rate (short burstInterval) and a longer burst (high burstCount) than the " +
+                 "Shoot_Big/magic burst below, per spec (\"faster... higher fire rate and a " +
+                 "longer shooting\").")]
+        [SerializeField] private int bulletBurstCount = 80;
+        [SerializeField] private float bulletBurstInterval = 0.05f;
+        [SerializeField] private float bulletSpeed = 26f;
+        [SerializeField] private float bulletDamage = 6f;
         [SerializeField] private float bulletLifetime = 4f;
-        [SerializeField] private Color bulletColor = new Color(0.3f, 0.9f, 1f);
+        [SerializeField] private Color bulletColor = new Color(1f, 0.95f, 0.6f);
 
-        [Header("Shoot Big - Slow Missile")]
+        [Header("Shoot Big - Slow Magic Bolts")]
         [SerializeField] private float shootBigDelay = 0.6f;
-        [Tooltip("Missiles fire as a burst too, just fewer/slower-spaced than bullets given their " +
-                 "higher damage.")]
-        [SerializeField] private int missileBurstCount = 3;
-        [SerializeField] private float missileBurstInterval = 0.35f;
-        [SerializeField] private float missileSpeed = 9f;
-        [SerializeField] private float missileDamage = 24f;
+        [Tooltip("Reskinned to Projectiles_magic: a lower fire rate (long burstInterval) and " +
+                 "higher per-shot damage than Shoot_Small/light, but still a long burst overall " +
+                 "(burstCount raised) per spec (\"lower fire rate, deal more damage, but also " +
+                 "shoot for quite long\").")]
+        [SerializeField] private int missileBurstCount = 9;
+        [SerializeField] private float missileBurstInterval = 0.5f;
+        [SerializeField] private float missileSpeed = 11f;
+        [SerializeField] private float missileDamage = 16f;
         [SerializeField] private float missileLifetime = 6f;
-        [SerializeField] private Color missileColor = new Color(1f, 0.15f, 0.1f);
+        [SerializeField] private Color missileColor = new Color(0.7f, 0.3f, 1f);
 
         [Header("Jump - Ground Slam")]
         [SerializeField] private float jumpAscendDuration = 0.6f;
@@ -90,37 +94,37 @@ namespace Enemies
         [SerializeField] private float shakeDuration = 0.5f;
         [SerializeField] private float shakeMagnitude = 0.35f;
 
-        [Header("Visual Assets (Gabriel Aguiar's Free Quick Effects Vol.1 - optional)")]
-        [Tooltip("vfx_Projectile_01 - the fast bullet's own visual. Null falls back to the " +
+        [Header("Visual Assets (Lana Studio's Casual RPG VFX - optional)")]
+        [Tooltip("Projectiles_light - Shoot_Small's own visual. Null falls back to the " +
                  "procedural streak.")]
         [SerializeField] private GameObject bulletVisualPrefab;
-        [SerializeField] private float bulletVisualScale = 0.7f;
-        [Tooltip("Same family, scaled up - \"a slightly bigger projectile compared to the " +
-                 "bullet\" rather than a dedicated missile model/mesh.")]
+        [SerializeField] private float bulletVisualScale = 0.5f;
+        // Lana Studio's Range_attack prefabs are authored travelling along local +Y, not +Z -
+        // see BossAstronautAI.rangedProjectileRotationOffset for the full explanation.
+        [SerializeField] private Quaternion bulletVisualRotationOffset = Quaternion.Euler(0f, 90f, 0f);
+        [Tooltip("Projectiles_magic - Shoot_Big's own visual.")]
         [SerializeField] private GameObject bigProjectileVisualPrefab;
-        [SerializeField] private float bigProjectileVisualScale = 1f;
-        [Tooltip("Explosion/impact burst played at the hit point when a bullet/big projectile/ " +
-                 "fireball connects. Null = no impact effect.")]
+        [SerializeField] private float bigProjectileVisualScale = 0.6f;
+        [SerializeField] private Quaternion bigProjectileVisualRotationOffset = Quaternion.Euler(0f, 90f, 0f);
+        [Tooltip("Impact burst played at the hit point when a bullet/big projectile connects " +
+                 "(Hit_light for Shoot_Small, a separate hit is applied for Shoot_Big below via " +
+                 "ImpactEffectScale doubling - see SpawnProjectile). Null = no impact effect.")]
         [SerializeField] private GameObject impactEffectPrefab;
         [SerializeField] private float impactEffectScale = 1f;
-        [Tooltip("A short burst (e.g. vfx_Flames_01) played at the spawn ring point before each " +
-                 "fireball actually launches - the \"conjuring\" windup - then destroyed early/" +
-                 "cut short rather than played to completion.")]
-        [SerializeField] private GameObject fireballConjureEffectPrefab;
-        [SerializeField] private float fireballConjureDuration = 0.4f;
-        [SerializeField] private float fireballConjureEffectScale = 1.3f;
-        [Tooltip("The fireball's own in-flight visual (e.g. vfx_Flamethrower_01/vfx_Flames_01) " +
-                 "instead of the procedural glow+embers. Null falls back to procedural.")]
-        [SerializeField] private GameObject fireballLoopEffectPrefab;
-        [SerializeField] private float fireballLoopEffectScale = 1.1f;
+        [SerializeField] private GameObject bigProjectileImpactEffectPrefab;
 
+        // Fixed/predictable, per spec - the two top-down variants alternate by recurring twice in
+        // this array rather than by any runtime coin-flip, so the whole 8-step cycle is still a
+        // deterministic rotation like the rest of the mech's attacks.
         private static readonly AttackKind[] AttackOrder =
         {
-            AttackKind.Dance, AttackKind.ShootSmall, AttackKind.Jump, AttackKind.ShootBig,
+            AttackKind.TopDownBeam, AttackKind.ShootSmall, AttackKind.Jump, AttackKind.ShootBig,
+            AttackKind.TopDownRocket, AttackKind.ShootSmall, AttackKind.Jump, AttackKind.ShootBig,
         };
 
         private static readonly int SpeedParam = Animator.StringToHash("Speed");
-        private static readonly int DanceParam = Animator.StringToHash("Dance");
+        private static readonly int TopDownBeamParam = Animator.StringToHash("TopDownBeam");
+        private static readonly int TopDownRocketParam = Animator.StringToHash("TopDownRocket");
         private static readonly int ShootSmallParam = Animator.StringToHash("ShootSmall");
         private static readonly int ShootBigParam = Animator.StringToHash("ShootBig");
         private static readonly int JumpParam = Animator.StringToHash("Jump");
@@ -165,7 +169,6 @@ namespace Enemies
 
         protected override void HandleDeath()
         {
-            animator.SetBool(DanceParam, false);
             animator.SetFloat(SpeedParam, 0f);
             base.HandleDeath();
         }
@@ -257,8 +260,11 @@ namespace Enemies
 
             switch (kind)
             {
-                case AttackKind.Dance:
-                    yield return DanceAttack();
+                case AttackKind.TopDownBeam:
+                    yield return TopDownAttack(TopDownBeamParam, topDownBeamPrefab);
+                    break;
+                case AttackKind.TopDownRocket:
+                    yield return TopDownAttack(TopDownRocketParam, topDownRocketPrefab);
                     break;
                 case AttackKind.ShootSmall:
                     yield return ShootAttack(ShootSmallParam, shootSmallDelay, bulletSpeed, bulletDamage,
@@ -278,92 +284,31 @@ namespace Enemies
             _attackReadyTime = Time.time;
         }
 
-        private IEnumerator DanceAttack()
+        // Ground-targets the player's position at cast time, shows the imported prefab's own
+        // telegraph (its shot_controller child - a ground marker/ring/dot, per the pack's
+        // convention) for topDownTelegraphDelay, then reveals the hit visual (hit_controller) and
+        // applies damage if the player is still standing in the marked area. Neither controller
+        // has a baked-in delay (both are active with startDelay 0 in the source prefab), so the
+        // telegraph -> impact sequencing is entirely driven here, not by the prefab itself.
+        private IEnumerator TopDownAttack(int triggerParam, GameObject vfxPrefab)
         {
-            animator.SetBool(DanceParam, true);
+            animator.SetTrigger(triggerParam);
 
-            float elapsed = 0f;
-            while (elapsed < danceDuration)
-            {
-                // Fire-and-forget per tick (not yield-blocking DanceAttack's own loop) so the
-                // conjure windup on one fireball overlaps the next tick instead of stalling the
-                // whole stream - "dancing while these fireballs are spawning and shooting."
-                StartCoroutine(ConjureAndFireFromRing());
-                yield return new WaitForSeconds(fireballInterval);
-                elapsed += fireballInterval;
-            }
-
-            animator.SetBool(DanceParam, false);
-        }
-
-        // Random point on a ring around the mech, biased to the hemisphere already facing the
-        // player (+-80 degrees of the player direction) rather than a full 360 degree pick - a
-        // spawn point on the far side would otherwise need to curve its whole travel path around
-        // (and visually through) the mech's own body before it could ever head toward the player,
-        // which is what read as the fireballs "moving weirdly." Plays a brief conjure burst at the
-        // ring point before actually launching the fireball, per spec.
-        private IEnumerator ConjureAndFireFromRing()
-        {
             if (player == null) yield break;
 
-            Vector3 towardPlayer = player.position - transform.position;
-            towardPlayer.y = 0f;
-            Vector3 forward = towardPlayer.sqrMagnitude > 0.01f ? towardPlayer.normalized : transform.forward;
+            Vector3 groundPoint = player.position;
+            groundPoint.y = transform.position.y;
 
-            float angle = Random.Range(-80f, 80f);
-            Vector3 ringDirection = Quaternion.Euler(0f, angle, 0f) * forward;
-
-            float scale = Mathf.Max(transform.lossyScale.x, transform.lossyScale.z);
-            Vector3 origin = transform.position
-                + ringDirection * (fireballSpawnRadius * scale)
-                + Vector3.up * (fireballSpawnHeight * transform.lossyScale.y);
-
-            if (fireballConjureEffectPrefab != null)
-            {
-                // Oriented to face the player (its "through" axis pointed down the line the
-                // fireball is about to travel) so the portal reads as a disc the fireball emerges
-                // from, not a ring lying flat/edge-on to the direction of travel.
-                Vector3 towardPlayerAim = (player.position + Vector3.up - origin).normalized;
-                var conjure = Instantiate(fireballConjureEffectPrefab, origin,
-                    Quaternion.LookRotation(towardPlayerAim, Vector3.up));
-                Vfx.ImportedVfxUtility.FixUrpMaterials(conjure);
-                Vfx.ImportedVfxUtility.ForceHierarchyParticleScaling(conjure);
-                conjure.transform.localScale = Vector3.one * fireballConjureEffectScale;
-                Destroy(conjure, fireballConjureDuration + 1f);
-            }
-
-            // Windup beat always happens (even without a conjure effect assigned) so the "conjure
-            // then launch" rhythm/timing reads the same regardless of which visual is wired.
-            yield return new WaitForSeconds(fireballConjureDuration);
-            if (isDead) yield break;
-
-            // Multiple fireballs out of the same portal, a beat apart rather than perfectly
-            // simultaneous - reads as a rapid volley from one conjured portal instead of a single
-            // shot.
-            for (int i = 0; i < fireballsPerPortal; i++)
-            {
-                if (isDead || player == null) yield break;
-                LaunchFireball(origin);
-                if (i < fireballsPerPortal - 1) yield return new WaitForSeconds(fireballLaunchStagger);
-            }
-        }
-
-        private void LaunchFireball(Vector3 origin)
-        {
-            var visuals = new BossProjectileVisuals
-            {
-                ImpactEffectPrefab = impactEffectPrefab,
-                ImpactEffectScale = impactEffectScale,
-                ImportedVisualPrefab = fireballLoopEffectPrefab,
-                ImportedVisualScale = fireballLoopEffectScale,
-                ForceLoopParticles = true,
-            };
-
-            BossProjectile.Create(origin, (player.position + Vector3.up - origin).normalized, player,
-                fireballSpeed, fireballDamage, true, fireballLifetime,
-                LayerMask.NameToLayer("Player") >= 0 ? 1 << LayerMask.NameToLayer("Player") : ~0,
-                fireballColor, fireballLoopEffectPrefab != null ? fireballLoopEffectScale : 0.55f,
-                ProjectileVisualStyle.Fireball, fireballTurnDegreesPerSecond, fireballHomingRange, visuals);
+            yield return TopDownGroundEffect.Play(vfxPrefab, groundPoint, topDownTelegraphDelay,
+                topDownVfxLingerAfterHit, () =>
+                {
+                    if (isDead) return;
+                    if (Vector3.Distance(player.position, groundPoint) <= topDownHitRadius &&
+                        playerHealth != null && !playerHealth.IsDead)
+                    {
+                        playerHealth.ApplyDamage(topDownDamage, groundPoint, gameObject, DamageType.Generic);
+                    }
+                });
         }
 
         // Fires burstCount shots, burstInterval apart, off a single animator trigger/clip play -
@@ -406,11 +351,14 @@ namespace Enemies
                 case ProjectileVisualStyle.BigProjectile:
                     visuals.ImportedVisualPrefab = bigProjectileVisualPrefab;
                     visuals.ImportedVisualScale = bigProjectileVisualScale;
+                    visuals.ExtraRotationOffset = bigProjectileVisualRotationOffset;
+                    if (bigProjectileImpactEffectPrefab != null) visuals.ImpactEffectPrefab = bigProjectileImpactEffectPrefab;
                     visuals.ImpactEffectScale *= 2f; // bigger projectile hits should read as a bigger blast
                     break;
                 case ProjectileVisualStyle.Bullet:
                     visuals.ImportedVisualPrefab = bulletVisualPrefab;
                     visuals.ImportedVisualScale = bulletVisualScale;
+                    visuals.ExtraRotationOffset = bulletVisualRotationOffset;
                     break;
             }
 

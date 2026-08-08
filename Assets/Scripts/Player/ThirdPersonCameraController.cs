@@ -13,11 +13,13 @@ namespace Player
                  "part of the frame and opens up the space around the (fixed, center-screen) " +
                  "crosshair. The offset is target-local, so its Y axis follows the player's " +
                  "radial up direction around a spherical world.")]
-        [SerializeField] private Vector3 targetOffset = new Vector3(0f, 2.3f, 0f);
+        [SerializeField] private Vector3 targetOffset = new Vector3(0f, 3.2f, 0f);
 
         [Header("Orbit")]
         [SerializeField] private Transform cameraTransform;
-        [SerializeField] private float distance = 7f;
+        // Went 7 -> 11 chasing "zoom out more" before settling back at a standard over-the-
+        // shoulder distance - past a point, more distance just fights aim (see _pitch's comment).
+        [SerializeField] private float distance = 8f;
         [SerializeField] private float minDistance = 0.6f;
         [Tooltip("Degrees of orbit per pixel of raw mouse delta (the Look action has no " +
                  "scaling processor). Values above ~0.3 feel extremely twitchy.")]
@@ -43,7 +45,36 @@ namespace Player
                  "cursor). The camera still follows the target's position.")]
         public bool InputSuspended;
 
+        // Added on top of distance/minDistance while set - e.g. PlayerUltimate pulls the camera
+        // back further while the mech visual (larger than the astronaut) is active, so it doesn't
+        // fill the frame.
+        private float _extraDistance;
+        // Same idea, added on top of targetOffset.y - the Mech is taller than the astronaut, so
+        // its pivot needs to sit higher too, on top of the shared base height.
+        private float _extraHeight;
+
+        public void SetExtraDistance(float extraDistance)
+        {
+            _extraDistance = Mathf.Max(0f, extraDistance);
+        }
+
+        public void SetExtraHeight(float extraHeight)
+        {
+            _extraHeight = extraHeight;
+        }
+
+        private Vector3 GetEffectiveTargetOffset()
+        {
+            return targetOffset + new Vector3(0f, _extraHeight, 0f);
+        }
+
         private InputSystem_Actions _actions;
+        // Went 15 -> 30 -> 45 chasing this as a band-aid while distance/targetOffset kept growing
+        // from repeated "zoom out more" requests - a camera parked far and high needs a steeper
+        // and steeper default pitch to hit anything close, and that only ever suits one specific
+        // target distance. Reverted back down to a modest value now that distance/targetOffset
+        // themselves came back down to a standard over-the-shoulder range (see their comments) -
+        // the real fix was the rig geometry, not the default pitch.
         private float _pitch = 15f;
         private Vector3 _followVelocity;
         private Vector3 _shakeOffset;
@@ -115,8 +146,8 @@ namespace Player
             Quaternion tangentFrame = Quaternion.LookRotation(orbitForward, targetUp);
             worldRotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
 
-            Vector3 pivotPosition = target.position + target.TransformDirection(targetOffset);
-            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, -distance);
+            Vector3 pivotPosition = target.position + target.TransformDirection(GetEffectiveTargetOffset());
+            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, -(distance + _extraDistance));
             worldPosition = pivotPosition + worldRotation * shoulderLocalOffset;
         }
 
@@ -159,7 +190,7 @@ namespace Player
                 _pitch = Mathf.Clamp(_pitch - look.y * mouseSensitivity, minPitch, maxPitch);
             }
 
-            Vector3 desiredPosition = target.position + target.TransformDirection(targetOffset);
+            Vector3 desiredPosition = target.position + target.TransformDirection(GetEffectiveTargetOffset());
             transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref _followVelocity, followSmoothTime);
 
             Quaternion tangentFrame = Quaternion.LookRotation(_orbitForward, targetUp);
@@ -177,10 +208,11 @@ namespace Player
             Vector3 castOrigin = transform.TransformPoint(shoulderLocalOffset);
             Vector3 castDirection = transform.rotation * Vector3.back;
 
-            float clampedDistance = distance;
-            if (Physics.SphereCast(castOrigin, collisionRadius, castDirection, out RaycastHit hit, distance, collisionMask, QueryTriggerInteraction.Ignore))
+            float targetDistance = distance + _extraDistance;
+            float clampedDistance = targetDistance;
+            if (Physics.SphereCast(castOrigin, collisionRadius, castDirection, out RaycastHit hit, targetDistance, collisionMask, QueryTriggerInteraction.Ignore))
             {
-                clampedDistance = Mathf.Clamp(hit.distance, minDistance, distance);
+                clampedDistance = Mathf.Clamp(hit.distance, minDistance, targetDistance);
             }
 
             cameraTransform.localPosition = new Vector3(shoulderOffsetX, shoulderOffsetY, -clampedDistance);

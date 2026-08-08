@@ -1,3 +1,4 @@
+using System;
 using Combat;
 using UnityEngine;
 using Vfx;
@@ -71,6 +72,7 @@ namespace Enemies
         private float _spawnTime;
         private GameObject _impactEffectPrefab;
         private float _impactEffectScale = 1f;
+        private Action<GameObject> _onHit;
 
         /// Builds a fully-dressed projectile and launches it in one call. Centralizing this here
         /// means every spawner (BossMechAI's bullets/missiles/fireballs, BossAstronautAI's bolts)
@@ -83,12 +85,12 @@ namespace Enemies
             float projectileSpeed, float projectileDamage, bool isHoming, float lifetimeSeconds,
             LayerMask targetMask, Color color, float visualRadius, ProjectileVisualStyle style,
             float homingTurnDegreesPerSecond = 90f, float homingMaxRange = 10f,
-            BossProjectileVisuals visuals = default)
+            BossProjectileVisuals visuals = default, Action<GameObject> onHit = null)
         {
             var go = new GameObject($"Boss{style}");
             go.transform.position = origin;
             Vector3 aimDirection = initialDirection.sqrMagnitude > 0.0001f ? initialDirection.normalized : Vector3.forward;
-            go.transform.rotation = Quaternion.LookRotation(aimDirection, Vector3.up);
+            go.transform.rotation = SafeLookRotation(aimDirection);
 
             // Quaternion's C# default (all-zero) isn't a valid rotation (unlike Quaternion.identity)
             // - callers building the struct via `new BossProjectileVisuals { ... }` without setting
@@ -169,9 +171,24 @@ namespace Enemies
             sphereCollider.isTrigger = true;
             sphereCollider.radius = visualRadius;
 
+            // Unity only raises OnTriggerEnter for a pair of colliders if at least one of the two
+            // GameObjects has a Rigidbody - a trigger collider with no Rigidbody on either side is
+            // never tested for overlap at all, regardless of collider size/position. This
+            // projectile moves by direct transform.position assignment (see Update below), not
+            // physics, so it never had one; several enemy types (EnemyFlyingAI/EnemySmallAI move
+            // via transform too, and CharacterController-driven enemies don't count as a
+            // Rigidbody either) also have none - so hits against them silently never fired, which
+            // read as "bullets passing straight through." A kinematic Rigidbody here satisfies
+            // Unity's requirement unconditionally, independent of whatever the target has.
+            var rb = go.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.interpolation = RigidbodyInterpolation.None; // position is already set explicitly every frame
+
             var projectile = go.AddComponent<BossProjectile>();
             projectile._impactEffectPrefab = visuals.ImpactEffectPrefab;
             projectile._impactEffectScale = visuals.ImpactEffectScale > 0f ? visuals.ImpactEffectScale : 1f;
+            projectile._onHit = onHit;
             projectile.Launch(origin, aimDirection, target, projectileSpeed, projectileDamage,
                 isHoming, lifetimeSeconds, targetMask, homingTurnDegreesPerSecond, homingMaxRange);
 
@@ -382,13 +399,28 @@ namespace Enemies
             return material;
         }
 
+        // Quaternion.LookRotation(direction, Vector3.up) becomes unstable/degenerate once
+        // direction is nearly parallel to the up hint (e.g. firing almost straight up at a
+        // hovering flying enemy) - the cross-product LookRotation derives its right/up axes from
+        // internally has near-zero magnitude there, so the resulting rotation can flip or spin
+        // erratically frame to frame even though the projectile's actual travel direction/hit
+        // detection are completely unaffected (confirmed: shots still landed, only the visual
+        // orientation looked wrong specifically when aiming steeply upward). Falls back to
+        // Vector3.forward as the up hint in that case, which is never parallel to a direction
+        // that's nearly vertical.
+        private static Quaternion SafeLookRotation(Vector3 direction)
+        {
+            Vector3 upHint = Mathf.Abs(Vector3.Dot(direction, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up;
+            return Quaternion.LookRotation(direction, upHint);
+        }
+
         public void Launch(Vector3 origin, Vector3 initialDirection, Transform target, float projectileSpeed,
             float projectileDamage, bool isHoming, float lifetimeSeconds, LayerMask targetMask,
             float homingTurnDegreesPerSecond = 90f, float homingMaxRange = 10f)
         {
             transform.position = origin;
             _direction = initialDirection.sqrMagnitude > 0.0001f ? initialDirection.normalized : Vector3.forward;
-            transform.rotation = Quaternion.LookRotation(_direction, Vector3.up);
+            transform.rotation = SafeLookRotation(_direction);
             _target = target;
             speed = projectileSpeed;
             damage = projectileDamage;
@@ -418,7 +450,7 @@ namespace Enemies
                 {
                     Vector3 toTarget = toTargetVector.normalized;
                     _direction = Vector3.RotateTowards(_direction, toTarget, turnDegreesPerSecond * Mathf.Deg2Rad * Time.deltaTime, 0f).normalized;
-                    transform.rotation = Quaternion.LookRotation(_direction, Vector3.up);
+                    transform.rotation = SafeLookRotation(_direction);
                 }
             }
 
@@ -433,6 +465,7 @@ namespace Enemies
             if (damageable != null && !damageable.IsDead)
             {
                 damageable.ApplyDamage(damage, transform.position, gameObject, DamageType.Ranged);
+                _onHit?.Invoke(other.gameObject);
             }
 
             SpawnImpactEffect();

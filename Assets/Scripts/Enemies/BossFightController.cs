@@ -123,6 +123,20 @@ namespace Enemies
             if (_playerCombat != null) _playerCombat.enabled = false;
             if (_cameraController != null) _cameraController.enabled = false;
 
+            // "Ensure everything is frozen during the cutscene" - covers any basic enemy
+            // (EnemyFlyingAI/EnemySmallAI/EnemyLargeAI) that happens to be active in the scene
+            // (they're SetActive(false) by default, but a test setup may have re-enabled them).
+            // Excludes the mech - it's driven explicitly through this same coroutine (Phase 4's
+            // PlayIntroSlam) - and the astronaut, which is already mid-death/being destroyed by
+            // this point and has no Update loop left to gate anyway.
+            var otherEnemies = FindObjectsByType<EnemyBase>(FindObjectsSortMode.None);
+            foreach (var enemy in otherEnemies)
+            {
+                if (enemy == null || enemy == mechAi) continue;
+                if (astronautHealth != null && enemy.gameObject == astronautHealth.gameObject) continue;
+                enemy.SetFrozen(true);
+            }
+
             // PlayerAnimatorRelay keeps driving Speed/Grounded off PlayerController every frame
             // regardless of PlayerController.enabled (disabling a component doesn't stop other
             // scripts from reading its public properties, and Relay isn't gated on that itself) -
@@ -276,6 +290,13 @@ namespace Enemies
             if (_playerCombat != null) _playerCombat.enabled = true;
             if (_playerAnimatorRelay != null) _playerAnimatorRelay.enabled = true;
             if (mechAi != null) mechAi.enabled = true;
+
+            foreach (var enemy in otherEnemies)
+            {
+                if (enemy == null || enemy == mechAi) continue;
+                if (astronautHealth != null && enemy.gameObject == astronautHealth.gameObject) continue;
+                enemy.SetFrozen(false);
+            }
         }
 
         private IEnumerator ShakeCameraAt(Vector3 basePosition, Vector3 lookAt, float duration)

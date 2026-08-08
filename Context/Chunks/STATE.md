@@ -11,8 +11,8 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, gameplay-areas, unity-project, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
+related: [control-model, core-loop, gameplay-areas, unity-project, world-runtime, git-collaboration, player-controller, items, ultimate]
+verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
 lastVerified: 2026-08-08
 ---
 
@@ -47,7 +47,11 @@ lastVerified: 2026-08-08
   no wave orchestration exists.
 - **`progression-economy`** - define and implement gold, dropped/scavenged
   items, buying, pistol/player/equipment upgrades, crafting, loot tables, and
-  the kill-score formula with its wave multiplier.
+  the kill-score formula with its wave multiplier. A first Health/Ammo
+  power-up pickup pair and a first ammo/reload system (magazine + storage,
+  no upgrades yet) now exist - see [items](gameplay/items.md); random
+  planet-wide spawning of pickups is not implemented (test-scene placement
+  only).
 - **`branching-and-integration-policy`** - define branch naming, worktree
   placement, integration and review rules, and ownership of conflict-prone
   Unity scenes, prefabs, and project settings.
