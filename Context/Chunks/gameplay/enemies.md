@@ -8,7 +8,7 @@ owns:
   - "Assets/Scripts/Combat/**"
   - "Assets/Editor/Enemies.meta"
   - "Assets/Editor/Enemies/**"
-  - "Assets/Editor/ModelAnimationUtility.cs"
+  - "Assets/Editor/ModelAnimationUtility.cs*"
 related: [player-controller, player-combat, runtime-art, state, boss-fight]
 verifiedAtCommit: 71b7468850b4e64c25da49ef3deff2ff354c4778
 lastVerified: 2026-08-08

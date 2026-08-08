@@ -94,22 +94,28 @@ namespace Player
 
         // Lets a cutscene (BossFightController's Stage 1 -> Stage 2 transition) blend Camera.main
         // smoothly back to the normal follow pose instead of snapping to it the instant this
-        // component is re-enabled. Pure query - doesn't touch _yaw/_pitch/transform, so it's safe
+        // component is re-enabled. Pure query - doesn't touch the orbit/pitch/transform, so it's safe
         // to call every frame while this component is still disabled (its own LateUpdate isn't
         // running to move anything out from under the blend). Skips the collision SphereCast for
         // simplicity; the blend only needs to be close, not pixel-identical, since the real
         // LateUpdate takes over the instant the blend finishes.
         public void GetFollowPose(out Vector3 worldPosition, out Quaternion worldRotation)
         {
-            worldRotation = Quaternion.Euler(_pitch, _yaw, 0f);
-
             if (target == null)
             {
                 worldPosition = transform.position;
+                worldRotation = transform.rotation;
                 return;
             }
 
-            Vector3 pivotPosition = target.position + targetOffset;
+            Vector3 targetUp = target.up.normalized;
+            Vector3 orbitForward = _orbitInitialized
+                ? ProjectOntoTangent(_orbitForward, targetUp)
+                : ProjectOntoTangent(transform.forward, targetUp);
+            Quaternion tangentFrame = Quaternion.LookRotation(orbitForward, targetUp);
+            worldRotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
+
+            Vector3 pivotPosition = target.position + target.TransformDirection(targetOffset);
             Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, -distance);
             worldPosition = pivotPosition + worldRotation * shoulderLocalOffset;
         }

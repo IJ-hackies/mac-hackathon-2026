@@ -37,6 +37,15 @@ namespace Player.UI
 
         private void OnEnable()
         {
+            if (health == null)
+            {
+                global::Player.PlayerController player = FindFirstObjectByType<global::Player.PlayerController>();
+                if (player != null)
+                {
+                    health = player.GetComponent<Health>();
+                }
+            }
+
             if (health == null) return;
             health.HealthChanged += UpdateDisplay;
             UpdateDisplay(health.CurrentHealth, health.MaxHealth);

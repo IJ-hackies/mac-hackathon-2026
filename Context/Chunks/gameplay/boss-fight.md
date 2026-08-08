@@ -2,14 +2,16 @@
 chunk: boss-fight
 title: Barbara the Bee two-stage boss fight (Astronaut -> Mech)
 owns:
-  - "Assets/Scripts/Enemies/BossAstronautAI.cs"
-  - "Assets/Scripts/Enemies/BossMechAI.cs"
-  - "Assets/Scripts/Enemies/BossFightController.cs"
-  - "Assets/Scripts/Enemies/BossProjectile.cs"
+  - "Assets/Scripts/Enemies/BossAstronautAI.cs*"
+  - "Assets/Scripts/Enemies/BossMechAI.cs*"
+  - "Assets/Scripts/Enemies/BossFightController.cs*"
+  - "Assets/Scripts/Enemies/BossProjectile.cs*"
   - "Assets/Scripts/Vfx.meta"
   - "Assets/Scripts/Vfx/**"
-  - "Assets/Editor/Enemies/BossSceneSetup.cs"
+  - "Assets/Editor/Enemies/BossSceneSetup.cs*"
+  - "Assets/Prefabs/Enemies.meta"
   - "Assets/Prefabs/Enemies/**"
+  - "Assets/_Creepy_Cat.meta"
   - "Assets/GabrielAguiarProductions.meta"
   - "Assets/GabrielAguiarProductions/**"
 related: [enemies, player-controller, player-combat, runtime-art, state]
@@ -36,8 +38,7 @@ The two-stage boss fight built on top of [enemies](enemies.md)'s shared
   and not suppressed by, the permanent hit-react suppression below. Dies
   **without** `EnemyBase`'s dissolve (spec: "die without dissolving and then
   become the mech") — `HandleDeath` is overridden to skip `base.HandleDeath()`
-  entirely; `BossFightController` (listening to the same `Health.Died`) owns
-  the visual spectacle from there.
+  entirely; `BossFightController` listens to the same `Health.Died` and owns the spectacle.
 - **Stage 2 - `BossMechAI`** (scale 4, `Mech_BarbaraTheBee.fbx`, its own
   `RobotArmature` rig): starts inert (scale 0, AI/collider disabled) until
   the cutscene activates it. Wanders to stay within `[minRange, maxRange]` of
@@ -63,9 +64,8 @@ The two-stage boss fight built on top of [enemies](enemies.md)'s shared
   "stagger" payoff, then camera blends smoothly back to the normal follow
   view). Player input and `PlayerAnimatorRelay` are disabled for the whole
   sequence — the Relay keeps reading `PlayerController`'s frozen properties
-  even while the controller itself is disabled, so it must be disabled too or
-  the Animator loops whatever pose (e.g. running) was last active instead of
-  settling to Idle.
+  while the controller is disabled, so it too must be disabled or the Animator
+  keeps the last pose instead of settling to Idle.
 - **`BossProjectile`**: one generic component/factory shared by the mech's
   fireballs (homing)/bullets/missiles and the astronaut's ranged bolts —
   speed/damage/homing/lifetime plus an optional `BossProjectileVisuals`

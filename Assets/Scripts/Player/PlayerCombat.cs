@@ -234,7 +234,7 @@ namespace Player
         {
             yield return new WaitForSeconds(meleeHitDelay);
 
-            Vector3 origin = transform.position + Vector3.up + transform.forward * meleeRange;
+            Vector3 origin = transform.position + transform.up + transform.forward * meleeRange;
             var hits = Physics.OverlapSphere(origin, meleeRadius, ~0, QueryTriggerInteraction.Ignore);
             foreach (var hit in hits)
             {
@@ -373,7 +373,10 @@ namespace Player
         // plays, so it purely sells "a projectile flew there," same role the tracer below plays.
         private IEnumerator FlyProjectileVisual(Vector3 start, Vector3 end)
         {
-            var visualGo = Instantiate(projectileVisualPrefab, start, Quaternion.LookRotation((end - start).normalized, Vector3.up));
+            var visualGo = Instantiate(
+                projectileVisualPrefab,
+                start,
+                Quaternion.LookRotation((end - start).normalized, transform.up));
             visualGo.transform.localScale = Vector3.one * projectileVisualScale;
             ImportedVfxUtility.FixUrpMaterials(visualGo);
             ImportedVfxUtility.ForceHierarchyParticleScaling(visualGo);

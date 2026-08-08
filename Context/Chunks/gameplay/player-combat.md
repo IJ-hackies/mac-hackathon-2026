@@ -2,9 +2,11 @@
 chunk: player-combat
 title: Player melee/hitscan combat, health, and death
 owns:
-  - "Assets/Scripts/Player/PlayerCombat.cs"
-  - "Assets/Scripts/Player/PlayerDeathHandler.cs"
-  - "Assets/Scripts/UI/HealthHudUI.cs"
+  - "Assets/Scripts/Player/PlayerCombat.cs*"
+  - "Assets/Scripts/Player/PlayerDeathHandler.cs*"
+  - "Assets/Scripts/Player/Projectile.cs*"
+  - "Assets/Scripts/UI/HealthHudUI.cs*"
+  - "Assets/Prefabs/Projectile.prefab*"
 related: [player-controller, enemies, runtime-art, state, boss-fight]
 verifiedAtCommit: 71b7468850b4e64c25da49ef3deff2ff354c4778
 lastVerified: 2026-08-08
@@ -22,8 +24,9 @@ Ranged combat still resolves as hitscan, not a traveling projectile
 (`Projectile.cs` and its prefab/material were removed as "finicky"), but now
 spawns a purely cosmetic `FlyProjectileVisual` coroutine after the hit is
 already resolved — an imported-VFX or procedural bolt that flies from the
-muzzle to the already-known hit point, replacing the old instant `LineRenderer`
-tracer. Muzzle flash similarly prefers `muzzleFlashEffectPrefab` (an imported
+muzzle to the already-known hit point. When no visual prefab is assigned, a
+short-lived `LineRenderer` remains as the fallback tracer. Muzzle flash
+similarly prefers `muzzleFlashEffectPrefab` (an imported
 VFX asset) over the procedural flash `Light`. Shooting arm poses live on their
 own upper-body-masked `Arms` Animator layer (`BuildArmsLayer`, see
 [player-controller](player-controller.md)) so firing never touches leg/base
@@ -44,8 +47,9 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
   should have played (see [enemies](enemies.md) for why the mech doesn't
   actually react anymore).
   - **Melee**: `MeleeDamageWindow` coroutine waits `meleeHitDelay` after the
-    trigger, then `Physics.OverlapSphere` in front of the player and damages
-    whatever `IDamageable` it finds (skipping the player's own root).
+    trigger, then `Physics.OverlapSphere` in front of the player using its
+    radial `transform.up`, and damages whatever `IDamageable` it finds
+    (skipping the player's own root).
   - **Fire is held, not click-per-shot**: `Attack.started` fires `FireStart`
     (a one-shot trigger, once per firing *bout*, not once per shot) and sets
     `Firing` true; `Attack.canceled` schedules `Firing` false after
@@ -73,9 +77,9 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
     change (not just from `Arms_Idle`), since each state's timeline restarts
     fresh on entry and comparing against the *previous* state's leftover
     phase misreads as a spurious crossing. `FireHitscan` raycasts from the
-    camera through the screen-center crosshair; `SpawnTracer` draws a
-    short-lived `LineRenderer` purely as a "shot fired" visual, after the
-    hit is already resolved.
+    camera through the screen-center crosshair; `FlyProjectileVisual` then
+    animates the cosmetic bolt to the resolved point, with `SpawnTracer` as
+    the no-prefab fallback.
   - Walking fires slower than running purely because `Arms_Shoot_Walk` plays
     at `WalkShootAnimSpeed` (0.6, see [player-controller](player-controller.md))
     — not a separately tuned rate; the loop period (and so the fire rate)
@@ -97,14 +101,16 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
   by `PlayerSceneSetup` at edit time) only stores the `Health` reference; the
   `HealthChanged` subscription itself happens in `OnEnable` — see
   [enemies](enemies.md) Gotchas for why (edit-time delegate subscriptions
-  don't survive the Play-mode domain reload).
+  don't survive the Play-mode domain reload). If a prefab cannot serialize a
+  direct reference across the nested player boundary, `OnEnable` discovers
+  the active `PlayerController` and binds its colocated `Health`.
 
 ## Invariants
 
 - `HitReact`/`Death` follow the same "trigger, not held bool" `AnyState`
   pattern as emotes, and — the important part — `Combat.Health` fires them
   fire-and-forget (no caller ever waits on the animation). `PlayerController`/
-  `PlayerCombat` keep processing input and moving the `CharacterController`
+  `PlayerCombat` keep processing input and moving the radial capsule motor
   underneath a `HitReact` overlay instead of freezing; only `Death` actually
   stops things, via `PlayerDeathHandler` disabling those two components
   directly, not the Animator state blocking anything. See

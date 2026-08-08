@@ -182,13 +182,21 @@ namespace PlayerEditor
                 replacement.transform.localScale = Vector3.one;
 
                 PlayerController playerController = RequireComponent<PlayerController>(replacement);
-                CharacterController characterController = RequireComponent<CharacterController>(replacement);
+                PlayerVisualGroundConformer visualConformer =
+                    RequireComponent<PlayerVisualGroundConformer>(replacement);
+                CapsuleCollider playerCapsule = RequireComponent<CapsuleCollider>(replacement);
+                RequireComponent<Rigidbody>(replacement);
+                RequireComponent<RadialCapsuleMotor>(replacement);
                 PlayerCombat combat = RequireComponent<PlayerCombat>(replacement);
                 PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(replacement);
+                Transform visualRoot = RequireDirectChild(replacement.transform, "VisualRoot");
+                Animator animator = RequireComponentInChildren<Animator>(visualRoot.gameObject);
                 Health health = RequireComponent<Health>(replacement);
 
                 SetObjectReference(cameraController, "target", replacement.transform);
                 SetObjectReference(playerController, "cameraReference", aimCamera.transform);
+                SetObjectReference(playerController, "animator", animator);
+                SetObjectReference(visualConformer, "visualRoot", visualRoot);
                 SetObjectReference(combat, "aimCamera", aimCamera);
                 SetObjectReference(emotes, "playerController", playerController);
                 SetObjectReference(emotes, "playerCombat", combat);
@@ -321,6 +329,7 @@ namespace PlayerEditor
             Transform player = RequireDirectChild(rigRoot.transform, "Player");
             Transform cameraPivot = RequireDirectChild(rigRoot.transform, "CameraPivot");
             Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+            Transform visualRoot = RequireDirectChild(player, "VisualRoot");
 
             if (player.localPosition != Vector3.zero ||
                 player.localRotation != Quaternion.identity ||
@@ -338,7 +347,11 @@ namespace PlayerEditor
             }
 
             PlayerController playerController = RequireComponent<PlayerController>(player.gameObject);
-            CharacterController characterController = RequireComponent<CharacterController>(player.gameObject);
+            PlayerVisualGroundConformer visualConformer =
+                RequireComponent<PlayerVisualGroundConformer>(player.gameObject);
+            CapsuleCollider playerCapsule = RequireComponent<CapsuleCollider>(player.gameObject);
+            Rigidbody playerBody = RequireComponent<Rigidbody>(player.gameObject);
+            RequireComponent<RadialCapsuleMotor>(player.gameObject);
             PlayerAnimatorRelay animatorRelay = RequireComponent<PlayerAnimatorRelay>(player.gameObject);
             PlayerCombat combat = RequireComponent<PlayerCombat>(player.gameObject);
             PlayerEmoteController emotes = RequireComponent<PlayerEmoteController>(player.gameObject);
@@ -351,8 +364,8 @@ namespace PlayerEditor
             EmoteWheelUI wheelUi = RequireComponentInChildren<EmoteWheelUI>(hudCanvas.gameObject);
             CrosshairUI crosshairUi = RequireComponentInChildren<CrosshairUI>(hudCanvas.gameObject);
             HealthHudUI healthHudUi = RequireComponentInChildren<HealthHudUI>(hudCanvas.gameObject);
-            Transform muzzle = RequireDirectChild(player, "Muzzle");
-            Object animator = RequireAssignedObjectReference(animatorRelay, "animator");
+            Transform muzzle = RequireDirectChild(visualRoot, "Muzzle");
+            Animator animator = RequireComponentInChildren<Animator>(visualRoot.gameObject);
 
             RequireObjectReference(cameraController, "target", player);
             RequireObjectReference(cameraController, "cameraTransform", aimCamera.transform);
@@ -362,6 +375,17 @@ namespace PlayerEditor
                     "PlayerSceneSetup: rig camera must render shadows and post-processing.");
             }
             RequireObjectReference(playerController, "cameraReference", aimCamera.transform);
+            if (playerCapsule.direction != 1 || playerCapsule.isTrigger ||
+                !playerBody.isKinematic || playerBody.useGravity ||
+                playerBody.interpolation != RigidbodyInterpolation.Interpolate ||
+                playerBody.collisionDetectionMode != CollisionDetectionMode.ContinuousSpeculative)
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: radial capsule physics settings are invalid.");
+            }
+            RequireObjectReference(playerController, "animator", animator);
+            RequireObjectReference(visualConformer, "visualRoot", visualRoot);
+            RequireObjectReference(animatorRelay, "animator", animator);
             RequireObjectReference(combat, "animator", animator);
             RequireObjectReference(combat, "muzzle", muzzle);
             RequireObjectReference(combat, "aimCamera", aimCamera);
@@ -844,12 +868,25 @@ namespace PlayerEditor
             root.layer = playerLayer;
             root.transform.position = Vector3.zero;
 
-            var characterController = root.AddComponent<CharacterController>();
-            characterController.center = new Vector3(0f, 1f, 0f);
-            characterController.height = 2f;
-            characterController.radius = 0.35f;
+            var visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root.transform, false);
+            visualRoot.gameObject.layer = playerLayer;
 
-            var modelInstance = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
+            var playerCapsule = root.AddComponent<CapsuleCollider>();
+            playerCapsule.center = new Vector3(0f, 1.275f, 0f);
+            playerCapsule.height = 2.55f;
+            playerCapsule.radius = 0.55f;
+            playerCapsule.direction = 1;
+
+            var playerBody = root.AddComponent<Rigidbody>();
+            playerBody.useGravity = false;
+            playerBody.isKinematic = true;
+            playerBody.interpolation = RigidbodyInterpolation.Interpolate;
+            playerBody.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+
+            root.AddComponent<RadialCapsuleMotor>();
+
+            var modelInstance = (GameObject)PrefabUtility.InstantiatePrefab(model, visualRoot);
             modelInstance.transform.localPosition = Vector3.zero;
             modelInstance.transform.localRotation = Quaternion.identity;
             foreach (Transform child in modelInstance.GetComponentsInChildren<Transform>(true))
@@ -873,7 +910,15 @@ namespace PlayerEditor
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
 
-            root.AddComponent<PlayerController>();
+            var playerController = root.AddComponent<PlayerController>();
+            var playerControllerSo = new SerializedObject(playerController);
+            playerControllerSo.FindProperty("animator").objectReferenceValue = animator;
+            playerControllerSo.ApplyModifiedProperties();
+
+            var visualConformer = root.AddComponent<PlayerVisualGroundConformer>();
+            var visualConformerSo = new SerializedObject(visualConformer);
+            visualConformerSo.FindProperty("visualRoot").objectReferenceValue = visualRoot;
+            visualConformerSo.ApplyModifiedProperties();
 
             var relay = root.AddComponent<PlayerAnimatorRelay>();
             var relaySo = new SerializedObject(relay);
@@ -934,10 +979,11 @@ namespace PlayerEditor
             int playerLayer)
         {
             // Pushed well forward of the body: the astronaut mesh is a rounded silhouette
-            // wider than the CharacterController's collider radius (0.35), so a muzzle point
+            // wider than the player capsule's collider radius (0.55), so a muzzle point
             // just outside the collider still rendered the flash on/inside the character mesh.
+            Transform visualRoot = RequireDirectChild(player.transform, "VisualRoot");
             var muzzle = new GameObject("Muzzle").transform;
-            muzzle.SetParent(player.transform, false);
+            muzzle.SetParent(visualRoot, false);
             muzzle.localPosition = new Vector3(0.383f, 1.863f, 2.661f);
 
             var playerController = player.GetComponent<PlayerController>();

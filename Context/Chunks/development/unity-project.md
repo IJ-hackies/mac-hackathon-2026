@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, git-collaboration, runtime-art, player-controller]
-verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
+related: [system, control-model, core-loop, git-collaboration, runtime-art, world-authoring, player-controller]
+verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
 lastVerified: 2026-08-08
 ---
 
@@ -22,22 +22,23 @@ lastVerified: 2026-08-08
 
 The repository root is the Unity `6000.3.10f1` project root, initialized from
 the Universal Render Pipeline empty template. The project uses Universal Render
-Pipeline `17.3.0` and Input System `1.18.0`, and includes Unity's 3D physics
-module. `Assets/Scenes/SampleScene.unity` is the only enabled build scene and is
-the current prototype scene. Other top-level scenes may be used as sandboxes
+Pipeline and Visual Effect Graph `17.3.0`, Input System `1.18.0`, and Unity's
+3D physics module. `Assets/Scenes/SampleScene.unity` is the only enabled build
+scene and current prototype. Other top-level scenes may be used as sandboxes
 without implying build inclusion.
 
 The sample scene contains a directional light and global volume plus an
 instance of `Assets/Art/Prefabs/Planet.prefab`, placed at the established
 planet center. Its `Planet Ground` root owns a child `Planet Visual` using a
 one-level Catmull-Clark derivative of the Ultimate Space Kit `Planet_3` crater
-mesh, shaded with a low-gloss warm clay/ochre material. The same imported mesh
-drives a non-convex `MeshCollider`, so the walkable crater floor matches what
-is rendered. The prefab root is uniformly scaled to 3, giving the shell an
-approximately 150-unit world radius. The 50-unit root `SphereCollider` scales
-with it but remains disabled as a reference, not active ground collision. The
-active shell has 4,802 geometric positions and 9,600 triangles; Unity reports
-5,496 imported vertices after UV seam splits.
+mesh, shaded with a low-gloss warm clay/ochre material whose texture-free 3D
+noise adds subtle seam-free lunar mottling and dust detail. The same imported
+mesh drives a non-convex `MeshCollider`, so the walkable crater floor matches
+what is rendered. The prefab root is uniformly scaled to 3, giving the shell
+an approximately 150-unit world radius. The 50-unit root `SphereCollider`
+scales with it but remains disabled as a reference, not active ground
+collision. The active shell has 4,802 geometric positions and 9,600 triangles;
+Unity reports 5,496 imported vertices after UV seam splits.
 
 `PlayerRig.prefab` is placed 156 units from the planet center near the
 north-pole crater and snaps its capsule feet to that mesh at startup. The
@@ -55,6 +56,25 @@ read as space without becoming completely black.
 The `Sun Light` GameObject and its `Light` component must both stay enabled.
 Disabling only the component leaves the hierarchy looking valid while removing
 all direct illumination and realtime shadows in Play mode.
+
+The scene's top-level `LandingBase` authoring hierarchy dresses the landing
+crater with layout, structures, and a perimeter. Its runtime art comes from the
+curated landing-base imports, while the perimeter combines `Column_Hollow`
+poles with a generated curved-wall mesh and an intentional opening. These are
+static collidable scene assets; no base interaction, economy, or construction
+logic is attached.
+
+Separate top-level `Arena1` and `Arena2` perimeter hierarchies each contain 17
+`Column_Hollow` poles plus one curved wall sheet. Arena1 uses dark-orange
+material overrides; Arena2 uses near-black blood-red overrides. Their dedicated
+materials use solid albedo with the imported normal maps and avoid recoloring
+shared base or importer materials.
+
+The scene also contains one top-level `Generated Planet Vegetation` hierarchy
+with 1,200 static, non-colliding prefab instances sampled across the full crater
+mesh: 193 bushes, 810 grasses, and 197 plants. It mixes all nine selected
+variants, uses uniform 65x-75x source-relative scale with a -90-degree local-X
+model correction, and distributes only shared dark-orange and red materials.
 
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
