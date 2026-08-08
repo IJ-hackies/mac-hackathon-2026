@@ -15,7 +15,7 @@ owns:
   - "Assets/GabrielAguiarProductions.meta"
   - "Assets/GabrielAguiarProductions/**"
 related: [enemies, player-controller, player-combat, runtime-art, state]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 

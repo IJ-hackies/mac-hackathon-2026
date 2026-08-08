@@ -3,6 +3,7 @@ chunk: player-controller
 title: Single-player third-person prototype (movement, camera, emotes)
 owns:
   - "Assets/Scripts/Player/PlayerController.cs*"
+  - "Assets/Scripts/Player/LandingBaseMovementSpeedEffect.cs*"
   - "Assets/Scripts/Player/PlayerAnimatorRelay.cs*"
   - "Assets/Scripts/Player/PlayerEmoteController.cs*"
   - "Assets/Scripts/Player/PlayerVisualGroundConformer.cs*"
@@ -12,8 +13,8 @@ owns:
   - "Assets/Scripts/UI/EmoteWheelUI.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Prefabs/PlayerRig.prefab*"
-related: [control-model, core-loop, unity-project, runtime-art, world-authoring, state]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+related: [control-model, core-loop, gameplay-areas, unity-project, runtime-art, world-authoring, state]
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -50,10 +51,10 @@ wheel is active.
 ## Key files
 
 - `PlayerController.cs` - tangent locomotion, acceleration-smoothed walk/sprint,
-  surface-relative gravity/jump, slope-filtered ground probing, body alignment,
-  camera-facing rotation, boss stagger gating, and one-time surface snap.
-  Exposes locomotion state plus the current ground normal/clearance for visual
-  consumers.
+  composable source-owned speed modifiers, surface-relative gravity/jump,
+  slope-filtered ground probing, body alignment, boss stagger gating, and
+  one-time surface snap. Exposes locomotion and support state to consumers.
+- `LandingBaseMovementSpeedEffect.cs` - owns the keyed 2x modifier inside LandingBase.
 - `RadialCapsuleMotor.cs` - rotation-aware capsule sweep/slide, local-radial
   stepping, contact classification, and overlap depenetration through a
   kinematic Rigidbody.
@@ -63,18 +64,16 @@ wheel is active.
 - `ThirdPersonCameraController.cs` - radial-up orbit, shoulder framing,
   `SphereCast` collision, smoothing, independent mouse look, boss shake, and a
   cutscene follow-pose query. The rig camera has URP additional-camera data
-  with shadows and post-processing enabled.
-- `PlayerAnimatorRelay.cs` - maps controller state to `Speed`, `Grounded`, and
-  `Jump` Animator parameters.
+  with shadows, post-processing, and low-cost FXAA enabled.
+- `PlayerAnimatorRelay.cs` - maps state to `Speed`, `Grounded`, and `Jump`.
 - `PlayerCombat.cs` and the health/death HUD are documented in
   [player-combat](player-combat.md). Ranged damage is hitscan; its traveling
   bolt is cosmetic and the former `Projectile.cs`/prefab were removed.
 - `PlayerEmoteController.cs` / `Assets/Scripts/UI/**` - locked-cursor virtual
   joystick emote wheel. Movement, jumping, or attacking interrupts an emote.
-- `PlayerRig.prefab` - normalized rig root containing the current nested
-  radial `Player.prefab`, camera pivot, crosshair/emote UI, and health HUD.
-  Serialized camera/combat/emote links are validated by the repair command;
-  the health HUD can discover the nested player's `Health` at runtime.
+- `PlayerRig.prefab` - normalized rig root containing the current nested radial
+  `Player.prefab`, area tracker, LandingBase speed effect, camera pivot, UI, and health HUD.
+  The repair command validates its links; the health HUD can discover `Health`.
 - `PlayerSceneSetup.cs` - `Tools > Player Prototype > Build Test Scene` creates
   the sandbox artifacts. `Repair Player Rig Prefab` safely replaces an
   orphaned nested Player reference, rewires dependencies, normalizes transforms,
@@ -112,12 +111,13 @@ wheel is active.
   Scene instances own world placement; `Player.unity` compensates with a zero
   root override after rig normalization.
 - The rig camera is the sole active runtime camera/audio listener and must keep
-  `UniversalAdditionalCameraData.renderShadows` and `renderPostProcessing` on.
+  shadows, post-processing, and FXAA enabled in its URP camera data.
 - `InputSystem_Actions` map name is `Player`. `Attack` is reused for shooting,
   while `Melee` and `EmoteWheel` are separate typed actions. `Crouch` remains
   reserved and has no behavior.
 - The `Player` physics layer is excluded from camera collision and aim masks.
 - `Animator.applyRootMotion` is disabled; the controller owns movement.
+- Keyed speed modifiers multiply; removal downscales current speed immediately.
 - Emote `AnyState` entry uses `PlayEmote` trigger plus `EmoteIndex`; the held
   `Emoting` bool is only an interrupt condition.
 

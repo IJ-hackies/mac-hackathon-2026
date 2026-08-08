@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,6 +17,10 @@ namespace WorldEditor
         private const string MaterialFolder = "Assets/Art/Materials/LandingBase";
         private const string SciFiTextureFolder = "Assets/Art/Textures/ModularSciFi";
         private const string SpacePalettePath = "Assets/Art/Textures/T_SpacePalette.png";
+        private const string VendorTrim01EmissivePath =
+            "asset packs/visuals/Modular SciFi MegaKit[Standard]/Textures/T_Trim_01_Emissive.png";
+        private const string Trim01EmissionMaskPath =
+            SciFiTextureFolder + "/T_Trim_01_EmissionMask.png";
 
         private const string SpaceKitMaterialPath =
             MaterialFolder + "/M_LandingBaseSpaceKit.mat";
@@ -23,6 +28,14 @@ namespace WorldEditor
             MaterialFolder + "/M_LandingBaseSciFiTrim01Red.mat";
         private const string SciFiTrim02MaterialPath =
             MaterialFolder + "/M_LandingBaseSciFiTrim02Red.mat";
+        private const string Arena1Trim01MaterialPath =
+            MaterialFolder + "/M_Arena1Trim01DarkOrange.mat";
+        private const string Arena2Trim01MaterialPath =
+            MaterialFolder + "/M_Arena2Trim01BloodRed.mat";
+
+        private static readonly Color LandingBaseEmission = new Color(0f, 3f, 2.2f, 1f);
+        private static readonly Color Arena1Emission = new Color(3.5f, 1.25f, 0.08f, 1f);
+        private static readonly Color Arena2Emission = new Color(3.5f, 0.06f, 0.03f, 1f);
 
         private static readonly string[] SpaceKitModels =
         {
@@ -37,6 +50,7 @@ namespace WorldEditor
             "House_Single_Support",
             "House_Single",
             "MetalSupport",
+            "Ramp",
             "Stairs",
             "Roof_Antenna",
             "Roof_Opening",
@@ -50,6 +64,7 @@ namespace WorldEditor
         public static void ConfigureLandingBaseAssets()
         {
             EnsureFolder(MaterialFolder);
+            Texture2D trim01EmissionMask = CreateOrUpdateTrim01EmissionMask();
             ConfigureSciFiTextures();
 
             Texture2D spacePalette = RequireAsset<Texture2D>(SpacePalettePath);
@@ -65,13 +80,36 @@ namespace WorldEditor
                 RequireAsset<Texture2D>(SciFiTextureFolder + "/T_Trim_01_BaseColor_Red.png"),
                 RequireAsset<Texture2D>(SciFiTextureFolder + "/T_Trim_01_Normal.png"),
                 metallic: 0.55f,
-                smoothness: 0.4f);
+                smoothness: 0.4f,
+                emissionMap: trim01EmissionMask,
+                emissionColor: LandingBaseEmission);
             Material trim02 = CreateOrUpdateMaterial(
                 SciFiTrim02MaterialPath,
                 RequireAsset<Texture2D>(SciFiTextureFolder + "/T_Trim_02_BaseColor_Red.png"),
                 RequireAsset<Texture2D>(SciFiTextureFolder + "/T_Trim_02_Normal.png"),
                 metallic: 0.55f,
                 smoothness: 0.4f);
+
+            CreateOrUpdateMaterial(
+                Arena1Trim01MaterialPath,
+                baseMap: null,
+                normalMap: RequireAsset<Texture2D>(
+                    SciFiTextureFolder + "/T_Trim_01_Normal.png"),
+                metallic: 0.15f,
+                smoothness: 0.28f,
+                baseColor: new Color(0.65f, 0.22f, 0.035f, 1f),
+                emissionMap: trim01EmissionMask,
+                emissionColor: Arena1Emission);
+            CreateOrUpdateMaterial(
+                Arena2Trim01MaterialPath,
+                baseMap: null,
+                normalMap: RequireAsset<Texture2D>(
+                    SciFiTextureFolder + "/T_Trim_01_Normal.png"),
+                metallic: 0.15f,
+                smoothness: 0.28f,
+                baseColor: new Color(0.3f, 0.012f, 0.02f, 1f),
+                emissionMap: trim01EmissionMask,
+                emissionColor: Arena2Emission);
 
             var configuredPaths = new List<string>();
             foreach (string modelName in SpaceKitModels)
@@ -163,7 +201,10 @@ namespace WorldEditor
             Texture2D baseMap,
             Texture2D normalMap,
             float metallic,
-            float smoothness)
+            float smoothness,
+            Color? baseColor = null,
+            Texture2D emissionMap = null,
+            Color? emissionColor = null)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
@@ -187,7 +228,7 @@ namespace WorldEditor
             }
 
             material.SetTexture("_BaseMap", baseMap);
-            material.SetColor("_BaseColor", Color.white);
+            material.SetColor("_BaseColor", baseColor ?? Color.white);
             material.SetFloat("_Metallic", metallic);
             material.SetFloat("_Smoothness", smoothness);
             material.SetTexture("_BumpMap", normalMap);
@@ -201,8 +242,115 @@ namespace WorldEditor
                 material.DisableKeyword("_NORMALMAP");
             }
 
+            Color resolvedEmissionColor = emissionColor ?? Color.black;
+            bool emissionEnabled = emissionMap != null &&
+                                   resolvedEmissionColor.maxColorComponent > 0f;
+            material.SetTexture("_EmissionMap", emissionMap);
+            material.SetColor("_EmissionColor", resolvedEmissionColor);
+            if (emissionEnabled)
+            {
+                material.EnableKeyword("_EMISSION");
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            }
+            else
+            {
+                material.DisableKeyword("_EMISSION");
+                material.globalIlluminationFlags =
+                    MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        private static Texture2D CreateOrUpdateTrim01EmissionMask()
+        {
+            if (!File.Exists(VendorTrim01EmissivePath))
+            {
+                throw new InvalidOperationException(
+                    $"Landing Base Asset Setup: vendor emission texture is missing at " +
+                    $"{VendorTrim01EmissivePath}.");
+            }
+
+            byte[] sourceBytes = File.ReadAllBytes(VendorTrim01EmissivePath);
+            var source = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+            Texture2D mask = null;
+            byte[] encodedMask;
+            try
+            {
+                if (!source.LoadImage(sourceBytes, markNonReadable: false))
+                {
+                    throw new InvalidOperationException(
+                        "Landing Base Asset Setup: Unity could not decode the vendor " +
+                        "Trim01 emission texture.");
+                }
+
+                Color32[] sourcePixels = source.GetPixels32();
+                var maskPixels = new Color32[sourcePixels.Length];
+                for (int index = 0; index < sourcePixels.Length; index++)
+                {
+                    Color32 pixel = sourcePixels[index];
+                    byte intensity = Math.Max(pixel.r, Math.Max(pixel.g, pixel.b));
+                    maskPixels[index] = new Color32(intensity, intensity, intensity, 255);
+                }
+
+                mask = new Texture2D(
+                    source.width,
+                    source.height,
+                    TextureFormat.RGBA32,
+                    false,
+                    true);
+                mask.SetPixels32(maskPixels);
+                mask.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+                encodedMask = mask.EncodeToPNG();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(source);
+                if (mask != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(mask);
+                }
+            }
+
+            bool requiresImport = !File.Exists(Trim01EmissionMaskPath) ||
+                                  !File.ReadAllBytes(Trim01EmissionMaskPath)
+                                      .SequenceEqual(encodedMask);
+            if (requiresImport)
+            {
+                File.WriteAllBytes(Trim01EmissionMaskPath, encodedMask);
+                AssetDatabase.ImportAsset(
+                    Trim01EmissionMaskPath,
+                    ImportAssetOptions.ForceSynchronousImport |
+                    ImportAssetOptions.ForceUpdate);
+            }
+
+            var importer = AssetImporter.GetAtPath(Trim01EmissionMaskPath) as TextureImporter;
+            if (importer == null)
+            {
+                throw new InvalidOperationException(
+                    $"Landing Base Asset Setup: generated emission mask was not imported at " +
+                    $"{Trim01EmissionMaskPath}.");
+            }
+
+            bool importerChanged = importer.textureType != TextureImporterType.Default ||
+                                   importer.sRGBTexture ||
+                                   !importer.mipmapEnabled ||
+                                   importer.alphaSource != TextureImporterAlphaSource.None ||
+                                   importer.maxTextureSize != 1024 ||
+                                   importer.textureCompression != TextureImporterCompression.CompressedHQ;
+            if (importerChanged)
+            {
+                importer.textureType = TextureImporterType.Default;
+                importer.sRGBTexture = false;
+                importer.mipmapEnabled = true;
+                importer.alphaSource = TextureImporterAlphaSource.None;
+                importer.maxTextureSize = 1024;
+                importer.textureCompression = TextureImporterCompression.CompressedHQ;
+                importer.SaveAndReimport();
+            }
+
+            return RequireAsset<Texture2D>(Trim01EmissionMaskPath);
         }
 
         private static void ConfigureSciFiTextures()

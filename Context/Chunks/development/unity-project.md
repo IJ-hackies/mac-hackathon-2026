@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+related: [system, control-model, core-loop, gameplay-areas, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -48,14 +48,20 @@ Unity reports 5,496 imported vertices after UV seam splits.
 north-pole crater and snaps its capsule feet to that mesh at startup. The
 template Main Camera remains in the scene but is inactive; the rig camera is
 the single runtime camera/audio listener. Its URP camera data explicitly
-enables shadow rendering and post-processing.
+enables shadow rendering, post-processing, and low-cost FXAA.
 
 SampleScene uses a project-owned procedural space skybox with dense stars, a
 faint galactic band, and a bloom-ready HDR sun disc. The scene's directional
 `Sun Light` points from that same fixed world direction, is assigned as
-`RenderSettings.sun`, and provides soft realtime shadows across the planet.
-Skybox ambient and reflection intensities are deliberately low so unlit regions
-read as space without becoming completely black.
+`RenderSettings.sun`, and provides the sole realtime key light: a restrained
+warm tint at intensity 3.6 with realtime shadows. A low-intensity cool Trilight
+ambient gradient supplies fill without another Light object; the visible
+skybox and its reflection intensity remain dark enough to read as space.
+
+The global volume uses ACES tonemapping, subtle +10 contrast/-4 saturation,
+vignette, and restrained bloom. Bloom uses its lower-cost filtering path for
+WebGL; motion blur remains disabled. The rig camera applies FXAA after the
+Mobile tier's 0.8 render scale.
 
 The `Sun Light` GameObject and its `Light` component must both stay enabled.
 Disabling only the component leaves the hierarchy looking valid while removing
@@ -79,6 +85,11 @@ Separate top-level `Arena1` and `Arena2` perimeter hierarchies each contain 17
 material overrides; Arena2 uses near-black blood-red overrides. Their dedicated
 materials use solid albedo with the imported normal maps and avoid recoloring
 shared base or importer materials.
+
+`LandingBase`, `Arena1`, and `Arena2` each own a `GameplayArea` derived from
+their direct perimeter poles. `PlayerRig.prefab` carries the one shared-body
+tracker plus a separate consumer that doubles player movement while inside
+LandingBase. Arena effects remain open; no trigger colliders are used.
 
 The scene also contains one top-level `Generated Planet Vegetation` hierarchy
 with 16,000 static, non-colliding prefab instances sampled across the full

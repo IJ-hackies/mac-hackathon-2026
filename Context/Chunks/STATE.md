@@ -11,8 +11,8 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, unity-project, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+related: [control-model, core-loop, gameplay-areas, unity-project, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -37,7 +37,9 @@ lastVerified: 2026-08-08
 - **`core-game-loop`** - turn the confirmed crash-site defense and planetary
   scavenging loop into exact phases. Decide wave timing/scaling, breaks,
   residual enemies, failure states, dark-region risk/reward behavior,
-  progression persistence, and the endgame.
+  progression persistence, remaining area-specific effects, and the endgame.
+  Reusable perimeter membership now drives a 2x landing-base movement-speed
+  benefit; both arenas currently have membership only.
 - **`enemy-wave-prototype`** - implement planet-wide spawning, a timed wave
   director, drops, and player/base failure. Health, melee/hitscan damage, three
   basic enemy types, and a two-stage boss now work in the flat-ground

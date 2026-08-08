@@ -1,0 +1,21 @@
+{
+  "name": "Gameplay.Areas.Tests",
+  "rootNamespace": "Gameplay.Areas.Tests",
+  "references": [
+    "GUID:68dfe50c4b89479aabb0b840bbf47b82"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

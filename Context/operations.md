@@ -39,8 +39,24 @@ a player build or substitute for Play mode. Editor-only tooling can be checked
 with `dotnet build Assembly-CSharp-Editor.csproj --no-restore` after Unity has
 regenerated that project file. In Unity,
 `Tools > Player Prototype > Repair Player Rig Prefab` is the safe idempotent
-command for relinking and validating `PlayerRig.prefab`. Do not use the
-destructive `Build Test Scene` command for that repair.
+command for relinking and validating `PlayerRig.prefab`, including its camera
+shadows, post-processing, and FXAA. Do not use the destructive `Build Test
+Scene` command for that repair.
+
+Gameplay-area runtime and editor sources also compile with zero warnings via
+`dotnet build Gameplay.Areas.csproj --no-restore` followed by the editor build
+above, after Unity has refreshed the generated projects. EditMode tests live at
+`Assets/Tests/EditMode/GameplayAreas`. A Unity batch run with `-runTests
+-testPlatform EditMode -testFilter Gameplay.Areas.Tests` passes all 11 tests.
+If a backgrounded interactive editor omits newly created area scripts from the
+`Gameplay.Areas` compiler response and reports downstream `CS0246` errors,
+close it cleanly and run a fresh Unity import; the assembly references do not
+need to be rewritten.
+
+`Tools > Gameplay > Configure Area Membership` (`Ctrl+Shift+G`) idempotently
+wires `LandingBase`, `Arena1`, and `Arena2` to their direct perimeter poles and
+configures the shared astronaut tracker and its 2x LandingBase speed consumer.
+`Validate Area Membership` checks that full contract without changing it.
 
 A 2026-08-08 interactive Play-mode smoke test verified the planet prop runtime:
 it captured 17,100 generated vegetation/rock renderers into 288 spherical
@@ -59,8 +75,9 @@ Planet dressing tools live under `Tools > Planet Design`. `Radial Surface
 Snap` opens the configurable selection-snap window; `Snap Selection To Planet`
 uses surface-normal alignment, preserved heading, and zero pivot offset.
 `Configure Landing Base Assets` is the explicit idempotent import/material
-repair command for the curated landing-base FBXs; it also restores their static
-mesh-collider import setting.
+repair command for the curated FBXs. It restores static mesh colliders, creates
+one linear mipmapped Trim01 mask capped at 1024, and assigns teal LandingBase,
+amber Arena1, and red Arena2 accents. Trim02 stays dark; no Light objects are added.
 
 `Prepare Planet Rock Assets` imports/configures all seven Ultimate Space Kit
 rock FBXs under `Assets/Art/Models/Environment/PlanetRocks`, remaps their

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using CharacterEditor;
 using Combat;
+using Gameplay.Areas;
 using Player;
 using Player.UI;
 using UnityEditor;
@@ -182,6 +183,23 @@ namespace PlayerEditor
                 replacement.transform.localScale = Vector3.one;
 
                 PlayerController playerController = RequireComponent<PlayerController>(replacement);
+                PlayerAreaTracker areaTracker = rigRoot.GetComponent<PlayerAreaTracker>();
+                if (areaTracker == null)
+                {
+                    areaTracker = rigRoot.AddComponent<PlayerAreaTracker>();
+                }
+
+                LandingBaseMovementSpeedEffect speedEffect =
+                    rigRoot.GetComponent<LandingBaseMovementSpeedEffect>();
+                if (speedEffect == null)
+                {
+                    speedEffect = rigRoot.AddComponent<LandingBaseMovementSpeedEffect>();
+                }
+
+                areaTracker.Configure(
+                    playerController.transform,
+                    System.Array.Empty<GameplayArea>());
+                speedEffect.Configure(areaTracker, playerController, 2f);
                 PlayerVisualGroundConformer visualConformer =
                     RequireComponent<PlayerVisualGroundConformer>(replacement);
                 CapsuleCollider playerCapsule = RequireComponent<CapsuleCollider>(replacement);
@@ -347,6 +365,9 @@ namespace PlayerEditor
             }
 
             PlayerController playerController = RequireComponent<PlayerController>(player.gameObject);
+            PlayerAreaTracker areaTracker = RequireComponent<PlayerAreaTracker>(rigRoot);
+            LandingBaseMovementSpeedEffect speedEffect =
+                RequireComponent<LandingBaseMovementSpeedEffect>(rigRoot);
             PlayerVisualGroundConformer visualConformer =
                 RequireComponent<PlayerVisualGroundConformer>(player.gameObject);
             CapsuleCollider playerCapsule = RequireComponent<CapsuleCollider>(player.gameObject);
@@ -369,10 +390,30 @@ namespace PlayerEditor
 
             RequireObjectReference(cameraController, "target", player);
             RequireObjectReference(cameraController, "cameraTransform", aimCamera.transform);
-            if (!cameraData.renderShadows || !cameraData.renderPostProcessing)
+            if (areaTracker.TrackedBody != player ||
+                areaTracker.Areas.Count != 0 ||
+                !areaTracker.DiscoverAreasWhenEmpty)
             {
                 throw new System.InvalidOperationException(
-                    "PlayerSceneSetup: rig camera must render shadows and post-processing.");
+                    "PlayerSceneSetup: PlayerRig area tracker must follow the nested Player " +
+                    "and discover scene areas.");
+            }
+
+            if (speedEffect.AreaTracker != areaTracker ||
+                speedEffect.PlayerController != playerController ||
+                !Mathf.Approximately(speedEffect.SpeedMultiplier, 2f))
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: PlayerRig must have one 2x Landing Base speed effect " +
+                    "wired to its tracker and nested PlayerController.");
+            }
+
+            if (!cameraData.renderShadows ||
+                !cameraData.renderPostProcessing ||
+                cameraData.antialiasing != AntialiasingMode.FastApproximateAntialiasing)
+            {
+                throw new System.InvalidOperationException(
+                    "PlayerSceneSetup: rig camera must render shadows, post-processing, and FXAA.");
             }
             RequireObjectReference(playerController, "cameraReference", aimCamera.transform);
             if (playerCapsule.direction != 1 || playerCapsule.isTrigger ||
@@ -963,6 +1004,7 @@ namespace PlayerEditor
             UniversalAdditionalCameraData cameraData = camera.GetUniversalAdditionalCameraData();
             cameraData.renderShadows = true;
             cameraData.renderPostProcessing = true;
+            cameraData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
             EditorUtility.SetDirty(cameraData);
         }
 

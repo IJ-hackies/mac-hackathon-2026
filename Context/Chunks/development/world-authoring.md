@@ -5,7 +5,7 @@ owns:
   - "Assets/Editor/World.meta"
   - "Assets/Editor/World/**"
 related: [system, runtime-art, unity-project, world-runtime, player-controller]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -23,9 +23,9 @@ runtime components or alter the radial player controller.
   from outside the collider bounds, and snaps selected scene roots to the
   authored crater surface.
 - `LandingBaseAssetSetup.cs` - idempotent `Configure Landing Base Assets`
-  command. It creates the shared URP landing-base materials, configures MegaKit
-  normal/ORM texture color space, remaps source material slots, and validates
-  all 19 curated static FBXs.
+  command. It derives one grayscale mask from the vendor Trim01 emission map,
+  applies teal/amber/red HDR emission only to the three shared Trim01 materials,
+  configures MegaKit textures and remaps, then validates all 20 static FBXs.
 - `PlanetaryWallRingWindow.cs` - `Tools > Planet Design > Wall Ring Builder`
   arranges three or more selected scene objects into a closed, surface-snapped
   ring, generates curved solid wall sheets between poles, and can place a
@@ -117,9 +117,9 @@ Its 4,000 clustered placements are interleaved with 12,000 uniform placements;
 cluster centers and radii are seed-driven. Call `Regenerate(seed, min, max)` to
 reproduce or deliberately tune the pass.
 
-The asset configuration command intentionally overwrites its three generated
-material assets with the documented defaults when run. Do not run it after
-hand-tuning those materials unless resetting them is intended.
+The asset configuration command intentionally regenerates the selective Trim01
+mask and overwrites its shared materials with documented defaults. Trim02 stays
+non-emissive; do not hand-tune these assets unless a later reset is intended.
 
 Rock imports retain the pack's small source-unit scale and need the same
 -90-degree local-X placement correction used by other Environment models.

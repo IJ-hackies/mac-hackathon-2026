@@ -2,8 +2,8 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, core-loop, asset-library, runtime-art, unity-project, world-authoring, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+related: [control-model, core-loop, gameplay-areas, asset-library, runtime-art, unity-project, world-authoring, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -51,6 +51,12 @@ clear of rock generation. At runtime, the generated vegetation and rock
 renderers are regrouped into spherical sectors for WebGL2 GPU instancing,
 distance, frustum, and horizon culling. Their source objects and rock colliders
 remain present, while the landing base and arenas stay outside this prop system.
+
+The landing base and both arenas now have reusable gameplay-area membership
+derived from their authored perimeter poles. One tracker follows the shared
+astronaut body and publishes transitions. A separate consumer doubles movement
+speed while that body is inside the landing base; other area-specific effects
+remain undecided.
 
 A separate `Player.unity` prototype scene (not yet merged into the planet
 scene) now carries a working single-player third-person controller with

@@ -5,7 +5,7 @@ owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
 related: [asset-library, unity-project, player-controller, world-authoring, world-runtime]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -48,9 +48,9 @@ type and gameplay role rather than separated by vendor.
   a subtle galactic band and an HDR sun disc in a fixed world direction.
 - `Materials/M_ProceduralSpaceSkybox.mat` - SampleScene's configured space
   skybox, including star density, deep-space colors, and sun appearance.
-- `Models/Environment/LandingBase/` - 18 Ultimate Space Kit structures plus the Modular SciFi MegaKit `Column_Hollow`; animation is disabled and Unity generates non-convex mesh colliders.
-- `Materials/LandingBase/` - shared URP remaps plus dark-orange Arena1 and near-black blood-red Arena2 variants using MegaKit normal maps.
-- `Textures/ModularSciFi/` - base-color, normal, and packed ORM textures for `Column_Hollow`; normals use Normal Map import type and ORM maps remain linear.
+- `Models/Environment/LandingBase/` - 19 Ultimate Space Kit models including `Ramp`, plus MegaKit `Column_Hollow`; animation is off and Unity generates non-convex mesh colliders.
+- `Materials/LandingBase/` - shared URP remaps; only selective Trim01 details emit: landing base teal, Arena1 amber, and Arena2 red. Broad Trim02/wall surfaces stay non-emissive.
+- `Textures/ModularSciFi/` - base, normal, linear ORM, and project-derived grayscale Trim01 emission mask; the mask imports linear with mipmaps and a 1024 maximum.
 - `Generated/LandingBaseWalls/` - persistent mesh assets produced explicitly
   by the Wall Ring Builder's curved-sheet command. Each generation uses a
   unique asset path so earlier authored walls are never overwritten.

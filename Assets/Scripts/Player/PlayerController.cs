@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
@@ -68,6 +70,8 @@ namespace Player
         private RadialCapsuleMotor _motor;
         private InputSystem_Actions _actions;
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[HitBufferSize];
+        private readonly Dictionary<object, float> _movementSpeedModifiers =
+            new Dictionary<object, float>();
         private float _radialSpeed;
         private Vector3 _surfaceUp = Vector3.up;
         private bool _surfaceUpInitialized;
@@ -83,6 +87,10 @@ namespace Player
         public Vector3 GroundNormal { get; private set; } = Vector3.up;
         public float GroundClearance { get; private set; }
         public bool IsStaggered => Time.time < _staggerLockedUntil;
+        public float CurrentHorizontalSpeed => _currentSpeed;
+        public float MovementSpeedMultiplier { get; private set; } = 1f;
+        public float EffectiveWalkSpeed => Mathf.Max(0f, walkSpeed) * MovementSpeedMultiplier;
+        public float EffectiveSprintSpeed => Mathf.Max(0f, sprintSpeed) * MovementSpeedMultiplier;
 
         private void Awake()
         {
@@ -163,6 +171,51 @@ namespace Player
             _jumpQueued = true;
         }
 
+        public void SetMovementSpeedModifier(object source, float multiplier)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(multiplier),
+                    multiplier,
+                    "Movement speed multipliers must be finite and non-negative.");
+            }
+
+            _movementSpeedModifiers[source] = multiplier;
+            RecalculateMovementSpeedMultiplier();
+        }
+
+        public void RemoveMovementSpeedModifier(object source)
+        {
+            if (source != null && _movementSpeedModifiers.Remove(source))
+            {
+                RecalculateMovementSpeedMultiplier();
+            }
+        }
+
+        private void RecalculateMovementSpeedMultiplier()
+        {
+            float previousMultiplier = MovementSpeedMultiplier;
+            float resolvedMultiplier = 1f;
+            foreach (float multiplier in _movementSpeedModifiers.Values)
+            {
+                resolvedMultiplier *= multiplier;
+            }
+
+            MovementSpeedMultiplier = resolvedMultiplier;
+            if (resolvedMultiplier < previousMultiplier)
+            {
+                _currentSpeed = previousMultiplier > 0f
+                    ? _currentSpeed * (resolvedMultiplier / previousMultiplier)
+                    : 0f;
+            }
+        }
+
         // Used by boss attacks (e.g. BossMechAI's ground-slam landing) to force the Duck
         // animation and lock movement/jump input for its duration - "player cannot move until
         // the duck animation is done." Doesn't disable this component outright (that would also
@@ -236,7 +289,7 @@ namespace Player
                 moveDirection.Normalize();
             }
 
-            float maxSpeed = sprinting ? sprintSpeed : walkSpeed;
+            float maxSpeed = sprinting ? EffectiveSprintSpeed : EffectiveWalkSpeed;
             float targetHorizontalSpeed = maxSpeed * Mathf.Clamp01(moveInput.magnitude);
             _currentSpeed = Mathf.MoveTowards(
                 _currentSpeed,
@@ -244,7 +297,8 @@ namespace Player
                 acceleration * Time.fixedDeltaTime);
 
             Vector3 tangentMotion = moveDirection * _currentSpeed;
-            NormalizedSpeed = Mathf.Clamp01(_currentSpeed / Mathf.Max(0.01f, sprintSpeed));
+            NormalizedSpeed = Mathf.Clamp01(
+                _currentSpeed / Mathf.Max(0.01f, EffectiveSprintSpeed));
 
             ApplyGravityAndJump();
             if (!IsGrounded && _radialSpeed <= 0f)
@@ -453,7 +507,7 @@ namespace Player
                 return true;
             }
 
-            Transform[] sceneTransforms = Object.FindObjectsByType<Transform>(
+            Transform[] sceneTransforms = UnityEngine.Object.FindObjectsByType<Transform>(
                 FindObjectsInactive.Include,
                 FindObjectsSortMode.None);
 

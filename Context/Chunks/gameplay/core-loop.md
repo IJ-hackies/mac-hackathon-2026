@@ -2,8 +2,8 @@
 chunk: core-loop
 title: Crash-site wave survival and planetary scavenging
 owns: []
-related: [system, state, control-model, player-controller, unity-project]
-verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
+related: [system, state, control-model, gameplay-areas, player-controller, unity-project]
+verifiedAtCommit: 0411d4ebb374b9de109cb0c17f0e69577a36cb44
 lastVerified: 2026-08-08
 ---
 
@@ -45,6 +45,11 @@ Regions outside sunlight should generally offer a higher-risk, higher-reward
 scavenging opportunity, with stronger enemies and better loot. The strength of
 that relationship, whether lighting changes over time, and how clearly danger
 is communicated remain open rather than fixed tuning rules.
+
+The three walled areas use their authored perimeter poles as runtime membership
+boundaries. The landing base currently doubles player movement speed through a
+separate membership consumer. Arena effects and all area-specific visual/audio
+treatments remain open.
 
 ## Undecided details
 
