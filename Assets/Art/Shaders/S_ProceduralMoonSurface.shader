@@ -10,6 +10,7 @@ Shader "SpaceGame/Procedural Moon Surface"
         _NormalStrength ("Surface Bump", Range(0, 2)) = 0.85
         _Smoothness ("Smoothness", Range(0, 1)) = 0.12
         _RoughnessVariation ("Roughness Variation", Range(0, 0.15)) = 0.035
+        [Toggle(_CAST_SHADOW_ONLY)] _CastShadowOnly ("Flat Surface With Cast Shadows", Float) = 0
     }
 
     SubShader
@@ -35,6 +36,7 @@ Shader "SpaceGame/Procedural Moon Surface"
             half _NormalStrength;
             half _Smoothness;
             half _RoughnessVariation;
+            half _CastShadowOnly;
         CBUFFER_END
 
         float Hash31(float3 value)
@@ -156,6 +158,7 @@ Shader "SpaceGame/Procedural Moon Surface"
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
+            #pragma shader_feature_local_fragment _CAST_SHADOW_ONLY
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -224,6 +227,24 @@ Shader "SpaceGame/Procedural Moon Surface"
                 half tonalOffset = (macroPattern.x - 0.5) * (2.0h * _MacroStrength);
                 tonalOffset += (detailPattern.x - 0.5) * (2.0h * _DetailStrength);
                 half tonalMultiplier = clamp(1.0h + tonalOffset, 0.58h, 1.35h);
+                half3 albedo = _BaseColor.rgb * tonalMultiplier;
+
+            #if defined(_CAST_SHADOW_ONLY)
+                half fogCoord;
+            #ifdef _ADDITIONAL_LIGHTS_VERTEX
+                fogCoord = input.fogFactorAndVertexLight.x;
+            #else
+                fogCoord = input.fogFactor;
+            #endif
+
+                float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
+                half4 shadowMask = SAMPLE_SHADOWMASK(input.staticLightmapUV);
+                Light mainLight = GetMainLight(shadowCoord, input.positionWS, shadowMask);
+                half castShadow = mainLight.distanceAttenuation * mainLight.shadowAttenuation;
+                half4 color = half4(albedo * castShadow, _BaseColor.a);
+                color.rgb = MixFog(color.rgb, fogCoord);
+                return color;
+            #else
 
                 float3 bumpGradientOS = macroPattern.yzw / max(_MacroScale, 0.001) * 0.3;
                 bumpGradientOS += detailPattern.yzw / max(_DetailScale, 0.001) * 0.7;
@@ -233,7 +254,7 @@ Shader "SpaceGame/Procedural Moon Surface"
                     bumpGradientOS);
 
                 SurfaceData surfaceData = (SurfaceData)0;
-                surfaceData.albedo = _BaseColor.rgb * tonalMultiplier;
+                surfaceData.albedo = albedo;
                 surfaceData.metallic = 0.0h;
                 surfaceData.specular = half3(0.04h, 0.04h, 0.04h);
                 surfaceData.smoothness = saturate(
@@ -264,6 +285,7 @@ Shader "SpaceGame/Procedural Moon Surface"
                 half4 color = UniversalFragmentPBR(inputData, surfaceData);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
                 return color;
+            #endif
             }
             ENDHLSL
         }

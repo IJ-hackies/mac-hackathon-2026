@@ -44,28 +44,41 @@ scales with it but remains disabled as a reference, not active ground
 collision. The active shell has 4,802 geometric positions and 9,600 triangles;
 Unity reports 5,496 imported vertices after UV seam splits.
 
-`PlayerRig.prefab` is placed 156 units from the planet center near the
-north-pole crater and snaps its capsule feet to that mesh at startup. The
-template Main Camera remains in the scene but is inactive; the rig camera is
-the single runtime camera/audio listener. Its URP camera data explicitly
-enables shadow rendering, post-processing, and low-cost FXAA.
+`PlayerRig.prefab` is placed 156 units from the planet center near the north-pole
+crater and snaps its capsule feet to that mesh at startup. The template Main
+Camera remains inactive; the rig camera is the sole runtime camera/audio listener
+and its URP data enables shadows, post-processing, and low-cost FXAA.
 
-SampleScene uses a project-owned procedural space skybox with dense stars, a
-faint galactic band, and a bloom-ready HDR sun disc. The scene's directional
-`Sun Light` points from that same fixed world direction, is assigned as
-`RenderSettings.sun`, and provides the sole realtime key light: a restrained
-warm tint at intensity 3.6 with realtime shadows. A low-intensity cool Trilight
-ambient gradient supplies fill without another Light object; the visible
-skybox and its reflection intensity remain dark enough to read as space.
+The scene-only `OpeningCutscene` begins with a six-second radial orbit-and-dolly
+from the terminator to the wide NAUT reveal, then proceeds through the NAUT zoom,
+playerward pan, astronaut Wave, and shoulder-camera arc. Its frame follows the
+actual N-to-T art axis rather than the BaseCenter pose.
+It suspends gameplay/emote input and the HUD, supports Escape/Space/gamepad-Start
+skip, and collision-resolves the final pose. Separate angular, dolly, aim, and
+per-beat `AnimationCurve` fields are the intended tuning points.
 
-The global volume uses ACES tonemapping, subtle +10 contrast/-4 saturation,
-vignette, and restrained bloom. Bloom uses its lower-cost filtering path for
-WebGL; motion blur remains disabled. The rig camera applies FXAA after the
-Mobile tier's 0.8 render scale.
+The PC URP asset uses a 500-unit shadow distance so Scene-view shadows remain useful
+while editing the planet. WebGL keeps the Mobile asset's 50-unit gameplay distance;
+the opening temporarily raises the active asset to 500 and restores it on every exit.
 
-The `Sun Light` GameObject and its `Light` component must both stay enabled.
-Disabling only the component leaves the hierarchy looking valid while removing
-all direct illumination and realtime shadows in Play mode.
+SampleScene uses a project-owned procedural space skybox with dense warm/cool
+twinkling stars, a faint galactic band, three-sample triplanar cosmic fog, and
+a bloom-ready layered HDR sun. A self-bootstrapped presentation component adds
+one pooled camera-relative shooting-star quad at rare intervals without scene
+or particle-system state. The scene's directional `Sun Light` points from that
+same fixed world direction, is assigned as `RenderSettings.sun`, and provides
+the sole realtime key light: a restrained warm tint at intensity 3.6 and 0.75
+shadow strength for the flat-surface/cast-shadow planet experiment. A cool
+Trilight ambient gradient at 0.6 intensity supplies fill without another Light
+object; the visible skybox
+and its reflection intensity remain dark enough to read as space.
+
+The global volume uses ACES tonemapping, subtle +5 contrast/-4 saturation,
+vignette, and restrained bloom with lower-cost WebGL filtering. Motion blur is
+disabled; the rig camera applies FXAA after the Mobile tier's 0.8 render scale.
+
+The `Sun Light` GameObject and `Light` must both stay enabled. Disabling only the
+component leaves the hierarchy looking valid but removes direct light and shadows.
 
 The scene's top-level `LandingBase` authoring hierarchy dresses the landing
 crater with layout, structures, and a perimeter. Its runtime art comes from the
@@ -124,8 +137,7 @@ root `.gitignore`.
 
 ## Remaining bootstrap choices
 
-- The cooperative versus single-player input/authority abstraction; the current
-  radial controller is deliberately single-player.
+- Cooperative versus single-player input/authority; the radial controller is single-player.
 - The intentional package baseline, assembly layout, and repeatable WebGL
   build, browser test, and deployment workflows.
 - Whether to retain or remove the template readme and tutorial content, and

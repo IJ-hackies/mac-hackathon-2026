@@ -123,13 +123,59 @@ namespace Player
             _orbitInitialized = false;
         }
 
+        /// <summary>
+        /// Sets the tangent direction and pitch the gameplay orbit will use when a cutscene hands
+        /// the camera back. This is safe while the component is disabled.
+        /// </summary>
+        public void SetOrbit(Vector3 worldForward, float pitchDegrees)
+        {
+            if (target == null) return;
+
+            Vector3 targetUp = target.up.normalized;
+            _orbitForward = ProjectOntoTangent(worldForward, targetUp);
+            _lastTargetUp = targetUp;
+            _pitch = Mathf.Clamp(pitchDegrees, minPitch, maxPitch);
+            _orbitInitialized = true;
+        }
+
+        /// <summary>
+        /// Synchronizes both the orbit pivot and child Camera to the queried follow pose before
+        /// re-enabling LateUpdate. Without this, a cutscene that moved the child Camera in world
+        /// space could reveal the stale pivot for one frame during hand-back.
+        /// </summary>
+        public void SnapToFollowPose()
+        {
+            if (target == null || cameraTransform == null) return;
+
+            Vector3 targetUp = target.up.normalized;
+            if (!_orbitInitialized)
+            {
+                InitializeOrbit(targetUp);
+            }
+
+            GetDesiredFollowState(
+                out Vector3 pivotPosition,
+                out Quaternion followRotation,
+                out float resolvedDistance);
+            transform.SetPositionAndRotation(
+                pivotPosition,
+                followRotation);
+            cameraTransform.localPosition = new Vector3(
+                shoulderOffsetX,
+                shoulderOffsetY,
+                -resolvedDistance);
+            cameraTransform.localRotation = Quaternion.identity;
+            _followVelocity = Vector3.zero;
+            _shakeOffset = Vector3.zero;
+            _shakeUntil = -1f;
+        }
+
         // Lets a cutscene (BossFightController's Stage 1 -> Stage 2 transition) blend Camera.main
         // smoothly back to the normal follow pose instead of snapping to it the instant this
         // component is re-enabled. Pure query - doesn't touch the orbit/pitch/transform, so it's safe
         // to call every frame while this component is still disabled (its own LateUpdate isn't
-        // running to move anything out from under the blend). Skips the collision SphereCast for
-        // simplicity; the blend only needs to be close, not pixel-identical, since the real
-        // LateUpdate takes over the instant the blend finishes.
+        // running to move anything out from under the blend). It resolves the same collision pull-in
+        // as LateUpdate so the first gameplay frame cannot pop closer to the player.
         public void GetFollowPose(out Vector3 worldPosition, out Quaternion worldRotation)
         {
             if (target == null)
@@ -139,15 +185,14 @@ namespace Player
                 return;
             }
 
-            Vector3 targetUp = target.up.normalized;
-            Vector3 orbitForward = _orbitInitialized
-                ? ProjectOntoTangent(_orbitForward, targetUp)
-                : ProjectOntoTangent(transform.forward, targetUp);
-            Quaternion tangentFrame = Quaternion.LookRotation(orbitForward, targetUp);
-            worldRotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
-
-            Vector3 pivotPosition = target.position + target.TransformDirection(GetEffectiveTargetOffset());
-            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, -(distance + _extraDistance));
+            GetDesiredFollowState(
+                out Vector3 pivotPosition,
+                out worldRotation,
+                out float resolvedDistance);
+            Vector3 shoulderLocalOffset = new Vector3(
+                shoulderOffsetX,
+                shoulderOffsetY,
+                -resolvedDistance);
             worldPosition = pivotPosition + worldRotation * shoulderLocalOffset;
         }
 
@@ -204,19 +249,47 @@ namespace Player
                 transform.position += _shakeOffset;
             }
 
-            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, 0f);
-            Vector3 castOrigin = transform.TransformPoint(shoulderLocalOffset);
-            Vector3 castDirection = transform.rotation * Vector3.back;
-
-            float targetDistance = distance + _extraDistance;
-            float clampedDistance = targetDistance;
-            if (Physics.SphereCast(castOrigin, collisionRadius, castDirection, out RaycastHit hit, targetDistance, collisionMask, QueryTriggerInteraction.Ignore))
-            {
-                clampedDistance = Mathf.Clamp(hit.distance, minDistance, targetDistance);
-            }
+            float clampedDistance = ResolveCollisionDistance(transform.position, transform.rotation);
 
             cameraTransform.localPosition = new Vector3(shoulderOffsetX, shoulderOffsetY, -clampedDistance);
             cameraTransform.localRotation = Quaternion.identity;
+        }
+
+        private void GetDesiredFollowState(
+            out Vector3 pivotPosition,
+            out Quaternion followRotation,
+            out float resolvedDistance)
+        {
+            Vector3 targetUp = target.up.normalized;
+            Vector3 orbitForward = _orbitInitialized
+                ? ProjectOntoTangent(_orbitForward, targetUp)
+                : ProjectOntoTangent(transform.forward, targetUp);
+            Quaternion tangentFrame = Quaternion.LookRotation(orbitForward, targetUp);
+            followRotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
+            pivotPosition = target.position + target.TransformDirection(GetEffectiveTargetOffset());
+            resolvedDistance = ResolveCollisionDistance(pivotPosition, followRotation);
+        }
+
+        private float ResolveCollisionDistance(Vector3 pivotPosition, Quaternion pivotRotation)
+        {
+            float targetDistance = distance + _extraDistance;
+            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, 0f);
+            Vector3 castOrigin = pivotPosition + pivotRotation * shoulderLocalOffset;
+            Vector3 castDirection = pivotRotation * Vector3.back;
+
+            if (Physics.SphereCast(
+                    castOrigin,
+                    collisionRadius,
+                    castDirection,
+                    out RaycastHit hit,
+                    targetDistance,
+                    collisionMask,
+                    QueryTriggerInteraction.Ignore))
+            {
+                return Mathf.Clamp(hit.distance, minDistance, targetDistance);
+            }
+
+            return targetDistance;
         }
 
         private void InitializeOrbit(Vector3 targetUp)

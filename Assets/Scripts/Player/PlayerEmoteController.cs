@@ -48,7 +48,10 @@ namespace Player
         private Vector2 _wheelDirection;
         private bool _wheelOpen;
         private bool _isEmoting;
+        private bool _ignoreGameplayInterrupts;
         private float _emoteEndTime;
+
+        public bool InputSuspended { get; private set; }
 
         private void Awake()
         {
@@ -91,6 +94,8 @@ namespace Player
 
         private void OnWheelStarted(InputAction.CallbackContext context)
         {
+            if (InputSuspended) return;
+
             _wheelOpen = true;
             _wheelDirection = Vector2.zero;
 
@@ -106,6 +111,8 @@ namespace Player
 
         private void OnWheelCanceled(InputAction.CallbackContext context)
         {
+            if (InputSuspended) return;
+
             _wheelOpen = false;
 
             if (cameraController != null) cameraController.InputSuspended = false;
@@ -120,7 +127,35 @@ namespace Player
             }
         }
 
-        private void TriggerEmote(int index)
+        public void SetInputSuspended(bool suspended)
+        {
+            InputSuspended = suspended;
+            if (!suspended || !_wheelOpen) return;
+
+            _wheelOpen = false;
+            _wheelDirection = Vector2.zero;
+            if (cameraController != null) cameraController.InputSuspended = false;
+            if (crosshairUi != null) crosshairUi.SetVisible(true);
+            if (wheelUi != null) wheelUi.Hide();
+        }
+
+        /// <summary>
+        /// Plays the existing Wave animation without opening the player-controlled emote wheel.
+        /// Returns the authored clip length so a cinematic can hold the shot long enough.
+        /// </summary>
+        public float PlayCinematicWave()
+        {
+            _ignoreGameplayInterrupts = true;
+            return TriggerEmote(0);
+        }
+
+        public void StopCinematicEmote()
+        {
+            _ignoreGameplayInterrupts = false;
+            StopEmote();
+        }
+
+        private float TriggerEmote(int index)
         {
             AnimationClip[] clips = ActiveClips;
             if (clips == null || index >= clips.Length || clips[index] == null)
@@ -129,7 +164,7 @@ namespace Player
                                   "check the waveClip/yesClip/noClip (or mech equivalents) " +
                                   "references (rerun Build Test Scene if the FBX's clip lookup " +
                                   "warned about a missing take).");
-                return;
+                return 0f;
             }
 
             _isEmoting = true;
@@ -151,6 +186,8 @@ namespace Player
                 // failure mode since Mecanim consumes them on use, matching how Melee/Fire work.
                 animator.SetTrigger(PlayEmoteParam);
             }
+
+            return clips[index].length;
         }
 
         private void StopEmote()
@@ -173,10 +210,11 @@ namespace Player
 
             if (_isEmoting)
             {
-                bool interrupted =
-                    (playerController != null && (playerController.NormalizedSpeed > 0.05f ||
-                                                   playerController.JumpTriggeredThisFrame)) ||
-                    (playerCombat != null && playerCombat.IsAttacking);
+                bool interrupted = !_ignoreGameplayInterrupts &&
+                    ((playerController != null &&
+                      (playerController.NormalizedSpeed > 0.05f ||
+                       playerController.JumpTriggeredThisFrame)) ||
+                     (playerCombat != null && playerCombat.IsAttacking));
 
                 if (interrupted || Time.time >= _emoteEndTime)
                 {

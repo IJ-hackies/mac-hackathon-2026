@@ -81,7 +81,7 @@ namespace Player
 
                 float consumed = Mathf.Min(travel, distance);
                 Vector3 unconsumed = remaining - direction * consumed;
-                if (allowStep && IsSideContact(hit.normal, localUp) &&
+                if (allowStep && IsStepObstacle(hit.normal, localUp) &&
                     TryStep(position, rotation, unconsumed, localUp, out Vector3 steppedPosition,
                         out Vector3 steppedRemaining))
                 {
@@ -317,10 +317,17 @@ namespace Player
             }
         }
 
-        private bool IsSideContact(Vector3 normal, Vector3 localUp)
+        private bool IsStepObstacle(Vector3 normal, Vector3 localUp)
         {
-            return Mathf.Abs(Vector3.Dot(normal.normalized, localUp.normalized)) <
-                   Mathf.Clamp01(minimumBottomDot);
+            float upDot = Vector3.Dot(normal.normalized, localUp.normalized);
+            float minimumWalkableDot = Mathf.Cos(
+                Mathf.Clamp(maxStepGroundAngle, 0f, 89f) * Mathf.Deg2Rad);
+
+            // Mesh seams and beveled stair lips can report a steep upward normal instead of a
+            // perfectly vertical side normal. Let the validated up/forward/down step sequence
+            // handle those non-walkable contacts, while excluding walkable ground and ceilings.
+            return upDot > -Mathf.Clamp01(minimumBottomDot) &&
+                   upDot < minimumWalkableDot;
         }
 
         private bool IsOwnCollider(Collider candidate)

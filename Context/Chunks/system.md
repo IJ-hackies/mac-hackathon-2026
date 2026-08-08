@@ -38,9 +38,11 @@ instantiated by the prototype scene. A single-player astronaut prototype now
 snaps to that surface, uses a planet-aligned capsule motor with grounded surface
 adhesion, radial airborne gravity, and tangent movement, and keeps stable radial
 body/camera up. The scene
-also has a procedural
-starfield and a visible sun whose world direction matches the planet's
-directional light source.
+also has a procedural starfield over slowly drifting, texture-sampled cosmic
+fog, warm/cool twinkling stars, a layered HDR sun whose world direction matches
+the directional light, and rare pooled shooting-star streaks.
+Play opens with one continuous, skippable radial planet shot, followed by the
+overhead landing base/NAUT artwork, astronaut Wave, and gameplay shoulder camera.
 The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
 curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base
