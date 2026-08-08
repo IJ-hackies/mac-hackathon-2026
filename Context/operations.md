@@ -212,6 +212,19 @@ unique mesh asset remains in
 `Assets/Art/Generated/LandingBaseWalls` until explicitly deleted from the
 Project window.
 
+`Tools > Tutorial > Import Modular Kit Assets` copies the entire Modular SciFi MegaKit pack
+(~190 FBXs across Walls/Platforms/Columns/Props/Decals/Aliens, plus its full texture set) into
+`Assets/Art/Models/Environment/ModularSciFi/<Category>/` and builds their shared trim materials,
+so every piece is available to drag into the scene and already matches. There is no automated
+scene builder anymore - two scripted passes (a white one-tile/one-band tube, then a scripted
+three-tile/three-band modular assembly) were both discarded as too rough without live visual
+feedback, and the room is now hand-built in the editor. `Tools > Tutorial > Strip Scene For
+Manual Build` was a one-shot cleanup that removed the discarded auto-builder's generated hierarchy
+from `Assets/Scenes/Tutorial.unity`, keeping only the `Sun Light` and a `PlayerRig` reference
+instance; delete that script once no longer needed. The tutorial's gameplay scripts
+(`TutorialManager` and friends, `Assets/Scripts/Tutorial/`) are unaffected by any of this and get
+wired to the hand-built room's gates/zones/pickups via the Inspector.
+
 To move the planetary player spawn, exit Play mode, move the top-level
 `PlayerRig` scene instance roughly above the intended location, then use the
 Radial Surface Snap window with surface-normal alignment off, preserved heading,

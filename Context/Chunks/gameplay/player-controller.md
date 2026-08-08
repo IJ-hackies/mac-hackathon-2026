@@ -80,7 +80,14 @@ always restores the captured gameplay value (Mobile is 50).
   master volume and `MouseSensitivity`, and opens the live Controls page.
   `ControlsRebindingUI` drives its 12 two-column binding rows, Escape-cancel,
   duplicate rejection, and Reset Defaults. Closing restores the main page and
-  only state it acquired, including `PlayerAbilityInput` enablement.
+  only state it acquired, including `PlayerAbilityInput` enablement. Its main
+  page also has a `ReturnToMainMenu()` button (`mainMenuButton`) that resets
+  time scale/cursor itself and loads `MainMenu` directly, since a scene load is
+  about to discard whatever gameplay state `RestoreGameplayState` would
+  otherwise restore anyway - added via `Tools/Player Prototype/Add Return To
+  Main Menu Button`, which clones the existing Close button so it matches
+  automatically. Since `SampleScene` and `Tutorial.unity` both instantiate this
+  same `PlayerRig.prefab`, this one button covers both scenes' pause menus.
 - `PlayerInputBindings.cs` is the factory/registry for every independent
   `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
   accepted rebind out to live copies while preserving map enablement, and

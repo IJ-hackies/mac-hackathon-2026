@@ -177,6 +177,13 @@ namespace Player
         public float FireRateMultiplier { get; private set; } = 1f;
         public bool HoldToFireUnlocked => _holdToFireUnlocked;
         public event System.Action SecondaryCooldownChanged;
+        // Tutorial hook (Assets/Scripts/Tutorial/TutorialDummyAI.cs): both fire and Attack2 tag
+        // their Combat.ApplyDamage calls as DamageType.Ranged, so DamageType alone can't tell a
+        // light (pistol) hit from a heavy (secondary) hit on a target. These two events give the
+        // tutorial dummy a timestamp to correlate against Health.Hit instead of guessing from
+        // damage amount. Fired on every successful cast, gameplay-mode-agnostic.
+        public event System.Action ShotFired;
+        public event System.Action SecondaryFired;
 
         /// Called by PlayerUltimate on activate/end - swaps which attack profile FireProjectile/
         /// OnSecondaryPerformed use. Does not touch anything else (visual swap, shield reset,
@@ -470,6 +477,7 @@ namespace Player
 
             FireProjectile();
             SpawnMuzzleFlash();
+            ShotFired?.Invoke();
             return true;
         }
 
@@ -642,6 +650,7 @@ namespace Player
 
             _secondaryCooldownEndsAt = Time.time + SecondaryCooldownDuration;
             SecondaryCooldownChanged?.Invoke();
+            SecondaryFired?.Invoke();
 
             // SFX no longer fires on cast - moved to DamageIfStillNear so it only plays once the
             // hit actually lands on an enemy, not on every cast regardless of outcome.

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Player.UI
@@ -22,6 +23,9 @@ namespace Player.UI
         [SerializeField] private Button controlsButton;
         [SerializeField] private Button backButton;
         [SerializeField] private Button closeButton;
+        [Tooltip("Available from SampleScene and Tutorial's pause menu - both instantiate this " +
+                 "same PlayerRig prefab, so wiring it here covers both scenes at once.")]
+        [SerializeField] private Button mainMenuButton;
         [SerializeField] private ControlsRebindingUI controlsRebindingUi;
 
         [Header("Gameplay Suspension")]
@@ -57,6 +61,7 @@ namespace Player.UI
             if (controlsButton != null) controlsButton.onClick.AddListener(ShowControlsPage);
             if (backButton != null) backButton.onClick.AddListener(ShowMainPage);
             if (closeButton != null) closeButton.onClick.AddListener(CloseSettings);
+            if (mainMenuButton != null) mainMenuButton.onClick.AddListener(ReturnToMainMenu);
             if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(ApplyMasterVolume);
             if (sensitivitySlider != null)
             {
@@ -118,6 +123,7 @@ namespace Player.UI
             if (controlsButton != null) controlsButton.onClick.RemoveListener(ShowControlsPage);
             if (backButton != null) backButton.onClick.RemoveListener(ShowMainPage);
             if (closeButton != null) closeButton.onClick.RemoveListener(CloseSettings);
+            if (mainMenuButton != null) mainMenuButton.onClick.RemoveListener(ReturnToMainMenu);
             if (volumeSlider != null) volumeSlider.onValueChanged.RemoveListener(ApplyMasterVolume);
             if (sensitivitySlider != null)
             {
@@ -171,6 +177,20 @@ namespace Player.UI
             PersistSettings();
             if (menuRoot != null) menuRoot.SetActive(false);
             RestoreGameplayState();
+        }
+
+        /// Leaves gameplay entirely rather than just closing the menu - resets time scale/cursor
+        /// itself (rather than routing through RestoreGameplayState, which restores to whatever
+        /// state gameplay was in before pausing) since a scene load is about to discard all of
+        /// that anyway, and MainMenuController.Awake also independently resets both as a backstop.
+        public void ReturnToMainMenu()
+        {
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
+            PersistSettings();
+            Time.timeScale = 1f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            SceneManager.LoadScene("MainMenu", LoadSceneMode.Single);
         }
 
         public void ShowMainPage()

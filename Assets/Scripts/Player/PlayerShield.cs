@@ -9,10 +9,12 @@ namespace Player
     /// Ultimate-mode ability bound to the shared Ability action (Shift, see PlayerAbilityInput) -
     /// replaces PlayerDash while PlayerUltimate.IsActive. Holding Shift fully mitigates incoming
     /// damage (via Health.IncomingDamageMultiplier) while energy remains, covering the whole
-    /// mech in an imported Shield_electric VFX. drainPerSecond is deliberately greater than
-    /// regenPerSecond so holding it permanently is impossible - the player must ration shield use
-    /// within one ultimate activation, per spec. Energy resets to full on every ActivateUltimate
-    /// call (the budget is scoped per ultimate use, not persistent).
+    /// mech in an imported Shield_electric VFX, and pops a blue Combat.DamageNumberSpawner number
+    /// (via Health.MitigatedDamage) at the player for every attack fully blocked. drainPerSecond
+    /// is deliberately greater than regenPerSecond so holding it permanently is impossible - the
+    /// player must ration shield use within one ultimate activation, per spec. Energy resets to
+    /// full on every ActivateUltimate call (the budget is scoped per ultimate use, not
+    /// persistent).
     public class PlayerShield : MonoBehaviour
     {
         [SerializeField] private Health health;
@@ -30,6 +32,8 @@ namespace Player
         [SerializeField] private GameObject shieldVfxPrefab;
         [SerializeField] private float shieldVfxScale = 0.9f;
 
+        private static readonly Color MitigatedDamageColor = new Color(0.3f, 0.6f, 1f);
+
         private GameObject _shieldVfxInstance;
         private AudioHandle _shieldLoopHandle;
 
@@ -44,6 +48,19 @@ namespace Player
         {
             if (health == null) health = GetComponent<Health>();
             Energy = maxEnergy;
+        }
+
+        private void OnEnable()
+        {
+            if (health != null) health.MitigatedDamage += OnMitigatedDamage;
+        }
+
+        // A permanent, always-on piece of Shield feedback (not tutorial-specific): whenever a hit
+        // is fully blocked, pop the same red-damage-number treatment in blue at the player's
+        // position, so blocking a real attack always reads as clearly as taking one does.
+        private void OnMitigatedDamage(float amount)
+        {
+            Combat.DamageNumberSpawner.Spawn(transform.position + Vector3.up, amount, MitigatedDamageColor);
         }
 
         private void Update()
@@ -122,6 +139,7 @@ namespace Player
         {
             IsActive = false;
             health?.RemoveIncomingDamageModifier(this);
+            if (health != null) health.MitigatedDamage -= OnMitigatedDamage;
             DespawnShieldVfx();
         }
     }

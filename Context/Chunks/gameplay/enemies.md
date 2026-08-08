@@ -36,7 +36,10 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   can pick `HitRecieve_1`/`_2`. Reduces `CurrentHealth`, fires
   `HealthChanged` and `Hit(DamageType)` (amount first scaled by composed,
   source-keyed incoming-damage modifiers used by progression Defense and
-  [ultimate](ultimate.md)'s Shield), then fires `HitReact`/`Death`
+  [ultimate](ultimate.md)'s Shield). If that scaling reduces a real (>0) hit to
+  zero, `MitigatedDamage(float)` fires instead with the pre-scaled amount -
+  `PlayerShield` uses this for its permanent blue "damage blocked" popup; a
+  fully-blocked hit fires `MitigatedDamage`, not `Hit`. Then fires `HitReact`/`Death`
   Animator triggers **fire-and-forget** - never blocks its own caller; `Died`
   is the hook other scripts use to stop something (`EnemyBase.HandleDeath`,
   `PlayerDeathHandler`). `SuppressHitReact` skips `HitReact` while still

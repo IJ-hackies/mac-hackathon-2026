@@ -7,8 +7,8 @@ owns:
   - "Assets/Scripts/Player/Projectile.cs*"
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
-related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate, tutorial]
+verifiedAtCommit: 73eb7d644468973196f17f4dc204b6653c5fb8dc
 lastVerified: 2026-08-09
 ---
 
@@ -102,6 +102,11 @@ while held). Full detail in [ultimate](ultimate.md).
 Progression applies keyed ranged/melee/fire-rate multipliers. Health likewise
 composes keyed incoming-damage multipliers so Defense and Shield do not
 overwrite one another; see [progression](progression.md).
+
+`PlayerCombat` also exposes `ShotFired`/`SecondaryFired` events, fired on every successful cast
+regardless of mode. Added purely so [tutorial](tutorial.md)'s practice dummy can tell a light
+(pistol) hit from a heavy (secondary) hit apart - both tag `Combat.DamageType.Ranged`, so
+`DamageType` alone can't distinguish them.
 
 ## Invariants
 

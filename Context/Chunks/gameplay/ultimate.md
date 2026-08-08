@@ -56,7 +56,10 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
 - `PlayerShield` resets its per-Ultimate energy budget on activation. Holding it
   drains faster than released regeneration, preventing permanent uptime; active
   Shield sets `Health.IncomingDamageMultiplier = 0`, then restores `1` on
-  release/depletion. It uses a keyed Health modifier, so progression Defense
+  release/depletion. Every fully-blocked hit also pops a permanent blue
+  `Combat.DamageNumberSpawner` number at the player via `Health.MitigatedDamage`
+  (fired whenever an incoming-damage modifier reduces a real hit to zero) - this
+  is game-wide feedback, not tutorial-specific. It uses a keyed Health modifier, so progression Defense
   remains present after shield release. Its `Shields/Shield_electric` VFX is parented to Mech.
 - `PlayerCombat.SetUltimateActive(true)` makes primary fire launch electric
   bolts from both Mech muzzles each beat; each hit calls `EnemyBase.ApplySlow`.

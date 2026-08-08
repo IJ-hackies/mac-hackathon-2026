@@ -23,7 +23,9 @@ namespace Combat
             new Vector2(-1f, 1f), new Vector2(0f, 1f), new Vector2(1f, 1f),
         };
 
-        public static void Spawn(Vector3 worldPosition, float amount)
+        private static readonly Color DefaultColor = new Color(1f, 0.06f, 0.04f);
+
+        public static void Spawn(Vector3 worldPosition, float amount, Color? color = null)
         {
             if (amount <= 0f) return;
 
@@ -55,7 +57,7 @@ namespace Combat
 
             var mainGo = new GameObject("Text");
             mainGo.transform.SetParent(root.transform, false);
-            TextMesh mainText = CreateTextMesh(mainGo, font, text, new Color(1f, 0.06f, 0.04f));
+            TextMesh mainText = CreateTextMesh(mainGo, font, text, color ?? DefaultColor);
 
             root.AddComponent<DamageNumberInstance>()
                 .Init(mainText, outlineTexts, RiseHeight, Lifetime, BounceDuration);
