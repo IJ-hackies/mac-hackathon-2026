@@ -19,21 +19,37 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties: 
+  m_LockedProperties:
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _NebulaTex:
+        m_Texture: {fileID: 2800000, guid: e12dfc3c94844728a649a7624a360c11, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _NebulaDriftSpeed: 0.0006
+    - _NebulaIntensity: 0.9
+    - _NebulaStarOcclusion: 0.55
     - _StarBrightness: 1.35
     - _StarDensity: 0.988
+    - _StarTwinkleSpeed: 0.14
+    - _StarTwinkleStrength: 0.12
     - _SunAngularRadius: 0.025
+    - _SunCoronaStrength: 0.8
     - _SunGlow: 0.7
+    - _SunRayStrength: 0.22
     m_Colors:
+    - _NebulaTint: {r: 0.82, g: 0.94, b: 1.12, a: 1}
     - _SpaceColorA: {r: 0.001, g: 0.002, b: 0.008, a: 1}
     - _SpaceColorB: {r: 0.006, g: 0.012, b: 0.035, a: 1}
     - _StarColor: {r: 1.2, g: 1.35, b: 1.6, a: 1}
+    - _StarCoolColor: {r: 0.62, g: 0.86, b: 1.25, a: 1}
+    - _StarWarmColor: {r: 1.2, g: 0.84, b: 0.62, a: 1}
     - _SunColor: {r: 7, g: 4.2, b: 1.9, a: 1}
+    - _SunCoreColor: {r: 12, g: 9, b: 5.5, a: 1}
+    - _SunCoronaColor: {r: 3.2, g: 1.7, b: 0.7, a: 1}
     - _SunDirection: {r: 0.4210751, g: 0.36092156, b: 0.83212465, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

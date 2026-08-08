@@ -43,6 +43,15 @@ command for relinking and validating `PlayerRig.prefab`, including its camera
 shadows, post-processing, and FXAA. Do not use the destructive `Build Test
 Scene` command for that repair.
 
+Player movement EditMode tests live at `Assets/Tests/EditMode/Player`.
+`dotnet build Player.Movement.Tests.csproj --no-restore` is a verified compile
+check for that generated test assembly; it does not execute the Unity tests.
+
+The opening-cutscene change passed both generated-project builds with zero
+warnings/errors. The active Unity editor also compiled all assemblies and
+deserialized `SampleScene`; visual pacing and skip/handoff still require a
+Play-mode smoke test because a second batch editor cannot open the live project.
+
 Gameplay-area runtime and editor sources also compile with zero warnings via
 `dotnet build Gameplay.Areas.csproj --no-restore` followed by the editor build
 above, after Unity has refreshed the generated projects. EditMode tests live at
