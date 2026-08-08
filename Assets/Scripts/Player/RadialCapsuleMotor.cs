@@ -35,25 +35,6 @@ namespace Player
             ConfigurePhysicsBody();
         }
 
-        private void OnValidate()
-        {
-            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
-            if (capsule != null)
-            {
-                capsule.direction = 1;
-                capsule.isTrigger = false;
-            }
-
-            Rigidbody body = GetComponent<Rigidbody>();
-            if (body != null)
-            {
-                body.useGravity = false;
-                body.isKinematic = true;
-                body.interpolation = RigidbodyInterpolation.Interpolate;
-                body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-            }
-        }
-
         public void Move(
             Vector3 displacement,
             Quaternion targetRotation,

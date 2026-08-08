@@ -2,6 +2,7 @@
 stack:
   - Unity 6000.3.10f1
   - Universal Render Pipeline 17.3.0
+  - Visual Effect Graph 17.3.0
   - Input System 1.18.0
 projectRoot: ./
 ---
@@ -20,6 +21,14 @@ local package cache has successfully recognized the repository root, loaded
 both prototype scenes, and confirmed the build-scene configuration; its
 temporary verifier is not a shared project workflow. Development is shared by
 two people and will use separate Git branches and worktrees for parallel tasks.
+
+For an import plus runtime/editor script compile check, close the interactive
+editor and run Unity `6000.3.10f1` with `-batchmode -quit`,
+`-projectPath <root>`, and `-logFile <path>`. This was verified after the
+player/enemy merge: the asset
+refresh completed, both `Assembly-CSharp` assemblies compiled, and Unity exited
+with code 0. It is an editor validation pass, not a player build or Play-mode
+test.
 
 `dotnet build Assembly-CSharp.csproj --no-restore` is a verified fast compile
 check for runtime scripts when Unity has generated the project file; it is not

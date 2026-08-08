@@ -46,6 +46,10 @@ namespace Player
         private InputSystem_Actions _actions;
         private float _pitch = 15f;
         private Vector3 _followVelocity;
+        private Vector3 _shakeOffset;
+        private float _shakeUntil = -1f;
+        private float _shakeDuration;
+        private float _shakeMagnitude;
         private Vector3 _orbitForward;
         private Vector3 _lastTargetUp;
         private bool _orbitInitialized;
@@ -88,6 +92,44 @@ namespace Player
             _orbitInitialized = false;
         }
 
+        // Lets a cutscene (BossFightController's Stage 1 -> Stage 2 transition) blend Camera.main
+        // smoothly back to the normal follow pose instead of snapping to it the instant this
+        // component is re-enabled. Pure query - doesn't touch the orbit/pitch/transform, so it's safe
+        // to call every frame while this component is still disabled (its own LateUpdate isn't
+        // running to move anything out from under the blend). Skips the collision SphereCast for
+        // simplicity; the blend only needs to be close, not pixel-identical, since the real
+        // LateUpdate takes over the instant the blend finishes.
+        public void GetFollowPose(out Vector3 worldPosition, out Quaternion worldRotation)
+        {
+            if (target == null)
+            {
+                worldPosition = transform.position;
+                worldRotation = transform.rotation;
+                return;
+            }
+
+            Vector3 targetUp = target.up.normalized;
+            Vector3 orbitForward = _orbitInitialized
+                ? ProjectOntoTangent(_orbitForward, targetUp)
+                : ProjectOntoTangent(transform.forward, targetUp);
+            Quaternion tangentFrame = Quaternion.LookRotation(orbitForward, targetUp);
+            worldRotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
+
+            Vector3 pivotPosition = target.position + target.TransformDirection(targetOffset);
+            Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, -distance);
+            worldPosition = pivotPosition + worldRotation * shoulderLocalOffset;
+        }
+
+        // Boss impact feedback (e.g. BossMechAI's ground-slam landing) - decaying random jitter
+        // layered on top of the normal follow position each LateUpdate, rather than touching yaw/
+        // pitch, so it reads as the ground/surroundings shaking without fighting player look input.
+        public void Shake(float duration, float magnitude)
+        {
+            _shakeDuration = duration;
+            _shakeMagnitude = magnitude;
+            _shakeUntil = Time.time + duration;
+        }
+
         private void LateUpdate()
         {
             if (target == null || cameraTransform == null) return;
@@ -122,6 +164,14 @@ namespace Player
 
             Quaternion tangentFrame = Quaternion.LookRotation(_orbitForward, targetUp);
             transform.rotation = tangentFrame * Quaternion.Euler(_pitch, 0f, 0f);
+
+            if (Time.time < _shakeUntil)
+            {
+                float remaining = _shakeUntil - Time.time;
+                float falloff = _shakeDuration > 0f ? Mathf.Clamp01(remaining / _shakeDuration) : 0f;
+                _shakeOffset = Random.insideUnitSphere * (_shakeMagnitude * falloff);
+                transform.position += _shakeOffset;
+            }
 
             Vector3 shoulderLocalOffset = new Vector3(shoulderOffsetX, shoulderOffsetY, 0f);
             Vector3 castOrigin = transform.TransformPoint(shoulderLocalOffset);

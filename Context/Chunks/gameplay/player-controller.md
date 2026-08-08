@@ -1,11 +1,17 @@
 ---
 chunk: player-controller
-title: Single-player third-person prototype (movement, camera, combat, emotes)
+title: Single-player third-person prototype (movement, camera, emotes)
 owns:
-  - "Assets/Scripts/Player/**"
-  - "Assets/Scripts/UI/**"
+  - "Assets/Scripts/Player/PlayerController.cs*"
+  - "Assets/Scripts/Player/PlayerAnimatorRelay.cs*"
+  - "Assets/Scripts/Player/PlayerEmoteController.cs*"
+  - "Assets/Scripts/Player/PlayerVisualGroundConformer.cs*"
+  - "Assets/Scripts/Player/RadialCapsuleMotor.cs*"
+  - "Assets/Scripts/Player/ThirdPersonCameraController.cs*"
+  - "Assets/Scripts/UI/CrosshairUI.cs*"
+  - "Assets/Scripts/UI/EmoteWheelUI.cs*"
   - "Assets/Editor/Player/**"
-  - "Assets/Prefabs/**"
+  - "Assets/Prefabs/PlayerRig.prefab*"
 related: [control-model, core-loop, unity-project, runtime-art, world-authoring, state]
 verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
 lastVerified: 2026-08-08
@@ -33,17 +39,21 @@ center-radial up. Falling speed is capped at 30 units per second. If no
 `Planet Ground` exists, the controller uses world up for the flat sandbox. A
 startup raycast places the capsule's feet on rendered ground.
 
-The camera orbits independently of character facing. Its horizontal orbit
-direction is parallel-transported as radial up changes, preventing snaps while
-walking around the sphere. It retains shoulder offset, collision pull-in, and
-mouse-look suspension while the emote wheel is active.
+The camera orbit is controlled independently and its horizontal direction is
+parallel-transported as radial up changes, preventing snaps while walking
+around the sphere. The astronaut body continuously turns toward that camera/
+aim direction; lateral and reverse movement therefore strafe and backpedal
+instead of turning the character away from the crosshair. The camera retains
+shoulder offset, collision pull-in, and mouse-look suspension while the emote
+wheel is active.
 
 ## Key files
 
 - `PlayerController.cs` - tangent locomotion, acceleration-smoothed walk/sprint,
   surface-relative gravity/jump, slope-filtered ground probing, body alignment,
-  and one-time surface snap. Exposes locomotion state plus the current ground
-  normal/clearance for visual consumers.
+  camera-facing rotation, boss stagger gating, and one-time surface snap.
+  Exposes locomotion state plus the current ground normal/clearance for visual
+  consumers.
 - `RadialCapsuleMotor.cs` - rotation-aware capsule sweep/slide, local-radial
   stepping, contact classification, and overlap depenetration through a
   kinematic Rigidbody.
@@ -51,18 +61,20 @@ mouse-look suspension while the emote wheel is active.
   root toward reported support while the physical capsule and camera stay
   radial.
 - `ThirdPersonCameraController.cs` - radial-up orbit, shoulder framing,
-  `SphereCast` collision, smoothing, and independent mouse look. The rig camera
-  has URP additional-camera data with shadows and post-processing enabled.
+  `SphereCast` collision, smoothing, independent mouse look, boss shake, and a
+  cutscene follow-pose query. The rig camera has URP additional-camera data
+  with shadows and post-processing enabled.
 - `PlayerAnimatorRelay.cs` - maps controller state to `Speed`, `Grounded`, and
   `Jump` Animator parameters.
-- `PlayerCombat.cs` / `Projectile.cs` - camera-crosshair aiming, melee, visual
-  shooting, projectile lifetime, and self-collision filtering. There is no
-  damage or health system yet.
+- `PlayerCombat.cs` and the health/death HUD are documented in
+  [player-combat](player-combat.md). Ranged damage is hitscan; its traveling
+  bolt is cosmetic and the former `Projectile.cs`/prefab were removed.
 - `PlayerEmoteController.cs` / `Assets/Scripts/UI/**` - locked-cursor virtual
   joystick emote wheel. Movement, jumping, or attacking interrupts an emote.
 - `PlayerRig.prefab` - normalized rig root containing the current nested
-  `Player.prefab`, camera pivot, and HUD. Serialized camera/combat/emote links
-  are validated by the repair command.
+  radial `Player.prefab`, camera pivot, crosshair/emote UI, and health HUD.
+  Serialized camera/combat/emote links are validated by the repair command;
+  the health HUD can discover the nested player's `Health` at runtime.
 - `PlayerSceneSetup.cs` - `Tools > Player Prototype > Build Test Scene` creates
   the sandbox artifacts. `Repair Player Rig Prefab` safely replaces an
   orphaned nested Player reference, rewires dependencies, normalizes transforms,
@@ -84,6 +96,9 @@ mouse-look suspension while the emote wheel is active.
   Ground casts use the body's radial local up, while tangent movement is
   projected against the filtered support direction so the controller settles
   on the same terrain it is being pulled toward.
+- Character facing follows the camera's tangent forward/aim direction, not the
+  movement vector. Preserve strafe and backpedal behavior when changing turn
+  smoothing or input projection.
 - `VisualRoot` is a direct Player child containing both the astronaut render
   hierarchy and muzzle. The ground conformer may tilt it by at most 30 degrees
   and lift it by at most `0.12` units from measured support clearance, then
@@ -123,10 +138,6 @@ mouse-look suspension while the emote wheel is active.
   nearest collider in `groundMask`, including roofs and other environment art.
 - Do not hand-edit a broken nested Player GUID. Run `Repair Player Rig Prefab`;
   it validates the current prefab source and every critical object reference.
-- A held bool on an `AnyState` entry restarts the destination animation each
-  frame. One-shot entries need a trigger; a bool may control their exit.
-- FBX clip names may be `<Armature>|<Action>` and can contain trailing spaces.
-  The setup script intentionally performs exact, suffix, then trimmed matching.
 - `Build Test Scene` rebuilds generated assets and is destructive to the
   sandbox scene/prefab. Do not run it merely to repair the rig.
 
@@ -134,5 +145,6 @@ mouse-look suspension while the emote wheel is active.
 
 Split locomotion versus camera/tool authority at system boundaries when the
 cooperative control model is approved; do not add player-index branches inside
-this single-player controller. Real combat should extend `PlayerCombat` and
-`Projectile`. A future stagger mechanic can reuse the dormant `Crouch` input.
+this single-player controller. Extend combat through [player-combat]
+(player-combat.md) and the shared damage interfaces rather than adding it to
+the locomotion component.

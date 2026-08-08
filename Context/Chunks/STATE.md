@@ -37,9 +37,11 @@ lastVerified: 2026-08-08
   scavenging loop into exact phases. Decide wave timing/scaling, breaks,
   residual enemies, failure states, dark-region risk/reward behavior,
   progression persistence, and the endgame.
-- **`enemy-wave-prototype`** - implement enemies, planet-wide spawning, a timed
-  wave director, health/damage, pistol kills, drops, and player/base failure.
-  The current shooting prototype is visual and has no damage system.
+- **`enemy-wave-prototype`** - implement planet-wide spawning, a timed wave
+  director, drops, and player/base failure. Health, melee/hitscan damage, three
+  basic enemy types, and a two-stage boss now work in the flat-ground
+  `Player.unity` sandbox, but their movement/spawning is not planet-ready and
+  no wave orchestration exists.
 - **`progression-economy`** - define and implement gold, dropped/scavenged
   items, buying, pistol/player/equipment upgrades, crafting, loot tables, and
   the kill-score formula with its wave multiplier.

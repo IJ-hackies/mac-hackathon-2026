@@ -22,9 +22,9 @@ lastVerified: 2026-08-08
 
 The repository root is the Unity `6000.3.10f1` project root, initialized from
 the Universal Render Pipeline empty template. The project uses Universal Render
-Pipeline `17.3.0` and Input System `1.18.0`, and includes Unity's 3D physics
-module. `Assets/Scenes/SampleScene.unity` is the only enabled build scene and is
-the current prototype scene. Other top-level scenes may be used as sandboxes
+Pipeline and Visual Effect Graph `17.3.0`, Input System `1.18.0`, and Unity's
+3D physics module. `Assets/Scenes/SampleScene.unity` is the only enabled build
+scene and current prototype. Other top-level scenes may be used as sandboxes
 without implying build inclusion.
 
 The sample scene contains a directional light and global volume plus an

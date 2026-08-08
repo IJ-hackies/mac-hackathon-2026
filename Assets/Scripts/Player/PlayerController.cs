@@ -56,6 +56,10 @@ namespace Player
         [Tooltip("Forward from this transform is projected onto the local planet tangent. Defaults to Camera.main.")]
         [SerializeField] private Transform cameraReference;
 
+        [Header("Stagger")]
+        [SerializeField] private Animator animator;
+
+        private static readonly int StaggerParam = Animator.StringToHash("Stagger");
         private const float DirectionEpsilon = 0.0001f;
         private const int HitBufferSize = 16;
 
@@ -70,12 +74,15 @@ namespace Player
         private bool _jumpQueued;
         private bool _searchedForPlanetGround;
         private float _currentSpeed;
+        private float _staggerLockedUntil = -1f;
+        private float _duckClipLength = -1f;
 
         public float NormalizedSpeed { get; private set; }
         public bool IsGrounded { get; private set; }
         public bool JumpTriggeredThisFrame { get; private set; }
         public Vector3 GroundNormal { get; private set; } = Vector3.up;
         public float GroundClearance { get; private set; }
+        public bool IsStaggered => Time.time < _staggerLockedUntil;
 
         private void Awake()
         {
@@ -83,6 +90,22 @@ namespace Player
             _capsule = GetComponent<CapsuleCollider>();
             _motor = GetComponent<RadialCapsuleMotor>();
             _actions = new InputSystem_Actions();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+
+            // Looked up once so Stagger() can guarantee the lock covers the whole clip
+            // ("the entire duck animation must play") regardless of whatever duration a caller
+            // (e.g. BossMechAI's ground-slam) happens to pass in.
+            if (animator != null && animator.runtimeAnimatorController != null)
+            {
+                foreach (var clip in animator.runtimeAnimatorController.animationClips)
+                {
+                    if (clip != null && clip.name.IndexOf("Duck", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _duckClipLength = clip.length;
+                        break;
+                    }
+                }
+            }
         }
 
         private void OnEnable()
@@ -140,6 +163,18 @@ namespace Player
             _jumpQueued = true;
         }
 
+        // Used by boss attacks (e.g. BossMechAI's ground-slam landing) to force the Duck
+        // animation and lock movement/jump input for its duration - "player cannot move until
+        // the duck animation is done." Doesn't disable this component outright (that would also
+        // stop gravity/camera-facing from running), just gates input for the locked window below.
+        public void Stagger(float duration)
+        {
+            float lockedDuration = _duckClipLength > 0f ? Mathf.Max(duration, _duckClipLength) : duration;
+            _staggerLockedUntil = Time.time + lockedDuration;
+            _jumpQueued = false;
+            if (animator != null) animator.SetTrigger(StaggerParam);
+        }
+
         private void FixedUpdate()
         {
             Vector3 radialUp = GetPlanetUpDirection();
@@ -179,18 +214,23 @@ namespace Player
                 UpdateSurfaceUp(radialUp);
             }
 
+            bool staggered = IsStaggered;
+            Vector2 moveInput = staggered ? Vector2.zero : _actions.Player.Move.ReadValue<Vector2>();
+            bool sprinting = !staggered && _actions.Player.Sprint.IsPressed();
+            if (staggered) _jumpQueued = false;
+
             if (cameraReference == null && Camera.main != null)
             {
                 cameraReference = Camera.main.transform;
             }
 
-            Vector2 moveInput = _actions.Player.Move.ReadValue<Vector2>();
-            bool sprinting = _actions.Player.Sprint.IsPressed();
+            bodyRotation = GetCameraFacingRotation(bodyRotation, localUp);
 
-            Vector3 facingDirection = CameraRelativeDirection(moveInput, localUp);
-            bodyRotation = GetFacingRotation(bodyRotation, localUp, facingDirection);
-
-            Vector3 moveDirection = Vector3.ProjectOnPlane(facingDirection, _surfaceUp);
+            // Facing is locked to the camera, so movement remains camera-relative and supports
+            // forward/backpedal/strafe without turning the body away from the aim direction.
+            Vector3 moveDirection = Vector3.ProjectOnPlane(
+                CameraRelativeDirection(moveInput, localUp),
+                _surfaceUp);
             if (moveDirection.sqrMagnitude >= DirectionEpsilon)
             {
                 moveDirection.Normalize();
@@ -302,30 +342,27 @@ namespace Player
                 Mathf.Max(0f, radialAlignmentDegreesPerSecond) * Time.fixedDeltaTime);
         }
 
-        private Quaternion GetFacingRotation(
-            Quaternion currentRotation,
-            Vector3 localUp,
-            Vector3 moveDirection)
+        // Character yaw always tracks the camera's yaw projected onto the planet tangent,
+        // whether or not there is movement input. The returned rotation is consumed by the
+        // radial motor in the same fixed physics step as translation.
+        private Quaternion GetCameraFacingRotation(Quaternion currentRotation, Vector3 localUp)
         {
-            if (moveDirection.sqrMagnitude < DirectionEpsilon)
+            if (cameraReference == null)
             {
                 return currentRotation;
             }
 
-            Vector3 currentForward = Vector3.ProjectOnPlane(
-                currentRotation * Vector3.forward,
-                localUp);
-            if (currentForward.sqrMagnitude < DirectionEpsilon)
+            Vector3 cameraForward = Vector3.ProjectOnPlane(cameraReference.forward, localUp);
+            if (cameraForward.sqrMagnitude < DirectionEpsilon)
             {
-                currentForward = GetFallbackTangent(localUp);
+                return currentRotation;
             }
 
-            float angle = Vector3.SignedAngle(currentForward, moveDirection, localUp);
-            float turn = Mathf.Clamp(
-                angle,
-                -Mathf.Max(0f, rotationDegreesPerSecond) * Time.fixedDeltaTime,
+            Quaternion targetRotation = Quaternion.LookRotation(cameraForward.normalized, localUp);
+            return Quaternion.RotateTowards(
+                currentRotation,
+                targetRotation,
                 Mathf.Max(0f, rotationDegreesPerSecond) * Time.fixedDeltaTime);
-            return Quaternion.AngleAxis(turn, localUp) * currentRotation;
         }
 
         private void AlignUpImmediately(Vector3 radialUp)

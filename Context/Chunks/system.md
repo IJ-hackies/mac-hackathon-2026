@@ -22,8 +22,10 @@ required actions.
 The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
 Input System `1.18.0`. Target platforms, networking topology, cooperative input
-ownership, and the build pipeline have not been selected. Enemy, wave, damage,
-loot, economy, base-interaction, and scoring systems are not implemented. The
+ownership, and the build pipeline have not been selected. Planet-wide enemy
+navigation/spawning, timed waves, loot, economy, base interaction, and scoring
+are not implemented; combat and enemy prototypes currently live in the
+separate flat-ground player sandbox. The
 prototype world is a small spherical planet intended for circumnavigation, with
 an approximately 150-unit radius and 942-unit full lap.
 Its current visual treatment is the pale, cratered
@@ -43,6 +45,20 @@ curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base
 gameplay or construction system. The rest of the authored crater shell carries
 a dense planet-wide scatter of oversized vegetation in dark orange and red.
+
+A separate `Player.unity` prototype scene (not yet merged into the planet
+scene) now carries a working single-player third-person controller with
+melee/hitscan combat, health/death, three fightable basic enemy AI types, and
+a full two-stage Barbara-the-Bee boss fight (Astronaut -> Mech, unlocked via
+a scripted transformation cutscene) — all sharing a common
+`Combat.Health`/`Combat.IDamageable` damage system. The boss-fight tool
+disables the three basic enemies when it builds the boss, leaving the boss as
+the sole fightable target. See [player-controller](gameplay/player-controller.md),
+[player-combat](gameplay/player-combat.md),
+[enemies](gameplay/enemies.md), and [boss-fight](gameplay/boss-fight.md).
+Several imported VFX/audio asset packs have been added and some later
+removed during this work — see [asset-library](assets/asset-library.md) and
+[boss-fight](gameplay/boss-fight.md) Gotchas.
 
 ## Confirmed product invariants
 
