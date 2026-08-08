@@ -99,7 +99,7 @@ namespace Player
 
         private void Awake()
         {
-            _actions = new InputSystem_Actions();
+            _actions = PlayerInputBindings.CreateActions();
             if (cameraTransform == null)
             {
                 cameraTransform = GetComponentInChildren<Camera>()?.transform;
@@ -114,6 +114,12 @@ namespace Player
         private void OnDisable()
         {
             _actions.Player.Disable();
+        }
+
+        private void OnDestroy()
+        {
+            PlayerInputBindings.ReleaseActions(_actions);
+            _actions = null;
         }
 
         private void Start()

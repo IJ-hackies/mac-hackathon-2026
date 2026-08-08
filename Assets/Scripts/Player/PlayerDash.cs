@@ -39,7 +39,7 @@ namespace Player
 
         private void Awake()
         {
-            _actions = new InputSystem_Actions();
+            _actions = PlayerInputBindings.CreateActions();
             if (playerController == null) playerController = GetComponent<PlayerController>();
         }
 
@@ -55,6 +55,12 @@ namespace Player
         private void OnDisable()
         {
             _actions.Player.Disable();
+        }
+
+        private void OnDestroy()
+        {
+            PlayerInputBindings.ReleaseActions(_actions);
+            _actions = null;
         }
 
         /// Called by PlayerAbilityInput while not in Ultimate mode. Direction comes from

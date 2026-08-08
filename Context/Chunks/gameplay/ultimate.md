@@ -9,8 +9,8 @@ owns:
   - "Assets/Scripts/UI/AbilityHudUI.cs*"
   - "Assets/Scripts/UI/UltimateHudUI.cs*"
   - "Assets/Scripts/Vfx/TopDownGroundEffect.cs*"
-related: [player-controller, player-combat, enemies, boss-fight, items, state]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [player-controller, player-combat, progression, enemies, boss-fight, items, state]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -56,10 +56,13 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
 - `PlayerShield` resets its per-Ultimate energy budget on activation. Holding it
   drains faster than released regeneration, preventing permanent uptime; active
   Shield sets `Health.IncomingDamageMultiplier = 0`, then restores `1` on
-  release/depletion. Its `Shields/Shield_electric` VFX is parented to Mech.
+  release/depletion. It uses a keyed Health modifier, so progression Defense
+  remains present after shield release. Its `Shields/Shield_electric` VFX is parented to Mech.
 - `PlayerCombat.SetUltimateActive(true)` makes primary fire launch electric
   bolts from both Mech muzzles each beat; each hit calls `EnemyBase.ApplySlow`.
-  The shared debuff refreshes but does not stack.
+  Ultimate hold-fire works without the purchased pistol Hold-to-Fire skill, and
+  its cadence ignores the pistol fire-rate stat. The shared debuff refreshes
+  but does not stack.
 - Right-click secondary is nearest-enemy top-down attack: base fires one Beam;
   Ultimate fires Lightning circles at nearest targets, round-robin if circles
   exceed targets. Each cast clears occurrence counts; repeated hits use

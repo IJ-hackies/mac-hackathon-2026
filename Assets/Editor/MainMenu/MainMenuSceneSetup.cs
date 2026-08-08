@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Player;
 using Player.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -17,8 +18,8 @@ namespace MainMenu.Editor
 {
     public static class MainMenuSceneSetup
     {
-        private const string AutoConfigureSessionKey = "MainMenu.AutoConfigureScheduled.V5";
-        private const string GeneratedRootName = "Main Menu [Generated v3]";
+        private const string AutoConfigureSessionKey = "MainMenu.AutoConfigureScheduled.V8";
+        private const string GeneratedRootName = "Main Menu [Generated v5]";
         private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
         private const string GameplayScenePath = "Assets/Scenes/SampleScene.unity";
         private const string PlanetPrefabPath = "Assets/Art/Prefabs/Planet.prefab";
@@ -233,6 +234,12 @@ namespace MainMenu.Editor
                 RequireReference(serialized, "volumeSlider");
                 RequireReference(serialized, "sensitivitySlider");
                 RequireReference(serialized, "controlsButton");
+                ControlsRebindingUI controlsUi = RequireReference(serialized, "controlsRebindingUi") as ControlsRebindingUI;
+                if (!HasCompleteControlRows(controlsUi))
+                {
+                    throw new InvalidOperationException(
+                        "Controls page must contain every configurable PC binding and Reset Defaults.");
+                }
 
                 Transform planet = RequireReference(serialized, "menuPlanet") as Transform;
                 Transform dressing = planet != null
@@ -617,7 +624,10 @@ namespace MainMenu.Editor
                 out Button controlsButton,
                 out Button settingsBackButton);
             RectTransform controlsPage = CreatePage("Controls Page", canvasRect);
-            Button controlsBackButton = BuildControlsPage(controlsPage, assets);
+            Button controlsBackButton = BuildControlsPage(
+                controlsPage,
+                assets,
+                out ControlsRebindingUI controlsRebindingUi);
 
             BuildPlanetTelemetry(canvasRect, assets);
 
@@ -637,7 +647,6 @@ namespace MainMenu.Editor
                 typeof(EventSystem),
                 typeof(InputSystemUIInputModule));
             eventSystemObject.transform.SetParent(root.transform, false);
-            eventSystemObject.GetComponent<InputSystemUIInputModule>().AssignDefaultActions();
 
             settingsPage.gameObject.SetActive(false);
             controlsPage.gameObject.SetActive(false);
@@ -652,6 +661,7 @@ namespace MainMenu.Editor
             Assign(serialized, "settingsBackButton", settingsBackButton);
             Assign(serialized, "controlsButton", controlsButton);
             Assign(serialized, "controlsBackButton", controlsBackButton);
+            Assign(serialized, "controlsRebindingUi", controlsRebindingUi);
             Assign(serialized, "volumeSlider", volumeSlider);
             Assign(serialized, "volumeValue", volumeValue);
             Assign(serialized, "sensitivitySlider", sensitivitySlider);
@@ -774,80 +784,160 @@ namespace MainMenu.Editor
                 new Vector2(0f, -254f));
         }
 
-        private static Button BuildControlsPage(Transform page, MenuAssets assets)
+        private static Button BuildControlsPage(
+            Transform page,
+            MenuAssets assets,
+            out ControlsRebindingUI controlsRebindingUi)
         {
             RectTransform console = CreateConsole(page, assets.Popup, "Control Map Console");
-            CreateHeader(console, assets, "CONTROL MAP", "CURRENT SINGLEPLAYER BINDINGS");
+            CreateHeader(console, assets, "CONTROL MAP", "CUSTOM KEYBOARD + MOUSE");
+
+            CreateText(
+                "Fixed Controls",
+                console,
+                "FIXED  //  WASD + ARROWS MOVE  /  MOUSE AIM  /  ESC SETTINGS  /  ESC + SPACE SKIP",
+                assets.UtilityFont,
+                14,
+                Muted,
+                TextAnchor.MiddleCenter,
+                new Vector2(610f, 24f),
+                new Vector2(0f, 159f));
 
             RectTransform mapWell = CreateRect(
                 "Bindings",
                 console,
-                new Vector2(588f, 330f),
-                new Vector2(0f, -54f));
+                new Vector2(610f, 330f),
+                new Vector2(0f, -20f));
             Image wellImage = mapWell.gameObject.AddComponent<Image>();
             wellImage.color = new Color(Panel.r, Panel.g, Panel.b, 0.72f);
             wellImage.raycastTarget = false;
 
-            string[] actions = { "MOVE", "LOOK", "JUMP", "SPRINT", "FIRE", "MELEE", "EMOTES", "SETTINGS" };
-            string[] bindings = { "WASD", "MOUSE", "SPACE", "LEFT SHIFT", "LEFT MOUSE", "V", "B", "ESC" };
-            for (int i = 0; i < actions.Length; i++)
+            IReadOnlyList<PlayerInputBindings.BindingDefinition> definitions =
+                PlayerInputBindings.RebindableControls;
+            for (int i = 0; i < definitions.Count; i++)
             {
-                int column = i / 4;
-                int row = i % 4;
-                float x = column == 0 ? -148f : 148f;
-                float y = 104f - row * 68f;
-                CreateControlRow(mapWell, assets, actions[i], bindings[i], new Vector2(x, y));
+                int column = i / 6;
+                int row = i % 6;
+                float x = column == 0 ? -150f : 150f;
+                float y = 118f - row * 48f;
+                CreateControlRow(mapWell, assets, definitions[i], new Vector2(x, y));
             }
 
-            CreateText(
-                "Control Note",
-                console,
-                "CO-OP RESPONSIBILITIES WILL APPEAR HERE WHEN THE CREW LINK IS LOCKED.",
+            Text statusText = CreateText(
+                "Rebind Status",
+                mapWell,
+                "SELECT A CONTROL TO REBIND",
                 assets.UtilityFont,
-                15,
-                Muted,
+                14,
+                Solar,
                 TextAnchor.MiddleCenter,
-                new Vector2(590f, 28f),
-                new Vector2(0f, -226f));
-            return CreateCompactButton(
+                new Vector2(570f, 24f),
+                new Vector2(0f, -158f));
+
+            Button resetButton = CreateCompactButton(
+                "Reset Defaults",
+                console,
+                "RESET DEFAULTS",
+                assets,
+                new Vector2(-150f, -255f),
+                new Vector2(280f, 54f));
+            Button backButton = CreateCompactButton(
                 "Back",
                 console,
                 "<  BACK TO SETTINGS",
                 assets,
-                new Vector2(0f, -270f));
+                new Vector2(150f, -255f),
+                new Vector2(280f, 54f));
+
+            controlsRebindingUi = page.gameObject.AddComponent<ControlsRebindingUI>();
+            SerializedObject serialized = new SerializedObject(controlsRebindingUi);
+            Assign(serialized, "rowsRoot", mapWell);
+            Assign(serialized, "resetButton", resetButton);
+            Assign(serialized, "statusText", statusText);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return backButton;
         }
 
-        private static void CreateControlRow(
+        private static Button CreateControlRow(
             Transform parent,
             MenuAssets assets,
-            string action,
-            string binding,
+            PlayerInputBindings.BindingDefinition definition,
             Vector2 position)
         {
-            RectTransform row = CreateRect("Binding " + action, parent, new Vector2(250f, 54f), position);
+            RectTransform row = CreateRect(
+                definition.BindingId.ToString("N"),
+                parent,
+                new Vector2(282f, 42f),
+                position);
             Image rowImage = row.gameObject.AddComponent<Image>();
             rowImage.color = new Color(Glass.r, Glass.g, Glass.b, 0.9f);
             rowImage.raycastTarget = false;
             CreateText(
                 "Action",
                 row,
-                action,
+                definition.DisplayName,
                 assets.UtilityFont,
-                16,
+                13,
                 Cyan,
                 TextAnchor.MiddleLeft,
-                new Vector2(96f, 32f),
-                new Vector2(-67f, 0f));
-            CreateText(
-                "Binding",
+                new Vector2(136f, 30f),
+                new Vector2(-68f, 0f));
+
+            RectTransform bindingRect = CreateRect(
+                "Binding Button",
                 row,
-                binding,
+                new Vector2(128f, 34f),
+                new Vector2(73f, 0f));
+            Image bindingImage = bindingRect.gameObject.AddComponent<Image>();
+            bindingImage.sprite = assets.ButtonIdle;
+            bindingImage.type = Image.Type.Sliced;
+            Button bindingButton = bindingRect.gameObject.AddComponent<Button>();
+            bindingButton.targetGraphic = bindingImage;
+            bindingButton.transition = Selectable.Transition.SpriteSwap;
+            bindingButton.spriteState = new SpriteState
+            {
+                highlightedSprite = assets.ButtonHover,
+                selectedSprite = assets.ButtonHover,
+                pressedSprite = assets.ButtonPressed,
+                disabledSprite = assets.ButtonIdle
+            };
+            bindingButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+            CreateText(
+                "Label",
+                bindingRect,
+                "--",
                 assets.DisplayFont,
-                17,
+                14,
                 Ice,
-                TextAnchor.MiddleRight,
-                new Vector2(128f, 32f),
-                new Vector2(49f, 0f));
+                TextAnchor.MiddleCenter,
+                Vector2.zero,
+                Vector2.zero,
+                true);
+            return bindingButton;
+        }
+
+        private static bool HasCompleteControlRows(ControlsRebindingUI controlsUi)
+        {
+            if (controlsUi == null)
+            {
+                return false;
+            }
+
+            Transform[] descendants = controlsUi.GetComponentsInChildren<Transform>(true);
+            foreach (PlayerInputBindings.BindingDefinition definition in PlayerInputBindings.RebindableControls)
+            {
+                Transform row = Array.Find(
+                    descendants,
+                    candidate => candidate.name == definition.BindingId.ToString("N"));
+                if (row == null || row.GetComponentInChildren<Button>(true) == null)
+                {
+                    return false;
+                }
+            }
+
+            SerializedObject serialized = new SerializedObject(controlsUi);
+            SerializedProperty reset = serialized.FindProperty("resetButton");
+            return reset != null && reset.objectReferenceValue != null;
         }
 
         private static RectTransform CreateConsole(Transform parent, Sprite popup, string name)
@@ -979,9 +1069,10 @@ namespace MainMenu.Editor
             Transform parent,
             string label,
             MenuAssets assets,
-            Vector2 position)
+            Vector2 position,
+            Vector2? sizeOverride = null)
         {
-            RectTransform rect = CreateRect(name, parent, new Vector2(390f, 64f), position);
+            RectTransform rect = CreateRect(name, parent, sizeOverride ?? new Vector2(390f, 64f), position);
             Image image = rect.gameObject.AddComponent<Image>();
             image.sprite = assets.ButtonIdle;
             image.type = Image.Type.Sliced;

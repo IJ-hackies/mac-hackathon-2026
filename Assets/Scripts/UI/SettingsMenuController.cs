@@ -22,11 +22,13 @@ namespace Player.UI
         [SerializeField] private Button controlsButton;
         [SerializeField] private Button backButton;
         [SerializeField] private Button closeButton;
+        [SerializeField] private ControlsRebindingUI controlsRebindingUi;
 
         [Header("Gameplay Suspension")]
         [SerializeField] private global::Player.PlayerController playerController;
         [SerializeField] private global::Player.PlayerCombat playerCombat;
         [SerializeField] private global::Player.PlayerEmoteController emoteController;
+        [SerializeField] private global::Player.PlayerAbilityInput abilityInput;
         [SerializeField] private global::Player.ThirdPersonCameraController cameraController;
         [SerializeField] private CrosshairUI crosshairUi;
 
@@ -37,9 +39,11 @@ namespace Player.UI
         private bool _cursorVisibleBeforeMenu;
         private bool _playerWasEnabled;
         private bool _combatWasEnabled;
+        private bool _abilityInputWasEnabled;
         private bool _cameraInputWasSuspended;
         private bool _emoteInputWasSuspended;
         private bool _crosshairWasVisible;
+        private PcUiInputBinding _pcUiInput;
 
         public bool IsOpen => _isOpen;
 
@@ -47,6 +51,7 @@ namespace Player.UI
         {
             ResolveReferences();
             EnsureEventSystem();
+            EnsurePcUiInput();
             ConfigureSliders();
 
             if (controlsButton != null) controlsButton.onClick.AddListener(ShowControlsPage);
@@ -64,6 +69,11 @@ namespace Player.UI
 
         private void Update()
         {
+            if (controlsRebindingUi != null && controlsRebindingUi.BlocksMenuEscape)
+            {
+                return;
+            }
+
             if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 return;
@@ -101,6 +111,8 @@ namespace Player.UI
         private void OnDestroy()
         {
             RestoreGameplayState();
+            _pcUiInput?.Dispose();
+            _pcUiInput = null;
 
             if (controlsButton != null) controlsButton.onClick.RemoveListener(ShowControlsPage);
             if (backButton != null) backButton.onClick.RemoveListener(ShowMainPage);
@@ -127,6 +139,7 @@ namespace Player.UI
             menuRoot.SetActive(true);
 
             if (emoteController != null) emoteController.SetInputSuspended(true);
+            if (abilityInput != null) abilityInput.enabled = false;
             if (cameraController != null) cameraController.InputSuspended = true;
             if (playerCombat != null) playerCombat.enabled = false;
             if (playerController != null) playerController.enabled = false;
@@ -170,9 +183,15 @@ namespace Player.UI
             if (mainPage != null) mainPage.SetActive(false);
             if (controlsPage != null) controlsPage.SetActive(true);
 
-            if (_isOpen && EventSystem.current != null && backButton != null)
+            if (_isOpen && EventSystem.current != null)
             {
-                EventSystem.current.SetSelectedGameObject(backButton.gameObject);
+                GameObject selection = controlsRebindingUi != null
+                    ? controlsRebindingUi.FirstSelectable
+                    : null;
+                EventSystem.current.SetSelectedGameObject(
+                    selection != null
+                        ? selection
+                        : backButton != null ? backButton.gameObject : null);
             }
         }
 
@@ -182,6 +201,8 @@ namespace Player.UI
             if (playerController == null) playerController = GetComponentInChildren<global::Player.PlayerController>(true);
             if (playerCombat == null) playerCombat = GetComponentInChildren<global::Player.PlayerCombat>(true);
             if (emoteController == null) emoteController = GetComponentInChildren<global::Player.PlayerEmoteController>(true);
+            if (abilityInput == null) abilityInput = GetComponentInChildren<global::Player.PlayerAbilityInput>(true);
+            if (controlsRebindingUi == null) controlsRebindingUi = GetComponentInChildren<ControlsRebindingUI>(true);
             if (cameraController == null)
             {
                 cameraController = GetComponentInChildren<global::Player.ThirdPersonCameraController>(true);
@@ -200,9 +221,22 @@ namespace Player.UI
                 "Settings EventSystem",
                 typeof(EventSystem));
             eventSystemObject.transform.SetParent(transform, false);
+            eventSystemObject.AddComponent<InputSystemUIInputModule>();
+        }
+
+        private void EnsurePcUiInput()
+        {
+            if (_pcUiInput != null)
+            {
+                return;
+            }
+
             InputSystemUIInputModule inputModule =
-                eventSystemObject.AddComponent<InputSystemUIInputModule>();
-            inputModule.AssignDefaultActions();
+                Object.FindFirstObjectByType<InputSystemUIInputModule>();
+            if (inputModule != null)
+            {
+                _pcUiInput = new PcUiInputBinding(inputModule);
+            }
         }
 
         private void ConfigureSliders()
@@ -283,6 +317,7 @@ namespace Player.UI
             _cursorVisibleBeforeMenu = Cursor.visible;
             _playerWasEnabled = playerController != null && playerController.enabled;
             _combatWasEnabled = playerCombat != null && playerCombat.enabled;
+            _abilityInputWasEnabled = abilityInput != null && abilityInput.enabled;
             _cameraInputWasSuspended = cameraController != null && cameraController.InputSuspended;
             _emoteInputWasSuspended = emoteController != null && emoteController.InputSuspended;
             _crosshairWasVisible = crosshairUi == null || crosshairUi.IsVisible;
@@ -303,6 +338,7 @@ namespace Player.UI
 
                 if (playerController != null) playerController.enabled = _playerWasEnabled;
                 if (playerCombat != null) playerCombat.enabled = _combatWasEnabled;
+                if (abilityInput != null) abilityInput.enabled = _abilityInputWasEnabled;
                 if (emoteController != null)
                 {
                     emoteController.SetInputSuspended(_emoteInputWasSuspended);

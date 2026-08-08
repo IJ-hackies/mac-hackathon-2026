@@ -45,7 +45,12 @@ Scene` command for that repair.
 
 `Tools > Player Prototype > Configure Settings Menu` (`Ctrl+Shift+U`)
 idempotently imports/configures the selected Cartoon UI and Space Expansion UI
-sprites and rebuilds the rig-owned Escape settings console. In Play mode,
+sprites and rebuilds the rig-owned Escape settings console, including all 12
+configurable keyboard/mouse rows. `Configure PC-Only Input` removes non-PC
+bindings from every action map, retains only the Keyboard&Mouse scheme, and
+regenerates `InputSystem_Actions.cs`; `PcUiInputBinding` also replaces Unity's
+cross-platform default menu actions at runtime.
+In Play mode,
 `Preview Settings Menu` (`Ctrl+Shift+O`) opens it for visual inspection. The
 current dark-header/high-contrast pass compiled through
 `Assembly-CSharp-Editor.csproj` with zero warnings/errors and was checked in
@@ -67,9 +72,41 @@ preserves the other prefab UI. Runtime/editor builds pass with zero warnings/
 errors; a live SampleScene handoff verified the centered raw HP value, absence
 of labels/panel, imported sprites, and top-right placement.
 
+`Tools > Player Prototype > Refresh Ammo HUD` (`Ctrl+Shift+Alt+A`) replaces
+only the rig's `AmmoHud` child with a matching blue Space Expansion bar directly
+below health. Its centered value and fill show current magazine rounds rather
+than reserve storage; the text shows `magazine / reserve`. Runtime/editor builds pass with zero warnings/errors; a
+live SampleScene smoke test verified the initial `12`, then `10` with a
+proportionally shorter fill after sustained fire consumed two shot beats.
+
+`Tools > Progression > Configure All` (`Ctrl+Shift+Alt+P`) copies only the
+selected Cartoon UI/Space Expansion UI sprites into the project-owned
+Progression texture folder, rebuilds only `HUD Canvas/Progression UI` in
+`PlayerRig.prefab`, repairs the three SampleScene station markers, saves, and
+runs strict serialized-reference, radial ground-placement, footprint-radius,
+roof-beacon, label, and world-scale validation. `Validate Sample Scene` is
+read-only. In Play mode the Preview submenu opens Supply, Skill Archive, or
+Special System directly, can hold/release the Run Overview, and provides QA
+approach commands for each station.
+
+`Tools > Progression > Run Progression Contract Tests`
+(`Ctrl+Shift+Alt+T`) executes the `Progression.Contracts.Tests` EditMode
+assembly in the active editor and logs failures plus a final count. The latest
+run passed all 13 tests, including world-distance proximity, prompt visibility,
+in-range menu opening, and the opening-frame close-input guard. `dotnet build Progression.Contracts.Tests.csproj
+--no-restore` is the corresponding compile-only check. Runtime, editor, and
+test assemblies all build with zero warnings/errors. Live SampleScene QA
+verified the 10,000g HUD/coin, `12 / 90` ammo text, FULL supply state, aligned
+three console layouts, a 500g Hold-to-Fire purchase becoming OWNED, a 100g HP
+upgrade updating gold/level/live max HP, and the non-pausing Tab overview. A
+Unity Input System `E` pulse at the in-range Supply Console also verified that
+the menu opens and remains visible after the input frame.
+
 Player movement EditMode tests live at `Assets/Tests/EditMode/Player`.
 `dotnet build Player.Movement.Tests.csproj --no-restore` is a verified compile
-check for that generated test assembly; it does not execute the Unity tests.
+check for that generated test assembly; it now includes binding scope,
+live-copy propagation, persistence/reset, and reserved-Escape coverage. It does
+not execute the Unity tests.
 
 The opening-cutscene change passed both generated-project builds with zero
 warnings/errors. The active Unity editor also compiled all assemblies and

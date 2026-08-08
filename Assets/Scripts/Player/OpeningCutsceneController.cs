@@ -34,7 +34,7 @@ namespace Player
         [Header("Playback")]
         [SerializeField] private bool playOnStart = true;
         [SerializeField] private bool allowSkip = true;
-        [Tooltip("Escape, Space, or gamepad Start skips directly to the playable camera.")]
+        [Tooltip("Escape or Space skips directly to the playable camera.")]
         [SerializeField] private bool logSkipHint = true;
         [Tooltip("Temporary URP shadow range used by the planet-wide opening shots.")]
         [SerializeField, Min(50f)] private float cutsceneShadowDistance = 500f;
@@ -129,7 +129,7 @@ namespace Player
                 BeginCutscene();
                 if (logSkipHint && allowSkip)
                 {
-                    Debug.Log("Opening cutscene: press Escape, Space, or gamepad Start to skip.", this);
+                    Debug.Log("Opening cutscene: press Escape or Space to skip.", this);
                 }
 
                 yield return PlaySequence();
@@ -161,8 +161,7 @@ namespace Player
             bool keyboardSkip = Keyboard.current != null &&
                                 (Keyboard.current.escapeKey.wasPressedThisFrame ||
                                  Keyboard.current.spaceKey.wasPressedThisFrame);
-            bool gamepadSkip = Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame;
-            _skipRequested = keyboardSkip || gamepadSkip;
+            _skipRequested = keyboardSkip;
         }
 
         private void OnDisable()

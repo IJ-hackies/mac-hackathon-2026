@@ -9,7 +9,7 @@ namespace Player.Editor
 {
     public static class SettingsMenuPrefabSetup
     {
-        private const string AutoConfigureSessionKey = "Player.SettingsMenu.AutoConfigureScheduled.V3";
+        private const string AutoConfigureSessionKey = "Player.SettingsMenu.AutoConfigureScheduled.V4";
         private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
         private const string FontPath = "Assets/Art/Fonts/UI/KenneyFuture.ttf";
         private const string NarrowFontPath = "Assets/Art/Fonts/UI/KenneyFutureNarrow.ttf";
@@ -42,10 +42,12 @@ namespace Player.Editor
             EditorApplication.delayCall += () =>
             {
                 GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerRigPrefabPath);
+                ControlsRebindingUI controlsUi = prefab != null
+                    ? prefab.GetComponentInChildren<ControlsRebindingUI>(true)
+                    : null;
                 bool alreadyConfigured = prefab != null &&
                                          prefab.GetComponent<SettingsMenuController>() != null &&
-                                         prefab.transform.Find(
-                                             "HUD Canvas/Settings Menu/Astronaut Console/Main Page/Controls/Arrow") != null;
+                                         HasCompleteControlRows(controlsUi);
                 if (alreadyConfigured)
                 {
                     return;
@@ -267,65 +269,85 @@ namespace Player.Editor
                 CreateText(
                     "Controls Label",
                     controlsPage,
-                    "CONTROL MAP",
+                    "CONTROL MAP  //  KEYBOARD + MOUSE",
                     utilityFont,
                     18,
                     Cyan,
                     TextAnchor.MiddleLeft,
-                    new Vector2(620f, 32f),
-                    new Vector2(0f, 175f));
+                    new Vector2(650f, 28f),
+                    new Vector2(0f, 190f));
                 CreateText(
-                    "Controls Status",
+                    "Fixed Controls",
                     controlsPage,
-                    "BINDINGS IN FLIGHT",
-                    displayFont,
-                    34,
-                    Ice,
-                    TextAnchor.MiddleCenter,
-                    new Vector2(650f, 56f),
-                    new Vector2(0f, 73f));
-                CreateText(
-                    "Controls Note",
-                    controlsPage,
-                    "The full control map will land here once movement, combat,\nand shared-body inputs are locked.",
+                    "FIXED  //  WASD + ARROWS MOVE  /  MOUSE AIM  /  ESC SETTINGS  /  ESC + SPACE SKIP",
                     utilityFont,
-                    23,
+                    14,
                     Muted,
                     TextAnchor.MiddleCenter,
-                    new Vector2(650f, 92f),
-                    new Vector2(0f, -8f));
-                CreateText(
-                    "Controls Channels",
+                    new Vector2(680f, 24f),
+                    new Vector2(0f, 163f));
+
+                IReadOnlyList<PlayerInputBindings.BindingDefinition> definitions =
+                    PlayerInputBindings.RebindableControls;
+                for (int i = 0; i < definitions.Count; i++)
+                {
+                    int column = i / 6;
+                    int row = i % 6;
+                    float x = column == 0 ? -175f : 175f;
+                    float y = 125f - row * 46f;
+                    CreateControlRow(
+                        controlsWell,
+                        definitions[i],
+                        displayFont,
+                        utilityFont,
+                        buttonIdle,
+                        buttonHover,
+                        buttonPressed,
+                        new Vector2(x, y));
+                }
+
+                Text rebindStatus = CreateText(
+                    "Rebind Status",
                     controlsPage,
-                    "MOVEMENT   /   AIM   /   COMBAT   /   CO-OP",
+                    "SELECT A CONTROL TO REBIND",
                     utilityFont,
-                    17,
+                    14,
                     Solar,
                     TextAnchor.MiddleCenter,
-                    new Vector2(650f, 32f),
-                    new Vector2(0f, -82f));
+                    new Vector2(650f, 24f),
+                    new Vector2(0f, -137f));
+
+                Button resetButton = CreateButton(
+                    "Reset Defaults",
+                    controlsPage,
+                    "RESET DEFAULTS",
+                    displayFont,
+                    18,
+                    new Vector2(290f, 54f),
+                    new Vector2(-155f, -183f),
+                    buttonIdle,
+                    buttonHover,
+                    buttonPressed);
 
                 Button backButton = CreateButton(
                     "Back",
                     controlsPage,
-                    "BACK",
+                    "<  BACK",
                     displayFont,
-                    24,
-                    new Vector2(620f, 78f),
-                    new Vector2(0f, -165f),
+                    18,
+                    new Vector2(290f, 54f),
+                    new Vector2(155f, -183f),
                     buttonIdle,
                     buttonHover,
                     buttonPressed);
-                CreateText(
-                    "Arrow",
-                    backButton.transform,
-                    "<",
-                    utilityFont,
-                    22,
-                    Ice,
-                    TextAnchor.MiddleCenter,
-                    new Vector2(40f, 40f),
-                    new Vector2(-270f, 0f));
+
+                ControlsRebindingUI controlsRebindingUi =
+                    controlsPage.gameObject.AddComponent<ControlsRebindingUI>();
+                SerializedObject serializedControlsUi = new SerializedObject(controlsRebindingUi);
+                Assign(serializedControlsUi, "rowsRoot", controlsWell);
+                Assign(serializedControlsUi, "resetButton", resetButton);
+                Assign(serializedControlsUi, "statusText", rebindStatus);
+                serializedControlsUi.ApplyModifiedPropertiesWithoutUndo();
 
                 controlsPage.gameObject.SetActive(false);
                 menuRoot.gameObject.SetActive(false);
@@ -342,9 +364,11 @@ namespace Player.Editor
                 Assign(serializedController, "controlsButton", controlsButton);
                 Assign(serializedController, "backButton", backButton);
                 Assign(serializedController, "closeButton", closeButton);
+                Assign(serializedController, "controlsRebindingUi", controlsRebindingUi);
                 Assign(serializedController, "playerController", rigRoot.GetComponentInChildren<global::Player.PlayerController>(true));
                 Assign(serializedController, "playerCombat", rigRoot.GetComponentInChildren<global::Player.PlayerCombat>(true));
                 Assign(serializedController, "emoteController", rigRoot.GetComponentInChildren<global::Player.PlayerEmoteController>(true));
+                Assign(serializedController, "abilityInput", rigRoot.GetComponentInChildren<global::Player.PlayerAbilityInput>(true));
                 Assign(serializedController, "cameraController", rigRoot.GetComponentInChildren<global::Player.ThirdPersonCameraController>(true));
                 Assign(serializedController, "crosshairUi", rigRoot.GetComponentInChildren<CrosshairUI>(true));
                 serializedController.ApplyModifiedPropertiesWithoutUndo();
@@ -489,6 +513,74 @@ namespace Player.Editor
                 Vector2.zero,
                 true);
             return button;
+        }
+
+        private static Button CreateControlRow(
+            Transform parent,
+            PlayerInputBindings.BindingDefinition definition,
+            Font displayFont,
+            Font utilityFont,
+            Sprite idle,
+            Sprite hover,
+            Sprite pressed,
+            Vector2 position)
+        {
+            RectTransform row = CreateRect(
+                definition.BindingId.ToString("N"),
+                parent,
+                new Vector2(330f, 40f),
+                position);
+            Image rowImage = row.gameObject.AddComponent<Image>();
+            rowImage.color = new Color(Glass.r, Glass.g, Glass.b, 0.94f);
+            rowImage.raycastTarget = false;
+
+            CreateText(
+                "Action",
+                row,
+                definition.DisplayName,
+                utilityFont,
+                14,
+                Cyan,
+                TextAnchor.MiddleLeft,
+                new Vector2(170f, 30f),
+                new Vector2(-76f, 0f));
+
+            Button bindingButton = CreateButton(
+                "Binding Button",
+                row,
+                "--",
+                displayFont,
+                14,
+                new Vector2(142f, 32f),
+                new Vector2(88f, 0f),
+                idle,
+                hover,
+                pressed);
+            return bindingButton;
+        }
+
+        private static bool HasCompleteControlRows(ControlsRebindingUI controlsUi)
+        {
+            if (controlsUi == null)
+            {
+                return false;
+            }
+
+            Transform[] descendants = controlsUi.GetComponentsInChildren<Transform>(true);
+            foreach (PlayerInputBindings.BindingDefinition definition in PlayerInputBindings.RebindableControls)
+            {
+                Transform row = Array.Find(
+                    descendants,
+                    candidate => candidate.name == definition.BindingId.ToString("N"));
+                if (row == null || row.GetComponentInChildren<Button>(true) == null)
+                {
+                    return false;
+                }
+            }
+
+            SerializedObject serialized = new SerializedObject(controlsUi);
+            SerializedProperty reset = serialized.FindProperty("resetButton");
+            return reset != null && reset.objectReferenceValue != null;
         }
 
         private static Text CreateText(

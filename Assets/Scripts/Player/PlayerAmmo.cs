@@ -24,6 +24,7 @@ namespace Player
         // "constant shooting, no reload." TryConsumeRound/StartReload short-circuit to true/no-op
         // rather than every caller needing its own infinite-ammo branch.
         public bool InfiniteAmmo { get; private set; }
+        public bool IsFull => CurrentMagazine >= magazineSize && CurrentStorage >= maxStorage;
 
         public event Action<int, int> AmmoChanged;
         public event Action ReloadStarted;
@@ -114,6 +115,27 @@ namespace Player
 
             CurrentMagazine = magazineSize;
             CurrentStorage = maxStorage;
+            AmmoChanged?.Invoke(CurrentMagazine, CurrentStorage);
+        }
+
+        /// <summary>
+        /// Changes only magazine capacity. Reserve capacity deliberately remains fixed, and an
+        /// increased capacity grants the same number of loaded rounds immediately.
+        /// </summary>
+        public void SetMagazineSize(int value, bool addCapacityDifferenceToMagazine = false)
+        {
+            value = Mathf.Max(0, value);
+            int previous = magazineSize;
+            magazineSize = value;
+            if (addCapacityDifferenceToMagazine && value > previous)
+            {
+                CurrentMagazine = Mathf.Min(magazineSize, CurrentMagazine + value - previous);
+            }
+            else
+            {
+                CurrentMagazine = Mathf.Min(CurrentMagazine, magazineSize);
+            }
+
             AmmoChanged?.Invoke(CurrentMagazine, CurrentStorage);
         }
     }

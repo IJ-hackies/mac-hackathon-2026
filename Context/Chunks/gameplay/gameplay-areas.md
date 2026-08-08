@@ -14,8 +14,8 @@ owns:
   - "Assets/Scripts/Player/LandingBaseMovementSpeedEffect.cs*"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
-related: [system, state, core-loop, player-controller, unity-project, world-authoring]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [system, state, core-loop, progression, player-controller, unity-project, world-authoring]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -32,6 +32,9 @@ publishes enter, exit, and change events for future gameplay, VFX, audio, and UI
 consumers. A separate `LandingBaseMovementSpeedEffect` consumes those events to
 apply a 2x movement-speed modifier only inside the landing base; arena effects
 remain deliberately unimplemented.
+
+Progression stations use separate local 4-unit trigger spheres on three
+structure markers; they do not alter or reuse perimeter membership geometry.
 
 ## Key files
 

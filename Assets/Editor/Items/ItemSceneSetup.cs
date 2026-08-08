@@ -23,6 +23,11 @@ namespace ItemsEditor
         private const string PrefabFolder = "Assets/Prefabs/Items";
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
+        private const string HudBarTrackPath =
+            "Assets/Art/Textures/UI/Health/SpaceExpansion_BarTrack_Grey.png";
+        private const string HudBarFillPath =
+            "Assets/Art/Textures/UI/Health/SpaceExpansion_BarFill_Gloss.png";
+        private const string HudUtilityFontPath = "Assets/Art/Fonts/UI/KenneyFutureNarrow.ttf";
 
         private const string LanaVfxFolder = "Assets/Lana Studio/Casual RPG VFX/Prefabs/";
         private const string SpawnEffectPath = LanaVfxFolder + "Burst/Poof_generic.prefab";
@@ -161,7 +166,10 @@ namespace ItemsEditor
                 }
 
                 AmmoHudUI ammoHud = hudCanvas.GetComponentInChildren<AmmoHudUI>(true);
-                if (ammoHud == null) ammoHud = BuildAmmoHud(hudCanvas);
+                int siblingIndex = ammoHud != null ? ammoHud.transform.GetSiblingIndex() : -1;
+                if (ammoHud != null) UnityEngine.Object.DestroyImmediate(ammoHud.gameObject);
+                ammoHud = BuildAmmoHud(hudCanvas);
+                if (siblingIndex >= 0) ammoHud.transform.SetSiblingIndex(siblingIndex);
 
                 ammoHud.Bind(ammo);
 
@@ -181,49 +189,90 @@ namespace ItemsEditor
             Debug.Log($"Item Scene Setup: wired PlayerAmmo/AmmoHudUI into {PlayerRigPrefabPath}.");
         }
 
-        /// Bottom-right "magazine / storage" readout plus a hidden-by-default "RELOADING" line,
-        /// built the same procedural-UI-rect way as PlayerSceneSetup.BuildHealthHud.
+        /// Minimal blue ammo bar used when the item workflow rewires the rig's AmmoHud.
         private static AmmoHudUI BuildAmmoHud(Transform hudCanvas)
         {
-            const float panelWidth = 220f;
-            const float panelHeight = 64f;
-            var bottomRight = new Vector2(1f, 0f);
+            const float barWidth = 304f;
+            const float barHeight = 36f;
+            var topRight = new Vector2(1f, 1f);
+            Sprite trackSprite = LoadHudSprite(HudBarTrackPath, new Vector4(24f, 12f, 24f, 12f));
+            Sprite fillSprite = LoadHudSprite(HudBarFillPath, new Vector4(24f, 12f, 24f, 12f));
+            Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
 
-            RectTransform root = CreateUiRect("AmmoHud", hudCanvas, new Vector2(panelWidth, panelHeight),
-                new Vector2(-24f, 24f), bottomRight);
+            RectTransform root = CreateUiRect("AmmoHud", hudCanvas, new Vector2(barWidth, barHeight),
+                new Vector2(-28f, -72f), topRight);
             var hud = root.gameObject.AddComponent<AmmoHudUI>();
 
-            RectTransform backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight),
-                Vector2.zero, bottomRight);
-            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+            Image track = CreateStretchImage("Track", root, trackSprite);
+            track.type = Image.Type.Sliced;
+            track.color = new Color(0.02f, 0.075f, 0.19f, 0.92f);
 
-            RectTransform ammoRect = CreateUiRect("AmmoText", root, new Vector2(panelWidth - 24f, 28f),
-                new Vector2(-12f, 26f), bottomRight);
+            Image fill = CreateStretchImage("Fill", root, fillSprite);
+            fill.type = Image.Type.Sliced;
+            fill.color = new Color(0.06f, 0.43f, 1f, 1f);
+
+            RectTransform ammoRect = CreateUiRect("AmmoValue", root, new Vector2(barWidth, barHeight),
+                Vector2.zero, topRight);
             var ammoText = ammoRect.gameObject.AddComponent<Text>();
-            ammoText.alignment = TextAnchor.MiddleRight;
+            ammoText.alignment = TextAnchor.MiddleCenter;
             ammoText.color = Color.white;
-            ammoText.fontSize = 22;
+            ammoText.fontSize = 20;
             ammoText.fontStyle = FontStyle.Bold;
-            ammoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            ammoText.font = utilityFont;
             ammoText.raycastTarget = false;
-            ammoText.text = "0 / 0";
+            var valueOutline = ammoRect.gameObject.AddComponent<Outline>();
+            valueOutline.effectColor = new Color(0f, 0.03f, 0.12f, 0.9f);
+            valueOutline.effectDistance = new Vector2(1f, -1f);
 
-            RectTransform reloadingRect = CreateUiRect("ReloadingText", root, new Vector2(panelWidth - 24f, 16f),
-                new Vector2(-12f, 6f), bottomRight);
-            var reloadingText = reloadingRect.gameObject.AddComponent<Text>();
-            reloadingText.alignment = TextAnchor.MiddleRight;
-            reloadingText.color = new Color(1f, 0.6f, 0.2f);
-            reloadingText.fontSize = 13;
-            reloadingText.fontStyle = FontStyle.Bold;
-            reloadingText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            reloadingText.raycastTarget = false;
-            reloadingText.text = "RELOADING";
-            reloadingText.enabled = false;
-
-            hud.SetAmmoText(ammoText);
-            hud.SetReloadingText(reloadingText);
+            hud.Configure(fill, ammoText);
 
             return hud;
+        }
+
+        private static Image CreateStretchImage(string name, Transform parent, Sprite sprite)
+        {
+            var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            gameObject.transform.SetParent(parent, false);
+
+            RectTransform rect = gameObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = gameObject.GetComponent<Image>();
+            image.sprite = sprite;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static Sprite LoadHudSprite(string path, Vector4 border)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+            {
+                throw new InvalidOperationException($"Item Scene Setup: no UI texture found at {path}.");
+            }
+
+            bool requiresImport = importer.textureType != TextureImporterType.Sprite ||
+                                  importer.spriteImportMode != SpriteImportMode.Single ||
+                                  importer.mipmapEnabled ||
+                                  importer.wrapMode != TextureWrapMode.Clamp ||
+                                  importer.spriteBorder != border;
+            if (requiresImport)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.filterMode = FilterMode.Bilinear;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.spriteBorder = border;
+                importer.SaveAndReimport();
+            }
+
+            return RequireAsset<Sprite>(path);
         }
 
         private static RectTransform CreateUiRect(

@@ -72,7 +72,11 @@ namespace Player
             if (shouldBeActive == IsActive) return;
 
             IsActive = shouldBeActive;
-            if (health != null) health.IncomingDamageMultiplier = IsActive ? 0f : 1f;
+            if (health != null)
+            {
+                if (IsActive) health.SetIncomingDamageModifier(this, 0f);
+                else health.RemoveIncomingDamageModifier(this);
+            }
 
             if (IsActive)
             {
@@ -112,6 +116,13 @@ namespace Player
             if (_shieldVfxInstance == null) return;
             Destroy(_shieldVfxInstance);
             _shieldVfxInstance = null;
+        }
+
+        private void OnDisable()
+        {
+            IsActive = false;
+            health?.RemoveIncomingDamageModifier(this);
+            DespawnShieldVfx();
         }
     }
 }

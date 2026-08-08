@@ -2,6 +2,7 @@ using Audio;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -21,6 +22,7 @@ namespace Player.UI
         [SerializeField] private Button settingsBackButton;
         [SerializeField] private Button controlsButton;
         [SerializeField] private Button controlsBackButton;
+        [SerializeField] private ControlsRebindingUI controlsRebindingUi;
 
         [Header("Settings")]
         [SerializeField] private Slider volumeSlider;
@@ -41,6 +43,7 @@ namespace Player.UI
         }
 
         private Page _currentPage;
+        private PcUiInputBinding _pcUiInput;
 
         private void Awake()
         {
@@ -48,6 +51,12 @@ namespace Player.UI
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
 
+            if (controlsRebindingUi == null)
+            {
+                controlsRebindingUi = GetComponentInChildren<ControlsRebindingUI>(true);
+            }
+
+            EnsurePcUiInput();
             ConfigureSettings();
             RegisterListeners();
 
@@ -64,8 +73,10 @@ namespace Player.UI
 
         private void Start()
         {
+            EnsurePcUiInput();
+
             // EventSystem initialization order is not guaranteed relative to this root.
-            // Re-select once every Awake has completed so keyboard/gamepad navigation
+            // Re-select once every Awake has completed so keyboard navigation
             // always starts on the primary action.
             ShowPage(Page.Home);
         }
@@ -78,6 +89,11 @@ namespace Player.UI
                     planetRotationAxis.normalized,
                     planetRotationSpeed * Time.unscaledDeltaTime,
                     Space.World);
+            }
+
+            if (controlsRebindingUi != null && controlsRebindingUi.BlocksMenuEscape)
+            {
+                return;
             }
 
             if (Keyboard.current == null || !Keyboard.current.escapeKey.wasPressedThisFrame)
@@ -100,6 +116,23 @@ namespace Player.UI
         {
             SaveSettings();
             UnregisterListeners();
+            _pcUiInput?.Dispose();
+            _pcUiInput = null;
+        }
+
+        private void EnsurePcUiInput()
+        {
+            if (_pcUiInput != null)
+            {
+                return;
+            }
+
+            InputSystemUIInputModule inputModule =
+                Object.FindFirstObjectByType<InputSystemUIInputModule>();
+            if (inputModule != null)
+            {
+                _pcUiInput = new PcUiInputBinding(inputModule);
+            }
         }
 
         public void LoadSingleplayer()
@@ -185,7 +218,9 @@ namespace Player.UI
             {
                 Page.Home => singleplayerButton != null ? singleplayerButton.gameObject : null,
                 Page.Settings => volumeSlider != null ? volumeSlider.gameObject : null,
-                Page.Controls => controlsBackButton != null ? controlsBackButton.gameObject : null,
+                Page.Controls => controlsRebindingUi != null && controlsRebindingUi.FirstSelectable != null
+                    ? controlsRebindingUi.FirstSelectable
+                    : controlsBackButton != null ? controlsBackButton.gameObject : null,
                 _ => null
             };
 

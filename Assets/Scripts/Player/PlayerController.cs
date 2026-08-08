@@ -127,7 +127,7 @@ namespace Player
             _body = GetComponent<Rigidbody>();
             _capsule = GetComponent<CapsuleCollider>();
             _motor = GetComponent<RadialCapsuleMotor>();
-            _actions = new InputSystem_Actions();
+            _actions = PlayerInputBindings.CreateActions();
             if (animator == null) animator = GetComponentInChildren<Animator>();
             _defaultHeadAnchor = headAnchor;
             RecomputeDuckClipLength();
@@ -182,6 +182,12 @@ namespace Player
         {
             _actions.Player.Jump.performed -= OnJumpPerformed;
             _actions.Player.Disable();
+        }
+
+        private void OnDestroy()
+        {
+            PlayerInputBindings.ReleaseActions(_actions);
+            _actions = null;
         }
 
         private void Start()

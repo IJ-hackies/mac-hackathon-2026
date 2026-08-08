@@ -62,7 +62,7 @@ namespace Player
 
         private void Awake()
         {
-            _actions = new InputSystem_Actions();
+            _actions = PlayerInputBindings.CreateActions();
             if (animator == null) animator = GetComponentInChildren<Animator>();
             if (playerController == null) playerController = GetComponent<PlayerController>();
             if (playerCombat == null) playerCombat = GetComponent<PlayerCombat>();
@@ -97,6 +97,12 @@ namespace Player
             _actions.Player.EmoteWheel.started -= OnWheelStarted;
             _actions.Player.EmoteWheel.canceled -= OnWheelCanceled;
             _actions.Player.Disable();
+        }
+
+        private void OnDestroy()
+        {
+            PlayerInputBindings.ReleaseActions(_actions);
+            _actions = null;
         }
 
         private void OnWheelStarted(InputAction.CallbackContext context)

@@ -75,7 +75,7 @@ namespace PlayerEditor
         // Arms layer. The walk/sprint split was removed (single moveSpeed, "the character
         // doesn't even walk") - keyboard input now jumps straight to normalizedSpeed 1 the
         // instant the player moves, so Arms_Shoot_Walk/this threshold in practice only matters
-        // for analog gamepad stick input at partial magnitude. Left in place rather than ripped
+        // for analog movement input at partial magnitude. Left in place rather than ripped
         // out, since the Arms_Shoot_Walk clip/states still exist and still work correctly for
         // that case.
         private const float SprintSpeedThreshold = 0.55f;
@@ -357,6 +357,38 @@ namespace PlayerEditor
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
             Debug.Log($"PlayerSceneSetup: refreshed the Space Expansion health HUD in {PlayerRigPrefabPath}.");
+        }
+
+        [MenuItem("Tools/Player Prototype/Refresh Ammo HUD %#&a")]
+        public static void RefreshPlayerRigAmmoHud()
+        {
+            GameObject rigRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+                Player.UI.AmmoHudUI existingHud =
+                    RequireComponentInChildren<Player.UI.AmmoHudUI>(hudCanvas.gameObject);
+                int siblingIndex = existingHud.transform.GetSiblingIndex();
+
+                Object.DestroyImmediate(existingHud.gameObject);
+                Player.UI.AmmoHudUI replacementHud = BuildAmmoHud(hudCanvas);
+                replacementHud.transform.SetSiblingIndex(siblingIndex);
+                replacementHud.Bind(RequireComponentInChildren<PlayerAmmo>(rigRoot));
+
+                if (PrefabUtility.SaveAsPrefabAsset(rigRoot, PlayerRigPrefabPath) == null)
+                {
+                    throw new System.InvalidOperationException(
+                        $"PlayerSceneSetup: failed to save {PlayerRigPrefabPath}.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rigRoot);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log($"PlayerSceneSetup: refreshed the blue ammo HUD in {PlayerRigPrefabPath}.");
         }
 
         private static Transform RequireDirectChild(Transform parent, string childName)
@@ -1711,47 +1743,46 @@ namespace PlayerEditor
             return (wheelUi, crosshairUi, healthHudUi, abilityHudUi, ultimateHudUi, ammoHudUi, canvasGo);
         }
 
-        /// Bottom-right magazine/storage readout. Same generated-rect convention as
-        /// BuildHealthHud/BuildAbilityHud - the corner opposite Ability (bottom-left) and below
-        /// Health (top-right) so none of the HUD panels overlap.
+        /// Minimal blue Space Expansion ammo module placed directly below the health bar.
         private static Player.UI.AmmoHudUI BuildAmmoHud(Transform parent)
         {
-            const float panelWidth = 220f;
-            const float panelHeight = 64f;
-            var bottomRight = new Vector2(1f, 0f);
+            const float barWidth = 304f;
+            const float barHeight = 36f;
+            var topRight = new Vector2(1f, 1f);
 
-            var root = CreateUiRect("AmmoHud", parent, new Vector2(panelWidth, panelHeight),
-                new Vector2(-24f, 24f), bottomRight);
+            Sprite trackSprite = LoadHudSprite(
+                HealthBarTrackPath,
+                new Vector4(24f, 12f, 24f, 12f));
+            Sprite fillSprite = LoadHudSprite(
+                HealthBarFillPath,
+                new Vector4(24f, 12f, 24f, 12f));
+            Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
+
+            var root = CreateUiRect("AmmoHud", parent, new Vector2(barWidth, barHeight),
+                new Vector2(-28f, -72f), topRight);
             var hud = root.gameObject.AddComponent<Player.UI.AmmoHudUI>();
 
-            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, bottomRight);
-            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+            Image track = CreateStretchImage("Track", root, trackSprite);
+            track.type = Image.Type.Sliced;
+            track.color = new Color(0.02f, 0.075f, 0.19f, 0.92f);
 
-            var ammoRect = CreateUiRect("AmmoText", root, new Vector2(panelWidth - 24f, 28f),
-                new Vector2(-12f, 26f), bottomRight);
+            Image fill = CreateStretchImage("Fill", root, fillSprite);
+            fill.type = Image.Type.Sliced;
+            fill.color = new Color(0.06f, 0.43f, 1f, 1f);
+
+            var ammoRect = CreateUiRect("AmmoValue", root, new Vector2(barWidth, barHeight), Vector2.zero);
             var ammoText = ammoRect.gameObject.AddComponent<Text>();
-            ammoText.alignment = TextAnchor.MiddleRight;
+            ammoText.alignment = TextAnchor.MiddleCenter;
             ammoText.color = Color.white;
-            ammoText.fontSize = 22;
+            ammoText.fontSize = 20;
             ammoText.fontStyle = FontStyle.Bold;
-            ammoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            ammoText.font = utilityFont;
             ammoText.raycastTarget = false;
-            ammoText.text = "0 / 0";
+            var valueOutline = ammoRect.gameObject.AddComponent<Outline>();
+            valueOutline.effectColor = new Color(0f, 0.03f, 0.12f, 0.9f);
+            valueOutline.effectDistance = new Vector2(1f, -1f);
 
-            var reloadingRect = CreateUiRect("ReloadingText", root, new Vector2(panelWidth - 24f, 16f),
-                new Vector2(-12f, 6f), bottomRight);
-            var reloadingText = reloadingRect.gameObject.AddComponent<Text>();
-            reloadingText.alignment = TextAnchor.MiddleRight;
-            reloadingText.color = new Color(1f, 0.6f, 0.2f);
-            reloadingText.fontSize = 13;
-            reloadingText.fontStyle = FontStyle.Bold;
-            reloadingText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            reloadingText.raycastTarget = false;
-            reloadingText.text = "RELOADING";
-            reloadingText.enabled = false;
-
-            hud.SetAmmoText(ammoText);
-            hud.SetReloadingText(reloadingText);
+            hud.Configure(fill, ammoText);
 
             return hud;
         }
