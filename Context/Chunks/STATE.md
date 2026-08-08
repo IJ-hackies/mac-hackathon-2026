@@ -11,9 +11,9 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, gameplay-areas, unity-project, world-runtime, git-collaboration, player-controller, items, ultimate]
-verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
-lastVerified: 2026-08-08
+related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller, items, ultimate]
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 # STATE
@@ -23,7 +23,8 @@ lastVerified: 2026-08-08
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
   replace or remove remaining template content, define cooperative input and
   authority, then establish the assembly layout and repeatable WebGL
-  build/test/deployment workflows. WebGL2 is the confirmed publication target.
+  build/test/deployment workflows. A dedicated startup menu and explicit
+  menu/gameplay build order now exist. WebGL2 is the confirmed publication target.
   Planet-aligned locomotion, grounded surface adhesion with radial
   airborne gravity, stable radial body orientation, and camera conventions now
   exist in the single-player prototype.
@@ -33,7 +34,8 @@ lastVerified: 2026-08-08
   [player-controller](gameplay/player-controller.md)) but does not resolve
   this split.
 - **`multiplayer-topology`** - decide whether two-player play is local,
-  networked, or both, including input-device expectations.
+  networked, or both, including input-device expectations. Its main-menu entry
+  remains visibly unavailable until this is resolved.
 - **`core-game-loop`** - turn the confirmed crash-site defense and planetary
   scavenging loop into exact phases. Decide wave timing/scaling, breaks,
   residual enemies, failure states, dark-region risk/reward behavior,
@@ -41,14 +43,14 @@ lastVerified: 2026-08-08
   Reusable perimeter membership now drives a 2x landing-base movement-speed
   benefit; both arenas currently have membership only.
 - **`enemy-wave-prototype`** - implement planet-wide spawning, a timed wave
-  director, drops, and player/base failure. Health, melee/hitscan damage, three
+  director, drops, and player/base failure. Health, melee/projectile damage, three
   basic enemy types, and a two-stage boss now work in the flat-ground
   `Player.unity` sandbox, but their movement/spawning is not planet-ready and
   no wave orchestration exists.
 - **`progression-economy`** - define and implement gold, dropped/scavenged
   items, buying, pistol/player/equipment upgrades, crafting, loot tables, and
-  the kill-score formula with its wave multiplier. A first Health/Ammo
-  power-up pickup pair and a first ammo/reload system (magazine + storage,
+  the kill-score formula with its wave multiplier. First Health/Ammo/Thunder
+  power-up pickups and an ammo/reload system (magazine + storage,
   no upgrades yet) now exist - see [items](gameplay/items.md); random
   planet-wide spawning of pickups is not implemented (test-scene placement
   only).

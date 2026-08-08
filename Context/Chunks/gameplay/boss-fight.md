@@ -14,16 +14,15 @@ owns:
   - "Assets/_Creepy_Cat.meta"
   - "Assets/GabrielAguiarProductions.meta"
   - "Assets/GabrielAguiarProductions/**"
-  - "Assets/Lana Studio/**"
+  - "Assets/Lana Studio*"
 related: [enemies, player-controller, player-combat, runtime-art, state, ultimate]
-verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-The two-stage boss fight on [enemies](enemies.md)'s shared `Combat`/
-`EnemyBase` plumbing. `BossSceneSetup.BuildBossFight` (from
+The two-stage boss fight on [enemies](enemies.md)'s shared `Combat`/`EnemyBase` plumbing. `BossSceneSetup.BuildBossFight` (from
 `EnemySceneSetup.AddEnemiesToScene`) builds both stages plus a
 `BossFightController` wiring the Stage 1 -> Stage 2 transformation.
 
@@ -65,8 +64,7 @@ The two-stage boss fight on [enemies](enemies.md)'s shared `Combat`/
   (ultimate.md)'s electric bolts). Own kinematic `Rigidbody`,
   `SafeLookRotation` (Gotchas).
 
-Two imported VFX packs live at `Assets/` root, not `Assets/Art/` (self-
-contained, not [runtime-art](../assets/runtime-art.md) derivatives):
+Two imported VFX packs live at `Assets/` root, not `Assets/Art/` (self-contained, not [runtime-art](../assets/runtime-art.md) derivatives):
 `GabrielAguiarProductions/FreeQuickEffectsVol1/` (muzzle flash,
 transformation burst) and `Lana Studio/Casual RPG VFX/` (projectile/hit/
 top-down-attack/Stun/melee-hit prefabs).
@@ -147,7 +145,6 @@ top-down-attack/Stun/melee-hit prefabs).
   naming - a pack update renaming those children breaks the telegraph/
   impact split silently.
 
-**How to extend**: new projectile types get a `ProjectileVisualStyle`/
-`BossProjectileVisuals` config through `BossProjectile.Create`, not a new
+**How to extend**: new projectile types get a `ProjectileVisualStyle`/`BossProjectileVisuals` config through `BossProjectile.Create`, not a new
 component. New boss attacks extend the relevant AI's weighted-random pool
 (Stage 1) or round-robin sequence (Stage 2).

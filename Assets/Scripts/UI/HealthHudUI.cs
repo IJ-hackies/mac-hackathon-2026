@@ -4,32 +4,28 @@ using UnityEngine.UI;
 
 namespace Player.UI
 {
-    /// Segmented "energy cell" readout, built entirely from generated UI rects the same way
-    /// EmoteWheelUI/CrosshairUI are - no external art. Segments light up left-to-right by health
-    /// fraction and shift from full-color toward lowColor as health drops.
+    /// <summary>
+    /// Minimal player-health readout: one red bar with the current HP centered inside it.
+    /// </summary>
     public class HealthHudUI : MonoBehaviour
     {
-        [SerializeField] private Image[] segments;
-        [SerializeField] private Text percentText;
+        [SerializeField] private Image fillImage;
+        [SerializeField] private Text healthText;
         [SerializeField] private Health health;
-        [SerializeField] private Color fullColor = new Color(0.3f, 0.9f, 1f);
-        [SerializeField] private Color lowColor = new Color(1f, 0.25f, 0.2f);
-        [SerializeField] private Color emptySegmentColor = new Color(1f, 1f, 1f, 0.12f);
+        [SerializeField, Min(0.01f)] private float fillSpeed = 5.5f;
 
-        public void SetSegments(Image[] segmentImages)
+        private float _targetFraction = 1f;
+        private float _displayedFraction = 1f;
+        private bool _hasInitialValue;
+
+        public void Configure(Image fill, Text valueText)
         {
-            segments = segmentImages;
+            fillImage = fill;
+            healthText = valueText;
         }
 
-        public void SetPercentText(Text text)
-        {
-            percentText = text;
-        }
-
-        // Only stores the reference here - PlayerSceneSetup calls this at edit time while
-        // building the scene, and a delegate subscribed there wouldn't survive the domain
-        // reload on entering Play mode. The actual event subscription happens in OnEnable
-        // (runs at real runtime), same pattern as EnemyBase/PlayerDeathHandler's Health.Died.
+        // Editor setup only stores the reference. Runtime event subscriptions belong in
+        // OnEnable so they survive the Play-mode domain reload.
         public void Bind(Health target)
         {
             health = target;
@@ -39,40 +35,79 @@ namespace Player.UI
         {
             if (health == null)
             {
-                global::Player.PlayerController player = FindFirstObjectByType<global::Player.PlayerController>();
+                global::Player.PlayerController player =
+                    FindFirstObjectByType<global::Player.PlayerController>();
                 if (player != null)
                 {
                     health = player.GetComponent<Health>();
                 }
             }
 
-            if (health == null) return;
-            health.HealthChanged += UpdateDisplay;
-            UpdateDisplay(health.CurrentHealth, health.MaxHealth);
+            if (health == null)
+            {
+                return;
+            }
+
+            health.HealthChanged += HandleHealthChanged;
+            SetImmediate(health.CurrentHealth, health.MaxHealth);
         }
 
         private void OnDisable()
         {
-            if (health != null) health.HealthChanged -= UpdateDisplay;
+            if (health != null)
+            {
+                health.HealthChanged -= HandleHealthChanged;
+            }
         }
 
-        private void UpdateDisplay(float current, float max)
+        private void Update()
         {
-            float fraction = max > 0f ? Mathf.Clamp01(current / max) : 0f;
-            int litCount = Mathf.CeilToInt(fraction * segments.Length);
-            Color activeColor = Color.Lerp(lowColor, fullColor, fraction);
-
-            for (int i = 0; i < segments.Length; i++)
+            if (!_hasInitialValue)
             {
-                if (segments[i] != null)
-                {
-                    segments[i].color = i < litCount ? activeColor : emptySegmentColor;
-                }
+                return;
             }
 
-            if (percentText != null)
+            _displayedFraction = Mathf.MoveTowards(
+                _displayedFraction,
+                _targetFraction,
+                fillSpeed * Time.unscaledDeltaTime);
+            SetBarFraction(_displayedFraction);
+        }
+
+        private void HandleHealthChanged(float current, float max)
+        {
+            _targetFraction = max > 0f ? Mathf.Clamp01(current / max) : 0f;
+            SetHealthText(current);
+        }
+
+        private void SetImmediate(float current, float max)
+        {
+            _targetFraction = max > 0f ? Mathf.Clamp01(current / max) : 0f;
+            _displayedFraction = _targetFraction;
+            _hasInitialValue = true;
+            SetBarFraction(_displayedFraction);
+            SetHealthText(current);
+        }
+
+        private void SetBarFraction(float fraction)
+        {
+            if (fillImage == null)
             {
-                percentText.text = Mathf.RoundToInt(fraction * 100f) + "%";
+                return;
+            }
+
+            RectTransform rect = fillImage.rectTransform;
+            Vector2 anchorMax = rect.anchorMax;
+            anchorMax.x = Mathf.Clamp01(fraction);
+            rect.anchorMax = anchorMax;
+            fillImage.enabled = fraction > 0.001f;
+        }
+
+        private void SetHealthText(float current)
+        {
+            if (healthText != null)
+            {
+                healthText.text = Mathf.Max(0, Mathf.RoundToInt(current)).ToString();
             }
         }
     }

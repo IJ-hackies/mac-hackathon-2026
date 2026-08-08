@@ -8,8 +8,8 @@ owns:
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
 related: [player-controller, enemies, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is
@@ -93,16 +93,11 @@ locomotion.
   `PlayerController` and `PlayerCombat` (freezes movement/input, not the
   camera). `PlayerCombat.OnDisable` zeroes the `Arms` layer weight/`Firing`,
   otherwise a frozen shoot pose would override `Death`'s base-layer pose.
-- `Assets/Scripts/UI/HealthHudUI.cs` - segmented "HULL INTEGRITY" energy-cell
-  readout, top-right, built the same procedural-UI-rect way as the crosshair/
-  emote wheel (no external asset). Segments light left-to-right by health
-  fraction and shift color from `lowColor` to `fullColor`. `Bind()` (called
-  by `PlayerSceneSetup` at edit time) only stores the `Health` reference; the
-  `HealthChanged` subscription happens in `OnEnable` - see [enemies]
-  (enemies.md) Gotchas (edit-time delegate subscriptions don't survive the
-  Play-mode domain reload). If a prefab can't serialize a direct reference
-  across the nested player boundary, `OnEnable` discovers the active
-  `PlayerController` and binds its colocated `Health`.
+- `Assets/Scripts/UI/HealthHudUI.cs` - minimal top-right health readout: one
+  fixed-red sliced Space Expansion bar with rounded current HP centered
+  inside. It has no panel, labels, percent sign, or damage trail. `Bind()`
+  stores `Health`; `OnEnable` subscribes after domain reload and falls back
+  to the active `PlayerController`'s colocated `Health` when needed.
 
 `CheckShootBeat` now gates each shot behind `Player.PlayerAmmo.
 TryConsumeRound()` before calling `FireProjectile`/`SpawnMuzzleFlash` -

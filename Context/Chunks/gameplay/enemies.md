@@ -10,17 +10,15 @@ owns:
   - "Assets/Editor/Enemies/**"
   - "Assets/Editor/ModelAnimationUtility.cs*"
 related: [player-controller, player-combat, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-Three fightable basic enemy types, all built from the Ultimate Space Kit's
-`Enemy_*` FBX files, dropped into `Assets/Scenes/Player.unity` alongside the
-player. Combat (both player and enemy sides) runs on a shared
-`Combat.Health`/`Combat.IDamageable` pair so melee, hitscan, boss, and enemy
-attacks all resolve damage the same way. `Health.cs` also gained
+Three fightable basic enemy types, all built from the Ultimate Space Kit's `Enemy_*` FBX files, dropped into
+`Assets/Scenes/Player.unity` alongside the player. Combat (both player and enemy sides) runs on a shared
+`Combat.Health`/`Combat.IDamageable` pair so melee, projectile, boss, and enemy attacks all resolve damage the same way. `Health.cs` also gained
 `Heal(float)`/`FullyHeal()` (mirrors `ApplyDamage`'s clamp/`HealthChanged`
 shape, no-ops once `IsDead`) for [items](items.md)'s `HealthPickup`.
 
@@ -58,8 +56,7 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   telegraph fought the `Death` animation before this fix), then runs
   `DissolveAndDestroy`.
 
-  `DissolveAndDestroy` first runs `FallToGround` (gravity-accelerated fall
-  to `y=0` - the two flyers freeze mid-air at their last hover height once
+  `DissolveAndDestroy` first runs `FallToGround` (gravity-accelerated fall to `y=0` - the two flyers freeze mid-air at their last hover height once
   `isDead` stops their `Update` loop). Once grounded, swaps every renderer
   onto a per-instance clone of `Custom/EnemyDissolve`
   (`Assets/Art/Shaders/S_EnemyDissolve.shader`) and animates
@@ -124,8 +121,9 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   outside attack windups that intentionally freeze facing).
 - Hit reactions never gate movement/AI/attack logic for either side ("hit
   reactions shouldn't cause stoppage in gameplay").
-- Player-side (melee `OverlapSphere`, hitscan `Raycast`) and enemy-side
-  (direct distance check) damage both go through `IDamageable.ApplyDamage`.
+- Player-side damage (melee `OverlapSphere` and travelling `BossProjectile`)
+  and enemy-side damage both go through `IDamageable.ApplyDamage`; the aim
+  ray only chooses the player's projectile direction.
 - `EnemySceneSetup` must run after `PlayerSceneSetup.BuildTestScene`, never
   standalone - `BuildTestScene` wipes the scene and silently drops all
   enemies until `EnemySceneSetup` is re-run.
@@ -147,8 +145,6 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
 
 ## How to extend
 
-The two flyers already share `BuildHoverController`; a third hover-based
-enemy should reuse it, not duplicate the controller-building code. Boss AI/
-cutscene/imported-VFX projectiles live in [boss-fight](boss-fight.md) - this
-chunk stays scoped to the three basic enemies plus shared `Combat`/
+The two flyers already share `BuildHoverController`; a third hover-based enemy should reuse it, not duplicate the controller-building code. Boss AI/
+cutscene/imported-VFX projectiles live in [boss-fight](boss-fight.md) - this chunk stays scoped to the three basic enemies plus shared `Combat`/
 `EnemyBase` plumbing.

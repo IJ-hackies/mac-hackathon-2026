@@ -2,9 +2,9 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, core-loop, gameplay-areas, asset-library, runtime-art, unity-project, world-authoring, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
-lastVerified: 2026-08-08
+related: [control-model, core-loop, gameplay-areas, asset-library, runtime-art, unity-project, main-menu, world-authoring, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is
@@ -23,7 +23,9 @@ The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
 Input System `1.18.0`. WebGL with WebGL2 is the confirmed publication target;
 networking topology, cooperative input ownership, and the build/deployment
-pipeline have not been selected. Planet-wide enemy
+pipeline have not been selected. The build now starts in a dedicated
+mission-console menu with Singleplayer, disabled Multiplayer, and shared
+settings. Planet-wide enemy
 navigation/spawning, timed waves, loot, economy, base interaction, and scoring
 are not implemented; combat and enemy prototypes currently live in the
 separate flat-ground player sandbox. The
