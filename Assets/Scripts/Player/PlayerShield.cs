@@ -1,4 +1,5 @@
 using System;
+using Audio;
 using Combat;
 using UnityEngine;
 using Vfx;
@@ -30,6 +31,7 @@ namespace Player
         [SerializeField] private float shieldVfxScale = 0.9f;
 
         private GameObject _shieldVfxInstance;
+        private AudioHandle _shieldLoopHandle;
 
         public float Energy { get; private set; }
         public float MaxEnergy => maxEnergy;
@@ -72,8 +74,16 @@ namespace Player
             IsActive = shouldBeActive;
             if (health != null) health.IncomingDamageMultiplier = IsActive ? 0f : 1f;
 
-            if (IsActive) SpawnShieldVfx();
-            else DespawnShieldVfx();
+            if (IsActive)
+            {
+                SpawnShieldVfx();
+                _shieldLoopHandle = AudioManager.Instance.PlayLoop(SfxId.MechShieldActivate, transform);
+            }
+            else
+            {
+                DespawnShieldVfx();
+                if (_shieldLoopHandle.IsValid) AudioManager.Instance.StopLoop(_shieldLoopHandle);
+            }
         }
 
         /// Called by PlayerUltimate on every activation - the shield budget is scoped per

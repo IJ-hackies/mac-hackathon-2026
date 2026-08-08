@@ -86,6 +86,14 @@ namespace Combat
             {
                 IsDead = true;
                 if (animator != null) animator.SetTrigger(DeathParam);
+
+                // Stops any looping SFX this entity currently owns (e.g. BossMechAI's sustained
+                // machine-gun loop) unconditionally, regardless of whether the coroutine that
+                // started it gets to run its own cleanup - dying via base.HandleDeath()'s
+                // StopAllCoroutines() abandons that coroutine mid-loop without ever reaching its
+                // StopLoop call, which is exactly what left loops playing forever after death.
+                Audio.AudioManager.Instance.StopAllLoopsFor(gameObject);
+
                 Died?.Invoke();
                 return;
             }

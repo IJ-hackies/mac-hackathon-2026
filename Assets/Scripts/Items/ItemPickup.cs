@@ -25,6 +25,7 @@ namespace Items
         [SerializeField] private float playerBacklightDuration = 1.5f;
 
         private bool _collected;
+        private Vector3 _groundPosition;
 
         /// Subclasses without a finished pickup effect (e.g. ThunderPickup) can override this
         /// to false so the item stays visual-only - visible but not collectible - until their
@@ -33,6 +34,7 @@ namespace Items
 
         protected virtual void Awake()
         {
+            _groundPosition = transform.position;
             transform.position += transform.up * hoverHeight;
 
             var trigger = gameObject.AddComponent<SphereCollider>();
@@ -41,7 +43,9 @@ namespace Items
 
             if (spawnEffectPrefab != null)
             {
-                GameObject spawnVfx = Instantiate(spawnEffectPrefab, transform.position, transform.rotation);
+                // Ground position, not the hovering model's elevated transform.position - same
+                // "rises from a ground-level ring" authoring as the backlight aura below.
+                GameObject spawnVfx = Instantiate(spawnEffectPrefab, _groundPosition, transform.rotation);
                 ImportedVfxUtility.FixUrpMaterials(spawnVfx);
                 ImportedVfxUtility.ForceHierarchyParticleScaling(spawnVfx);
                 Destroy(spawnVfx, GetEffectLifetime(spawnVfx));
@@ -77,7 +81,9 @@ namespace Items
 
             if (pickupEffectPrefab != null)
             {
-                GameObject pickupVfx = Instantiate(pickupEffectPrefab, transform.position, transform.rotation);
+                // Ground position, not the hovering model's elevated transform.position - it was
+                // spawning at hoverHeight in midair instead of on the floor below the item.
+                GameObject pickupVfx = Instantiate(pickupEffectPrefab, _groundPosition, transform.rotation);
                 ImportedVfxUtility.FixUrpMaterials(pickupVfx);
                 ImportedVfxUtility.ForceHierarchyParticleScaling(pickupVfx);
                 Destroy(pickupVfx, GetEffectLifetime(pickupVfx));

@@ -269,7 +269,11 @@ namespace Player.UI
                 : sensitivitySlider != null
                     ? sensitivitySlider.value
                     : GameSettings.LoadMouseSensitivity();
-            GameSettings.Save(AudioListener.volume, mouseSensitivity);
+            // AudioListener.volume is now pinned to 1 by GameSettings.ApplyMasterVolume (master
+            // volume is applied via AudioManager/MusicManager instead) - read the slider itself
+            // rather than the no-longer-meaningful AudioListener.volume.
+            float masterVolume = volumeSlider != null ? volumeSlider.value : GameSettings.LoadMasterVolume();
+            GameSettings.Save(masterVolume, mouseSensitivity);
         }
 
         private void CacheGameplayState()

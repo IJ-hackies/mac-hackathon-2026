@@ -1,4 +1,5 @@
 using System.Collections;
+using Audio;
 using Combat;
 using Player;
 using UnityEngine;
@@ -20,6 +21,11 @@ namespace Enemies
     ///      before control is handed back.
     public class BossFightController : MonoBehaviour
     {
+        // Checked by Audio.GameplayMusicController before switching away from bossMusic on an
+        // area re-evaluation - true from the moment the Stage1->Stage2 cutscene starts, false once
+        // the mech (Stage 2) actually dies (see BossMechAI.HandleDeath).
+        public static bool BossFightActive { get; set; }
+
         [SerializeField] private Health astronautHealth;
         [SerializeField] private GameObject mechRoot;
         [SerializeField] private BossMechAI mechAi;
@@ -119,6 +125,10 @@ namespace Enemies
 
         private IEnumerator PlayTransitionCutscene()
         {
+            BossFightActive = true;
+            AudioHandle cutsceneLoopHandle = AudioManager.Instance.PlayLoop(SfxId.Boss1Cutscene);
+            MusicManager.Instance.PlayMusic(MusicManager.Instance.bossMusic);
+
             if (_playerController != null) _playerController.enabled = false;
             if (_playerCombat != null) _playerCombat.enabled = false;
             if (_cameraController != null) _cameraController.enabled = false;
@@ -256,6 +266,12 @@ namespace Enemies
             Vector3 impactCameraPos = spawnPoint + Vector3.up * topHeight
                 + Quaternion.Euler(0f, cameraStartAngleDegrees + cameraOrbitDegrees, 0f) * new Vector3(0f, 0f, -scaledDistance);
             Vector3 impactLookAt = spawnPoint + Vector3.up * topHeight;
+
+            if (cutsceneLoopHandle.IsValid) AudioManager.Instance.StopLoop(cutsceneLoopHandle);
+
+            // Roar lands right as the camera shake/ground-slam reveal begins - the "shakes and
+            // roars" beat of the stage1->stage2 transformation.
+            AudioManager.Instance.PlaySfx(SfxId.Boss2Roar, mechRoot.transform.position);
 
             if (mechCollider != null) mechCollider.enabled = true;
             StartCoroutine(ShakeCameraAt(impactCameraPos, impactLookAt, introSlamCameraShakeDuration));

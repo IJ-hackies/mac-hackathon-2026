@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Audio;
 using Combat;
 using Enemies;
 using UnityEngine;
@@ -169,6 +170,7 @@ namespace Player
         private bool _hasLastArmsNormalizedTime;
         private int _lastArmsStateHash;
         private bool _ultimateActive;
+        private AudioHandle _mechFireLoopHandle;
         private float _secondaryCooldownEndsAt = -999f;
         private readonly Dictionary<EnemyBase, int> _lightningOccurrences = new Dictionary<EnemyBase, int>();
 
@@ -235,6 +237,11 @@ namespace Player
             // Otherwise a frozen Arms-layer shoot pose keeps overriding the base layer's arms
             // (e.g. Death's full-body pose) after PlayerDeathHandler disables this component.
             StopArmsImmediately();
+
+            if (_mechFireLoopHandle.IsValid)
+            {
+                AudioManager.Instance.StopLoop(_mechFireLoopHandle);
+            }
         }
 
         private void Update()
@@ -344,12 +351,29 @@ namespace Player
             StartCoroutine(MeleeDamageWindow());
         }
 
+        // Mech (ultimate) melee scales the swing by the SAME factor the mech visual itself scales
+        // by (PlayerUltimate.mechScale, 1.4x) - PlayerUltimate only resizes the visual mesh
+        // (mechVisualRoot.localScale), not the physical CapsuleCollider (PlayerController._capsule
+        // stays fixed regardless of ultimate state), so the swing needs to grow by the same amount
+        // the arms visually do or it reads as too short/thin for the bigger model. Real, justified
+        // multiplier - not a guessed one - since it's the exact factor already driving the mech's
+        // own visual scale (see PlayerUltimate.VfxScaleMultiplier).
+        private float MeleeScale => playerUltimate != null ? playerUltimate.VfxScaleMultiplier : 1f;
+
         private IEnumerator MeleeDamageWindow()
         {
             yield return new WaitForSeconds(meleeHitDelay);
 
-            Vector3 origin = transform.position + transform.up + transform.forward * meleeRange;
-            var hits = Physics.OverlapSphere(origin, meleeRadius, ~0, QueryTriggerInteraction.Ignore);
+            float scale = MeleeScale;
+            float range = meleeRange * scale;
+            float radius = meleeRadius * scale;
+
+            // A real swept capsule (near the body out to the reach point) instead of a single
+            // sphere sitting only at the tip - a swing covers the space in between, not just its
+            // furthest point.
+            Vector3 start = transform.position + transform.up;
+            Vector3 end = start + transform.forward * range;
+            var hits = Physics.OverlapCapsule(start, end, radius, ~0, QueryTriggerInteraction.Ignore);
             foreach (var hit in hits)
             {
                 if (hit.transform.root == transform.root) continue;
@@ -357,8 +381,9 @@ namespace Player
                 var damageable = hit.GetComponentInParent<IDamageable>();
                 if (damageable == null || damageable.IsDead) continue;
 
-                Vector3 hitPoint = hit.ClosestPoint(origin);
+                Vector3 hitPoint = hit.ClosestPoint(end);
                 damageable.ApplyDamage(meleeDamage, hitPoint, gameObject, DamageType.Melee);
+                Combat.DamageNumberSpawner.Spawn(hitPoint, meleeDamage);
                 SpawnMeleeHitEffect(hitPoint);
             }
         }
@@ -392,6 +417,14 @@ namespace Player
             _hasLastArmsNormalizedTime = false;
             _stopArmsAt = float.PositiveInfinity;
 
+            // Ultimate's dual-cannon fire is a sustained loop (first half of the clip, restarted -
+            // see AudioManager.PlayLoop), not a per-beat one-shot like the base rifle - started here
+            // alongside the Arms loop rather than per-shot in FireProjectile/FireElectricBolts.
+            if (_ultimateActive && !_mechFireLoopHandle.IsValid)
+            {
+                _mechFireLoopHandle = AudioManager.Instance.PlayLoop(SfxId.MechShootPrimaryLoop, transform);
+            }
+
             // Attack.started/canceled fire once per click, so spam-clicking would otherwise
             // re-trigger FireStart (and reset the loop to frame 0) on every single click. Only
             // (re)start the loop if it isn't already running/winding down from a previous click
@@ -414,6 +447,11 @@ namespace Player
             // spam-clicked burst (if it lands in time) can keep the same loop running instead of
             // restarting it. Update() actually applies the stop once the window elapses.
             _stopArmsAt = Time.time + armsStopGrace;
+
+            if (_mechFireLoopHandle.IsValid)
+            {
+                AudioManager.Instance.StopLoop(_mechFireLoopHandle);
+            }
         }
 
         private void StopArmsImmediately()
@@ -459,9 +497,13 @@ namespace Player
         {
             if (_ultimateActive)
             {
+                // Sustained MechShootPrimaryLoop (started in OnFireStarted/stopped in
+                // OnFireCanceled) already covers this beat's audio - no per-shot one-shot here.
                 FireElectricBolts();
                 return;
             }
+
+            AudioManager.Instance.PlaySfx(SfxId.PlayerShootPrimary, muzzle != null ? muzzle.position : transform.position);
 
             if (muzzle == null) return;
 
@@ -480,7 +522,8 @@ namespace Player
                 };
                 BossProjectile.Create(muzzle.position, aimDirection, null, projectileVisualSpeed,
                     fireDamage, false, lifetime, enemyHitMask, tracerColor, projectileHitRadius,
-                    ProjectileVisualStyle.Bolt, visuals: visuals);
+                    ProjectileVisualStyle.Bolt, visuals: visuals,
+                    onHit: hitGameObject => Combat.DamageNumberSpawner.Spawn(hitGameObject.transform.position + Vector3.up, fireDamage));
             }
             else
             {
@@ -492,6 +535,7 @@ namespace Player
                     if (damageable != null && !damageable.IsDead)
                     {
                         damageable.ApplyDamage(fireDamage, fallbackHit.point, gameObject, DamageType.Ranged);
+                        Combat.DamageNumberSpawner.Spawn(fallbackHit.point, fireDamage);
                     }
 
                     SpawnTracer(muzzle.position, fallbackHit.point);
@@ -547,6 +591,7 @@ namespace Player
                 {
                     var enemy = hitGameObject.GetComponentInParent<EnemyBase>();
                     enemy?.ApplySlow(slowMultiplier, electricSlowDuration);
+                    Combat.DamageNumberSpawner.Spawn(hitGameObject.transform.position + Vector3.up, electricDamage);
                 });
         }
 
@@ -558,6 +603,8 @@ namespace Player
             _secondaryCooldownEndsAt = Time.time + SecondaryCooldownDuration;
             SecondaryCooldownChanged?.Invoke();
 
+            // SFX no longer fires on cast - moved to DamageIfStillNear so it only plays once the
+            // hit actually lands on an enemy, not on every cast regardless of outcome.
             if (_ultimateActive) FireLightningCircles();
             else FireSingleTopDownBeam();
         }
@@ -571,8 +618,17 @@ namespace Player
 
             EnemyBase target = nearest[0];
             Vector3 point = target.transform.position;
-            StartCoroutine(TopDownGroundEffect.Play(topDownBeamDotPurplePrefab, point,
-                secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, secondaryDamage)));
+            // skipFraction 0.99 - seeks the VFX's own particle timeline 99% of the way forward
+            // before it ever renders, cutting the pack's authored "charging" portion without
+            // hiding the beam-strike visual itself (see TopDownGroundEffect.FastForward).
+            // The VFX itself spawns at the raycasted ground point below the target (so it doesn't
+            // hang in midair under a flying enemy) - the damage check below still uses the
+            // target's real position (`point`), unchanged, so hit detection isn't affected by this
+            // purely visual placement fix.
+            Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(point);
+            StartCoroutine(TopDownGroundEffect.Play(topDownBeamDotPurplePrefab, vfxPoint,
+                secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, secondaryDamage, SfxId.PlayerShootSecondary),
+                skipFraction: 0.99f));
         }
 
         // Ultimate secondary: lightningCircleCount circles targeting the N nearest live enemies.
@@ -595,12 +651,17 @@ namespace Player
 
                 float damage = ultimateSecondaryDamage * Mathf.Max(0.2f, 1f - 0.2f * occurrence);
                 Vector3 point = target.transform.position;
-                StartCoroutine(TopDownGroundEffect.Play(lightningCirclePrefab, point,
-                    ultimateSecondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, ultimateSecondaryHitRadius, damage)));
+                // skipFraction 0.5 - same particle-timeline seek as FireSingleTopDownBeam above,
+                // confirmed working well at the halfway point for this prefab. VFX grounded below
+                // the target the same way - damage check keeps using the real target position.
+                Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(point);
+                StartCoroutine(TopDownGroundEffect.Play(lightningCirclePrefab, vfxPoint,
+                    ultimateSecondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, ultimateSecondaryHitRadius, damage, SfxId.MechShootSecondary),
+                    skipFraction: 0.5f));
             }
         }
 
-        private static void DamageIfStillNear(EnemyBase target, Vector3 point, float radius, float damage)
+        private static void DamageIfStillNear(EnemyBase target, Vector3 point, float radius, float damage, SfxId hitSfx)
         {
             if (target == null) return;
             var damageable = target.GetComponent<IDamageable>();
@@ -608,6 +669,8 @@ namespace Player
             if (Vector3.Distance(target.transform.position, point) > radius) return;
 
             damageable.ApplyDamage(damage, point, target.gameObject, DamageType.Ranged);
+            AudioManager.Instance.PlaySfx(hitSfx, point);
+            Combat.DamageNumberSpawner.Spawn(point + Vector3.up, damage);
         }
 
         private static List<EnemyBase> FindNearestEnemies(Vector3 origin, int count)

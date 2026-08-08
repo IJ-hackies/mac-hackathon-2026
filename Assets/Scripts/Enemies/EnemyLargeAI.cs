@@ -126,6 +126,9 @@ namespace Enemies
             {
                 playerHealth.ApplyDamage(useWeapon ? weaponDamage : punchDamage, player.position, gameObject);
                 SpawnMeleeHitVfx(player.position + Vector3.up);
+                // Same melee-impact cue the player's own melee used to play (now removed from the
+                // player's swing per request) - fires here on the enemy's hit connecting.
+                Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.PlayerMelee, player.position);
             }
 
             yield return new WaitForSeconds(useWeapon ? weaponRecovery : punchRecovery);

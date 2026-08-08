@@ -1,3 +1,4 @@
+using Audio;
 using Player;
 using UnityEngine;
 
@@ -9,6 +10,7 @@ namespace Items
         {
             var ammo = player.GetComponent<PlayerAmmo>();
             if (ammo != null) ammo.RefillFull();
+            AudioManager.Instance.PlaySfx(SfxId.ItemAmmoPickup, transform.position);
         }
     }
 }

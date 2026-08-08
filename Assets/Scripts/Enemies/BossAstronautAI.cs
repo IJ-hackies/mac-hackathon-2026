@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using Audio;
+using Combat;
 using UnityEngine;
 
 namespace Enemies
@@ -115,6 +117,13 @@ namespace Enemies
         {
             base.OnDisable();
             health.HealthChanged -= OnHealthChanged;
+        }
+
+        // SuppressHitReact only gates the automatic Animator trigger - Health.Hit still fires on
+        // every landed hit, so this is a normal EnemyBase.HandleHit override (like BossMechAI's).
+        protected override void HandleHit(DamageType damageType)
+        {
+            AudioManager.Instance.PlaySfx(SfxId.Boss1HitReact, transform.position);
         }
 
         // Deliberately does NOT call base.HandleDeath() - EnemyBase's dissolve-and-fall effect is
@@ -320,6 +329,8 @@ namespace Enemies
 
         private void SpawnBolt()
         {
+            AudioManager.Instance.PlaySfx(SfxId.Boss1Shoot, muzzle.position);
+
             Vector3 origin = muzzle.position;
             Vector3 direction = (player.position + Vector3.up - origin).normalized;
 

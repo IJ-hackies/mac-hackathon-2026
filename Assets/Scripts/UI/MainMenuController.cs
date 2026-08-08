@@ -1,3 +1,4 @@
+using Audio;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -49,6 +50,9 @@ namespace Player.UI
 
             ConfigureSettings();
             RegisterListeners();
+
+            var musicManager = MusicManager.Instance;
+            if (musicManager != null) musicManager.PlayMusic(musicManager.menuMusic);
 
             if (multiplayerButton != null)
             {
@@ -194,6 +198,8 @@ namespace Player.UI
         private void ApplyMasterVolume(float value)
         {
             float clamped = Mathf.Clamp01(value);
+            // GameSettings.ApplyMasterVolume is now the single funnel that applies to both
+            // AudioManager and MusicManager - see GameSettings.cs.
             GameSettings.ApplyMasterVolume(clamped);
             if (volumeValue != null)
             {
