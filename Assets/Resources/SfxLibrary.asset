@@ -16,7 +16,7 @@ MonoBehaviour:
   - id: 0
     clip: {fileID: 8300000, guid: 36e89ae1dc3c241ecb93eac461953f23, type: 3}
     category: 0
-    volume: 0.6
+    volume: 0.459
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 6
@@ -255,6 +255,55 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 5168220e9eeb149a39895917d2ec9773, type: 3}
     category: 4
     volume: 0.4
+    pitchMin: 1
+    pitchMax: 1
+    maxConcurrent: 2
+  - id: 35
+    clip: {fileID: 8300000, guid: ea10747a1f7b142c0a7458832f8f82b3, type: 3}
+    category: 0
+    volume: 0.64
+    pitchMin: 1
+    pitchMax: 1
+    maxConcurrent: 1
+  - id: 36
+    clip: {fileID: 8300000, guid: 5faf1f78425284c1dbafd46456503875, type: 3}
+    category: 0
+    volume: 0.78
+    pitchMin: 0.55
+    pitchMax: 0.65
+    maxConcurrent: 2
+  - id: 37
+    clip: {fileID: 8300000, guid: dd2a668f7cda14b5fa5a8bd5fd7e7ce2, type: 3}
+    category: 4
+    volume: 0.4
+    pitchMin: 1
+    pitchMax: 1
+    maxConcurrent: 2
+  - id: 38
+    clip: {fileID: 8300000, guid: b0af0d167a65e440abac1942745beb38, type: 3}
+    category: 4
+    volume: 0.55
+    pitchMin: 0.98
+    pitchMax: 1.02
+    maxConcurrent: 4
+  - id: 39
+    clip: {fileID: 8300000, guid: 8ef5737c2b27442f3909a47f7d5c76f3, type: 3}
+    category: 4
+    volume: 0.5
+    pitchMin: 1
+    pitchMax: 1
+    maxConcurrent: 2
+  - id: 40
+    clip: {fileID: 8300000, guid: e6b019ea7badb476baa86d5800ad3418, type: 3}
+    category: 4
+    volume: 0.45
+    pitchMin: 1
+    pitchMax: 1
+    maxConcurrent: 2
+  - id: 41
+    clip: {fileID: 8300000, guid: c5554043d87cd4f35a1b14c4a768f165, type: 3}
+    category: 4
+    volume: 0.5
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
