@@ -4,7 +4,7 @@ using UnityEngine.Serialization;
 
 namespace Player
 {
-    [RequireComponent(typeof(CharacterController))]
+    [RequireComponent(typeof(RadialCapsuleMotor))]
     public class PlayerController : MonoBehaviour
     {
         [Header("Movement")]
@@ -17,14 +17,21 @@ namespace Player
         [Tooltip("Center used for radial gravity and orientation. Falls back to a scene object named " +
                  "'Planet Ground', then world up for flat test scenes.")]
         [SerializeField] private Transform planetCenter;
+        [Tooltip("Maximum tilt from center-radial gravity toward the sampled terrain normal. " +
+                 "This keeps near-vertical terrain from becoming an excessive sideways pull.")]
+        [SerializeField, Range(0f, 89f)] private float maxSurfaceGravityAngle = 35f;
+        [Tooltip("How quickly gravity follows changes in the sampled terrain normal. The body " +
+                 "and camera remain aligned to stable center-radial up.")]
+        [SerializeField, Min(0f)] private float surfaceGravityDegreesPerSecond = 120f;
         [SerializeField, Min(0f)] private float radialAlignmentDegreesPerSecond = 360f;
 
         [Header("Jump / Gravity")]
         [SerializeField] private float jumpHeight = 1.4f;
-        [Tooltip("Positive acceleration toward the planet center.")]
+        [Tooltip("Positive acceleration toward the authored planet surface.")]
         [FormerlySerializedAs("gravity")]
         [SerializeField, Min(0.01f)] private float gravityAcceleration = 6.5f;
-        [Tooltip("Positive inward speed used to keep the controller in contact with uneven ground.")]
+        [SerializeField, Min(0.01f)] private float terminalFallSpeed = 30f;
+        [Tooltip("Positive speed toward the surface used to maintain contact with uneven ground.")]
         [FormerlySerializedAs("groundedStickForce")]
         [SerializeField, Min(0f)] private float groundedStickSpeed = 2f;
 
@@ -33,6 +40,9 @@ namespace Player
         [Tooltip("How far below the controller's feet to search for walkable ground.")]
         [SerializeField, Min(0.01f)] private float groundProbeDistance = 0.35f;
         [SerializeField, Min(0f)] private float groundProbeStartOffset = 0.1f;
+        [SerializeField, Range(0f, 89f)] private float maxGroundAngle = 45f;
+        [Tooltip("Radius of the broad foot probe used to preserve grounding across slopes and steps. " +
+                 "Only the center ray is allowed to steer surface gravity.")]
         [SerializeField, Range(0.1f, 1f)] private float groundProbeRadiusScale = 0.85f;
 
         [Header("Spawn Grounding")]
@@ -49,10 +59,14 @@ namespace Player
         private const float DirectionEpsilon = 0.0001f;
         private const int HitBufferSize = 16;
 
-        private CharacterController _controller;
+        private Rigidbody _body;
+        private CapsuleCollider _capsule;
+        private RadialCapsuleMotor _motor;
         private InputSystem_Actions _actions;
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[HitBufferSize];
         private float _radialSpeed;
+        private Vector3 _surfaceUp = Vector3.up;
+        private bool _surfaceUpInitialized;
         private bool _jumpQueued;
         private bool _searchedForPlanetGround;
         private float _currentSpeed;
@@ -60,10 +74,14 @@ namespace Player
         public float NormalizedSpeed { get; private set; }
         public bool IsGrounded { get; private set; }
         public bool JumpTriggeredThisFrame { get; private set; }
+        public Vector3 GroundNormal { get; private set; } = Vector3.up;
+        public float GroundClearance { get; private set; }
 
         private void Awake()
         {
-            _controller = GetComponent<CharacterController>();
+            _body = GetComponent<Rigidbody>();
+            _capsule = GetComponent<CapsuleCollider>();
+            _motor = GetComponent<RadialCapsuleMotor>();
             _actions = new InputSystem_Actions();
         }
 
@@ -86,18 +104,31 @@ namespace Player
                 cameraReference = Camera.main.transform;
             }
 
-            Vector3 radialUp = GetUpDirection();
-            AlignUpImmediately(radialUp);
+            Vector3 spawnCastUp = TryResolvePlanetCenter()
+                ? GetRadialUpDirection()
+                : Vector3.up;
+            AlignUpImmediately(spawnCastUp);
 
-            if (snapToGroundOnStart && !SnapToGround(radialUp))
+            if (snapToGroundOnStart && !SnapToGround(spawnCastUp))
             {
                 Debug.LogWarning(
                     $"{nameof(PlayerController)} on '{name}' could not find ground below its spawn point.",
                     this);
             }
 
-            radialUp = GetUpDirection();
-            IsGrounded = ProbeGround(radialUp);
+            Vector3 radialUp = GetPlanetUpDirection();
+            AlignUpImmediately(radialUp);
+            Vector3 localUp = transform.up.normalized;
+            IsGrounded = ProbeGround(
+                localUp,
+                false,
+                out Vector3 supportUp,
+                out float supportClearance,
+                out bool hasDirectSupport);
+            UpdateGroundSupport(IsGrounded, supportUp, supportClearance);
+            SetSurfaceUpImmediately(IsGrounded && hasDirectSupport
+                ? GetSurfaceUpDirection(radialUp, supportUp)
+                : radialUp);
             if (IsGrounded)
             {
                 _radialSpeed = -Mathf.Abs(groundedStickSpeed);
@@ -109,11 +140,44 @@ namespace Player
             _jumpQueued = true;
         }
 
-        private void Update()
+        private void FixedUpdate()
         {
-            JumpTriggeredThisFrame = false;
+            Vector3 radialUp = GetPlanetUpDirection();
+            Quaternion bodyRotation = GetPlanetAlignedRotation(_body.rotation, radialUp);
+            Vector3 localUp = bodyRotation * Vector3.up;
 
-            Vector3 radialUp = GetUpDirection();
+            Vector3 supportUp = localUp;
+            float supportClearance = 0f;
+            bool hasDirectSupport = false;
+            IsGrounded = _radialSpeed <= 0f &&
+                         ProbeGround(
+                             localUp,
+                             _motor.HadBottomContact,
+                             out supportUp,
+                             out supportClearance,
+                             out hasDirectSupport);
+            if (IsGrounded && hasDirectSupport)
+            {
+                UpdateSurfaceUp(GetSurfaceUpDirection(radialUp, supportUp));
+            }
+            else if (IsGrounded)
+            {
+                // Broad support bridges a stair lip, but must never preserve a previous
+                // surface-normal pull when the center of the player is unsupported.
+                SetSurfaceUpImmediately(radialUp);
+            }
+            else if (_radialSpeed <= 0f)
+            {
+                // Walking off an edge or entering a hole must immediately release surface
+                // adhesion. Radial down then carries the player toward the floor, not a wall.
+                SetSurfaceUpImmediately(radialUp);
+            }
+            else
+            {
+                // Preserve a slope-normal jump at takeoff, then smoothly return its trajectory
+                // to radial while the player is still rising.
+                UpdateSurfaceUp(radialUp);
+            }
 
             if (cameraReference == null && Camera.main != null)
             {
@@ -123,29 +187,56 @@ namespace Player
             Vector2 moveInput = _actions.Player.Move.ReadValue<Vector2>();
             bool sprinting = _actions.Player.Sprint.IsPressed();
 
-            Vector3 moveDirection = CameraRelativeDirection(moveInput, radialUp);
-            AlignToPlanet(radialUp, moveDirection);
+            Vector3 facingDirection = CameraRelativeDirection(moveInput, localUp);
+            bodyRotation = GetFacingRotation(bodyRotation, localUp, facingDirection);
+
+            Vector3 moveDirection = Vector3.ProjectOnPlane(facingDirection, _surfaceUp);
+            if (moveDirection.sqrMagnitude >= DirectionEpsilon)
+            {
+                moveDirection.Normalize();
+            }
 
             float maxSpeed = sprinting ? sprintSpeed : walkSpeed;
             float targetHorizontalSpeed = maxSpeed * Mathf.Clamp01(moveInput.magnitude);
-            _currentSpeed = Mathf.MoveTowards(_currentSpeed, targetHorizontalSpeed, acceleration * Time.deltaTime);
+            _currentSpeed = Mathf.MoveTowards(
+                _currentSpeed,
+                targetHorizontalSpeed,
+                acceleration * Time.fixedDeltaTime);
 
             Vector3 tangentMotion = moveDirection * _currentSpeed;
             NormalizedSpeed = Mathf.Clamp01(_currentSpeed / Mathf.Max(0.01f, sprintSpeed));
 
-            IsGrounded = _radialSpeed <= 0f && ProbeGround(radialUp);
             ApplyGravityAndJump();
+            if (!IsGrounded && _radialSpeed <= 0f)
+            {
+                // The apex can be crossed during gravity integration. Switch before Move so
+                // even the first falling frame heads toward the hole floor rather than a wall.
+                SetSurfaceUpImmediately(radialUp);
+            }
 
-            Vector3 radialMotion = radialUp * _radialSpeed;
-            Vector3 motion = (tangentMotion + radialMotion) * Time.deltaTime;
-            _controller.Move(motion);
-
-            radialUp = GetUpDirection();
-            IsGrounded = _radialSpeed <= 0f && ProbeGround(radialUp);
+            Vector3 gravityMotion = _surfaceUp * _radialSpeed;
+            Vector3 displacement = (tangentMotion + gravityMotion) * Time.fixedDeltaTime;
+            _motor.Move(displacement, bodyRotation, localUp, IsGrounded);
+            UpdateGroundSupport(IsGrounded, supportUp, supportClearance);
             if (IsGrounded && _radialSpeed < 0f)
             {
                 _radialSpeed = -Mathf.Abs(groundedStickSpeed);
+                if (!hasDirectSupport)
+                {
+                    SetSurfaceUpImmediately(GetPlanetUpDirection());
+                }
             }
+            else if (_radialSpeed <= 0f)
+            {
+                SetSurfaceUpImmediately(GetPlanetUpDirection());
+            }
+        }
+
+        private void LateUpdate()
+        {
+            // Animation consumes this render-frame latch in Update. Resetting it in FixedUpdate
+            // can lose a jump when two physics ticks occur before the next rendered frame.
+            JumpTriggeredThisFrame = false;
         }
 
         private void ApplyGravityAndJump()
@@ -164,7 +255,11 @@ namespace Player
             }
             else
             {
-                _radialSpeed -= Mathf.Max(0.01f, Mathf.Abs(gravityAcceleration)) * Time.deltaTime;
+                float fallSpeed = Mathf.Max(0.01f, Mathf.Abs(terminalFallSpeed));
+                _radialSpeed = Mathf.Max(
+                    _radialSpeed - Mathf.Max(0.01f, Mathf.Abs(gravityAcceleration)) *
+                    Time.fixedDeltaTime,
+                    -fallSpeed);
             }
 
             _jumpQueued = false;
@@ -197,47 +292,104 @@ namespace Player
             return (forward * input.y + right * input.x).normalized;
         }
 
-        private void AlignToPlanet(Vector3 radialUp, Vector3 moveDirection)
+        private Quaternion GetPlanetAlignedRotation(Quaternion currentRotation, Vector3 targetUp)
         {
             Quaternion upAlignedRotation =
-                Quaternion.FromToRotation(transform.up, radialUp) * transform.rotation;
-            transform.rotation = Quaternion.RotateTowards(
-                transform.rotation,
+                Quaternion.FromToRotation(currentRotation * Vector3.up, targetUp) * currentRotation;
+            return Quaternion.RotateTowards(
+                currentRotation,
                 upAlignedRotation,
-                Mathf.Max(0f, radialAlignmentDegreesPerSecond) * Time.deltaTime);
+                Mathf.Max(0f, radialAlignmentDegreesPerSecond) * Time.fixedDeltaTime);
+        }
 
+        private Quaternion GetFacingRotation(
+            Quaternion currentRotation,
+            Vector3 localUp,
+            Vector3 moveDirection)
+        {
             if (moveDirection.sqrMagnitude < DirectionEpsilon)
             {
-                return;
+                return currentRotation;
             }
 
-            Vector3 currentForward = Vector3.ProjectOnPlane(transform.forward, radialUp);
+            Vector3 currentForward = Vector3.ProjectOnPlane(
+                currentRotation * Vector3.forward,
+                localUp);
             if (currentForward.sqrMagnitude < DirectionEpsilon)
             {
-                currentForward = GetFallbackTangent(radialUp);
+                currentForward = GetFallbackTangent(localUp);
             }
 
-            float angle = Vector3.SignedAngle(currentForward, moveDirection, radialUp);
+            float angle = Vector3.SignedAngle(currentForward, moveDirection, localUp);
             float turn = Mathf.Clamp(
                 angle,
-                -Mathf.Max(0f, rotationDegreesPerSecond) * Time.deltaTime,
-                Mathf.Max(0f, rotationDegreesPerSecond) * Time.deltaTime);
-            transform.rotation = Quaternion.AngleAxis(turn, radialUp) * transform.rotation;
+                -Mathf.Max(0f, rotationDegreesPerSecond) * Time.fixedDeltaTime,
+                Mathf.Max(0f, rotationDegreesPerSecond) * Time.fixedDeltaTime);
+            return Quaternion.AngleAxis(turn, localUp) * currentRotation;
         }
 
         private void AlignUpImmediately(Vector3 radialUp)
         {
-            transform.rotation =
+            Quaternion alignedRotation =
                 Quaternion.FromToRotation(transform.up, radialUp) * transform.rotation;
+            transform.rotation = alignedRotation;
+            if (_body != null)
+            {
+                _body.rotation = alignedRotation;
+            }
         }
 
-        private Vector3 GetUpDirection()
+        private Vector3 GetPlanetUpDirection()
         {
-            if (!TryResolvePlanetCenter())
+            return TryResolvePlanetCenter()
+                ? GetRadialUpDirection()
+                : Vector3.up;
+        }
+
+        private Vector3 GetSurfaceUpDirection(Vector3 radialUp, Vector3 supportUp)
+        {
+            if (Vector3.Dot(supportUp, radialUp) <= 0f)
             {
-                return Vector3.up;
+                return radialUp;
             }
 
+            // Terrain normals shape local gravity without allowing near-vertical features to
+            // become an excessive sideways pull.
+            float maxTiltRadians = Mathf.Clamp(maxSurfaceGravityAngle, 0f, 89f) * Mathf.Deg2Rad;
+            return Vector3.RotateTowards(
+                    radialUp,
+                    supportUp.normalized,
+                    maxTiltRadians,
+                    0f)
+                .normalized;
+        }
+
+        private void SetSurfaceUpImmediately(Vector3 surfaceUp)
+        {
+            _surfaceUp = surfaceUp.normalized;
+            _surfaceUpInitialized = true;
+        }
+
+        private void UpdateSurfaceUp(Vector3 targetSurfaceUp)
+        {
+            if (!_surfaceUpInitialized)
+            {
+                SetSurfaceUpImmediately(targetSurfaceUp);
+                return;
+            }
+
+            float maxRadiansDelta = Mathf.Max(0f, surfaceGravityDegreesPerSecond) *
+                                    Mathf.Deg2Rad * Time.fixedDeltaTime;
+            _surfaceUp = Vector3.RotateTowards(
+                    _surfaceUp,
+                    targetSurfaceUp,
+                    maxRadiansDelta,
+                    0f)
+                .normalized;
+        }
+
+        private Vector3 GetRadialUpDirection()
+        {
             Vector3 centerToPlayer = transform.position - planetCenter.position;
             return centerToPlayer.sqrMagnitude >= DirectionEpsilon
                 ? centerToPlayer.normalized
@@ -280,40 +432,104 @@ namespace Player
             return false;
         }
 
-        private bool ProbeGround(Vector3 radialUp)
+        private bool ProbeGround(
+            Vector3 localUp,
+            bool hasBottomContact,
+            out Vector3 supportUp,
+            out float supportClearance,
+            out bool hasDirectSupport)
         {
-            float worldRadius = GetControllerWorldRadius();
-            float probeRadius = Mathf.Max(0.01f, worldRadius * groundProbeRadiusScale);
-            Vector3 bottomPoint = GetControllerBottomPoint(radialUp);
+            supportUp = localUp;
+            supportClearance = 0f;
+            hasDirectSupport = false;
+            Vector3 bottomPoint = GetControllerBottomPoint();
             float startOffset = Mathf.Max(0f, groundProbeStartOffset);
-            Vector3 origin = bottomPoint + radialUp * (probeRadius + startOffset);
             float castDistance = startOffset + Mathf.Max(0.01f, groundProbeDistance);
 
-            int hitCount = Physics.SphereCastNonAlloc(
-                origin,
-                probeRadius,
-                -radialUp,
+            // Only a centerline hit is allowed to steer surface gravity. A lateral hole wall
+            // cannot intersect this ray, so losing the floor always releases wall adhesion.
+            int centerHitCount = Physics.RaycastNonAlloc(
+                bottomPoint + localUp * startOffset,
+                -localUp,
                 _hitBuffer,
                 castDistance,
                 groundMask,
                 QueryTriggerInteraction.Ignore);
 
-            float minimumGroundDot = Mathf.Cos(_controller.slopeLimit * Mathf.Deg2Rad);
+            if (TryGetNearestWalkableHit(centerHitCount, localUp, out RaycastHit centerHit))
+            {
+                supportUp = centerHit.normal.normalized;
+                supportClearance = centerHit.distance - startOffset;
+                hasDirectSupport = true;
+                return true;
+            }
+
+            // A center ray can briefly miss at lips or between uneven triangles. A broad foot
+            // cast preserves grounding, but the walkable-normal filter rejects side walls and
+            // the fallback never steers surface gravity sideways.
+            if (!hasBottomContact)
+            {
+                return false;
+            }
+
+            float probeRadius = Mathf.Max(
+                0.01f,
+                GetControllerWorldRadius() * Mathf.Clamp(groundProbeRadiusScale, 0.1f, 1f));
+            Vector3 sphereOrigin = bottomPoint + localUp * (probeRadius + startOffset);
+            int footHitCount = Physics.SphereCastNonAlloc(
+                sphereOrigin,
+                probeRadius,
+                -localUp,
+                _hitBuffer,
+                castDistance,
+                groundMask,
+                QueryTriggerInteraction.Ignore);
+
+            if (!TryGetNearestWalkableHit(footHitCount, localUp, out RaycastHit footHit))
+            {
+                return false;
+            }
+
+            supportClearance = footHit.distance - startOffset;
+            return true;
+        }
+
+        private void UpdateGroundSupport(
+            bool hasSupport,
+            Vector3 supportUp,
+            float supportClearance)
+        {
+            GroundNormal = hasSupport ? supportUp.normalized : GetPlanetUpDirection();
+            GroundClearance = hasSupport ? supportClearance : 0f;
+        }
+
+        private bool TryGetNearestWalkableHit(
+            int hitCount,
+            Vector3 localUp,
+            out RaycastHit nearestHit)
+        {
+            float minimumGroundDot = Mathf.Cos(
+                Mathf.Clamp(maxGroundAngle, 0f, 89f) * Mathf.Deg2Rad);
+            bool foundGround = false;
+            float nearestDistance = float.PositiveInfinity;
+            nearestHit = default;
+
             for (int i = 0; i < hitCount; i++)
             {
                 RaycastHit hit = _hitBuffer[i];
-                if (IsOwnCollider(hit.collider))
+                if (IsOwnCollider(hit.collider) ||
+                    Vector3.Dot(hit.normal, localUp) < minimumGroundDot ||
+                    hit.distance >= nearestDistance)
                 {
                     continue;
                 }
 
-                if (Vector3.Dot(hit.normal, radialUp) >= minimumGroundDot)
-                {
-                    return true;
-                }
+                foundGround = true;
+                nearestDistance = hit.distance;
+                nearestHit = hit;
             }
 
-            return false;
+            return foundGround;
         }
 
         private bool SnapToGround(Vector3 radialUp)
@@ -354,31 +570,26 @@ namespace Player
                 return false;
             }
 
-            Vector3 currentBottomPoint = GetControllerBottomPoint(radialUp);
+            Vector3 currentBottomPoint = GetControllerBottomPoint();
             Vector3 desiredBottomPoint = nearestHit.point + radialUp * Mathf.Max(0f, spawnSurfaceOffset);
             Vector3 snappedPosition = transform.position + desiredBottomPoint - currentBottomPoint;
 
-            bool controllerWasEnabled = _controller.enabled;
-            _controller.enabled = false;
             transform.position = snappedPosition;
-            _controller.enabled = controllerWasEnabled;
+            _body.position = snappedPosition;
             Physics.SyncTransforms();
             return true;
         }
 
-        private Vector3 GetControllerBottomPoint(Vector3 radialUp)
+        private Vector3 GetControllerBottomPoint()
         {
-            float worldHeight = Mathf.Max(
-                GetControllerWorldRadius() * 2f,
-                _controller.height * Mathf.Abs(transform.lossyScale.y));
-            return transform.TransformPoint(_controller.center) - radialUp * (worldHeight * 0.5f);
+            return _motor.GetBottomPoint(transform.position, transform.rotation);
         }
 
         private float GetControllerWorldRadius()
         {
             Vector3 scale = transform.lossyScale;
             float lateralScale = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.z));
-            return Mathf.Max(0.01f, _controller.radius * lateralScale);
+            return Mathf.Max(0.01f, _capsule.radius * lateralScale);
         }
 
         private bool IsOwnCollider(Collider candidate)
@@ -389,7 +600,7 @@ namespace Player
             }
 
             Transform candidateTransform = candidate.transform;
-            return candidate == _controller ||
+            return candidate == _capsule ||
                    candidateTransform == transform ||
                    candidateTransform.IsChildOf(transform);
         }

@@ -21,7 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: M_PlanetCrateredMoon
-  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
+  m_Shader: {fileID: 4800000, guid: d7b36536e89b4ef2aebfbd47c6e1c4a8, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -114,11 +114,17 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
+    - _DetailScale: 38
+    - _DetailStrength: 0.055
+    - _MacroScale: 3.2
+    - _MacroStrength: 0.16
     - _Metallic: 0
+    - _NormalStrength: 0.1
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
+    - _RoughnessVariation: 0.02
     - _Smoothness: 0.12
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

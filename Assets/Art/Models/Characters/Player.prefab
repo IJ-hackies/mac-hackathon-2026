@@ -10,7 +10,10 @@ GameObject:
   m_Component:
   - component: {fileID: 5291120472847429644}
   - component: {fileID: 3883685232175998377}
+  - component: {fileID: 7777444210450000004}
+  - component: {fileID: 7777444210450000005}
   - component: {fileID: 8952502220684115085}
+  - component: {fileID: 7777444210450000001}
   - component: {fileID: 4881924321977490226}
   - component: {fileID: 5645547821882719250}
   - component: {fileID: 5360215090925705334}
@@ -34,12 +37,44 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4981982662989760652}
-  - {fileID: 2898055706858903575}
+  - {fileID: 7777444210450000003}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!143 &3883685232175998377
-CharacterController:
+--- !u!1 &7777444210450000002
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7777444210450000003}
+  m_Layer: 8
+  m_Name: VisualRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7777444210450000003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7777444210450000002}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4981982662989760652}
+  - {fileID: 2898055706858903575}
+  m_Father: {fileID: 5291120472847429644}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &3883685232175998377
+CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -55,14 +90,59 @@ CharacterController:
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 3
-  m_Height: 2.55
+  serializedVersion: 2
   m_Radius: 0.55
-  m_SlopeLimit: 45
-  m_StepOffset: 0.3
-  m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
+  m_Height: 2.55
+  m_Direction: 1
   m_Center: {x: 0, y: 1.275, z: 0}
+--- !u!54 &7777444210450000004
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2772110908766861441}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 3
+--- !u!114 &7777444210450000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2772110908766861441}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58643a22f31d47fc9be913aefc73a034, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Player.RadialCapsuleMotor
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  contactOffset: 0.02
+  slideIterations: 4
+  depenetrationIterations: 3
+  minimumBottomDot: 0.25
+  stepHeight: 0.3
+  maxStepGroundAngle: 45
 --- !u!114 &8952502220684115085
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -80,21 +160,44 @@ MonoBehaviour:
   acceleration: 18
   rotationDegreesPerSecond: 540
   planetCenter: {fileID: 0}
+  maxSurfaceGravityAngle: 35
+  surfaceGravityDegreesPerSecond: 120
   radialAlignmentDegreesPerSecond: 360
   jumpHeight: 1.4
   gravityAcceleration: 6.5
+  terminalFallSpeed: 30
   groundedStickSpeed: 2
   groundMask:
     serializedVersion: 2
     m_Bits: 4294967295
   groundProbeDistance: 0.35
   groundProbeStartOffset: 0.1
+  maxGroundAngle: 45
   groundProbeRadiusScale: 0.85
   snapToGroundOnStart: 1
   spawnRaycastOutwardOffset: 10
   spawnRaycastDistance: 100
   spawnSurfaceOffset: 0.02
   cameraReference: {fileID: 0}
+--- !u!114 &7777444210450000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2772110908766861441}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cff20be6a94d4ff3a7d270fc40c1f639, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerVisualGroundConformer
+  visualRoot: {fileID: 7777444210450000003}
+  maxTiltAngle: 30
+  groundedTiltResponse: 14
+  airborneReturnResponse: 18
+  targetGroundClearance: 0.025
+  maxGroundLift: 0.12
+  liftResponse: 18
 --- !u!114 &4881924321977490226
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -188,7 +291,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5291120472847429644}
+  m_Father: {fileID: 7777444210450000003}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &4803431686858977127
 PrefabInstance:
@@ -196,7 +299,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 5291120472847429644}
+    m_TransformParent: {fileID: 7777444210450000003}
     m_Modifications:
     - target: {fileID: -8874958392328960396, guid: bcf0a01bd46b940f798b144283b083f0, type: 3}
       propertyPath: m_Layer

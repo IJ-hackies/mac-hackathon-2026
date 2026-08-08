@@ -2,8 +2,8 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, core-loop, asset-library, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
+related: [control-model, core-loop, asset-library, runtime-art, unity-project, world-authoring, git-collaboration, player-controller]
+verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
 lastVerified: 2026-08-08
 ---
 
@@ -23,18 +23,26 @@ The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
 Input System `1.18.0`. Target platforms, networking topology, cooperative input
 ownership, and the build pipeline have not been selected. Enemy, wave, damage,
-loot, economy, base, and scoring systems are not implemented. The prototype
-world is a small spherical planet intended for
-circumnavigation, with an approximately 150-unit radius and 942-unit full lap.
+loot, economy, base-interaction, and scoring systems are not implemented. The
+prototype world is a small spherical planet intended for circumnavigation, with
+an approximately 150-unit radius and 942-unit full lap.
 Its current visual treatment is the pale, cratered
 `Planet_3` mesh from the Ultimate Space Kit, subdivided once to smooth its
-silhouette and finished in a matte warm clay/ochre color. Its active non-convex
-mesh collider matches the rendered craters exactly, and the complete planet
-hierarchy is a reusable prefab instantiated by the prototype scene. A
-single-player astronaut prototype now snaps to that surface, uses radial
-gravity and tangent movement, aligns to the planet, and carries an independent
-radial-up camera. The scene also has a procedural starfield and a visible sun
-whose world direction matches the planet's directional light source.
+silhouette and shaded with seam-free procedural lunar mottling over its matte
+warm clay/ochre color. Its active non-convex mesh collider matches the rendered
+craters exactly, and the complete planet hierarchy is a reusable prefab
+instantiated by the prototype scene. A single-player astronaut prototype now
+snaps to that surface, uses a planet-aligned capsule motor with grounded surface
+adhesion, radial airborne gravity, and tangent movement, and keeps stable radial
+body/camera up. The scene
+also has a procedural
+starfield and a visible sun whose world direction matches the planet's
+directional light source.
+The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
+curated structure instances, a pole-and-curved-sheet perimeter with an explicit
+opening, and decoration. This is authored environment art rather than a base
+gameplay or construction system. The rest of the authored crater shell carries
+a dense planet-wide scatter of oversized vegetation in dark orange and red.
 
 ## Confirmed product invariants
 

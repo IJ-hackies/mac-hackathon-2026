@@ -12,7 +12,7 @@ openWork:
   - progression-economy
   - branching-and-integration-policy
 related: [control-model, core-loop, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: cbc008d980ff923abaae0dc8790a745a2ca38f0d
+verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
 lastVerified: 2026-08-08
 ---
 
@@ -23,8 +23,9 @@ lastVerified: 2026-08-08
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
   replace or remove remaining template content, define cooperative input and
   authority, then select target platforms, assembly layout, and build/test
-  workflows. Planet-aligned locomotion, radial gravity, body orientation, and
-  camera conventions now exist in the single-player prototype.
+  workflows. Planet-aligned locomotion, grounded surface adhesion with radial
+  airborne gravity, stable radial body orientation, and camera conventions now
+  exist in the single-player prototype.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,
   interaction, and camera responsibilities belong to each player. A
   single-player-only third-person controller now exists (see
