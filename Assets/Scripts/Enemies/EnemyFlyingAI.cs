@@ -4,10 +4,11 @@ using UnityEngine;
 namespace Enemies
 {
     /// Ranged flyer: wanders randomly while drifting toward the player, capped at
-    /// maxDistanceFromPlayer. Headbutt attack charges a tracking telegraph line (updated to
-    /// the player's current position every frame), then freezes it for a dodge window before
-    /// firing an instant hitscan laser along the frozen line - only the frozen line matters for
-    /// the hit check, so moving out of it during the pause avoids the shot entirely.
+    /// maxDistanceFromPlayer. Attack fires a travelling Projectiles_green_shuriken shot
+    /// (Enemies.BossProjectile) straight at the player with no warning telegraph - "it should
+    /// just shoot as normal" - and at 1.8x its earlier fire rate (attackCooldown divided by 1.8).
+    /// The tracking-telegraph-then-freeze dodge window and the older instant-hitscan laser beam
+    /// have both been removed; this is now a plain fire-and-forget ranged attack.
     public class EnemyFlyingAI : EnemyBase
     {
         [Header("Movement")]
@@ -22,17 +23,25 @@ namespace Enemies
 
         [Header("Attack")]
         [SerializeField] private Transform firePoint;
-        [SerializeField] private LineRenderer telegraphLine;
         [SerializeField] private float attackRange = 16f;
-        [SerializeField] private float attackCooldown = 4f;
-        [SerializeField] private float chargeStartDelay = 0.5f;
-        [SerializeField] private float trackDuration = 0.7f;
-        [SerializeField] private float pauseDuration = 0.4f;
-        [SerializeField] private float beamDuration = 0.15f;
+        [Tooltip("Raised x1.8 from the original 4s - shorter cooldown = higher fire rate.")]
+        [SerializeField] private float attackCooldown = 4f / 1.8f;
+        [Tooltip("Brief windup before the shot actually leaves - keeps the Attack animation's " +
+                 "own windup readable without a separate dodge-window telegraph.")]
+        [SerializeField] private float chargeStartDelay = 0.3f;
         [SerializeField] private float laserDamage = 15f;
-        [SerializeField] private float laserRange = 60f;
-        [SerializeField] private Color telegraphColor = new Color(1f, 0.85f, 0.2f, 0.9f);
-        [SerializeField] private Color beamColor = new Color(1f, 0.15f, 0.1f, 1f);
+
+        [Header("Shuriken Projectile")]
+        [SerializeField] private GameObject shurikenVisualPrefab;
+        [SerializeField] private float shurikenVisualScale = 0.4f;
+        // Same Lana Studio Range_attack authored-forward-is-+Y fix as the other projectile
+        // callers (BossAstronautAI/BossMechAI/PlayerCombat) - see their comments.
+        [SerializeField] private Quaternion shurikenRotationOffset = Quaternion.Euler(0f, 90f, 0f);
+        [SerializeField] private GameObject shurikenImpactEffectPrefab;
+        [SerializeField] private float shurikenImpactEffectScale = 1f;
+        [SerializeField] private float shurikenSpeed = 14f;
+        [SerializeField] private float shurikenLifetime = 4f;
+        [SerializeField] private float shurikenHitRadius = 0.2f;
 
         private static readonly int AttackParam = Animator.StringToHash("Attack");
         private static readonly int SpeedParam = Animator.StringToHash("Speed");
@@ -49,24 +58,11 @@ namespace Enemies
             _bobSeed = Random.value * 100f;
 
             if (firePoint == null) firePoint = transform;
-
-            if (telegraphLine == null)
-            {
-                var lineGo = new GameObject("Telegraph");
-                lineGo.transform.SetParent(transform, false);
-                telegraphLine = lineGo.AddComponent<LineRenderer>();
-            }
-
-            telegraphLine.positionCount = 2;
-            telegraphLine.material = new Material(Shader.Find("Sprites/Default"));
-            telegraphLine.textureMode = LineTextureMode.Stretch;
-            telegraphLine.useWorldSpace = true;
-            telegraphLine.enabled = false;
         }
 
         private void Update()
         {
-            if (isDead) return;
+            if (isDead || isFrozen) return;
 
             if (_isAttacking)
             {
@@ -82,6 +78,14 @@ namespace Enemies
             {
                 StartCoroutine(AttackRoutine());
             }
+        }
+
+        // See EnemyBase.SetFrozen - the AttackRoutine coroutine gets killed mid-flight by
+        // StopAllCoroutines() just before this runs, so _isAttacking needs resetting here or
+        // Update() would stay stuck on the early-return branch forever.
+        protected override void OnFrozen()
+        {
+            _isAttacking = false;
         }
 
         private float UpdateMovement()
@@ -111,7 +115,7 @@ namespace Enemies
                 speed = wanderSpeed;
             }
 
-            Vector3 nextPosition = transform.position + desiredDirection * speed * Time.deltaTime;
+            Vector3 nextPosition = transform.position + desiredDirection * speed * SpeedMultiplier * Time.deltaTime;
             nextPosition.y = hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude;
             transform.position = nextPosition;
 
@@ -125,47 +129,30 @@ namespace Enemies
 
             yield return new WaitForSeconds(chargeStartDelay);
 
-            telegraphLine.enabled = true;
-            telegraphLine.startColor = telegraphColor;
-            telegraphLine.endColor = telegraphColor;
-            telegraphLine.startWidth = 0.04f;
-            telegraphLine.endWidth = 0.04f;
-
-            Vector3 frozenDirection = firePoint.forward;
-            float trackEnd = Time.time + trackDuration;
-            while (Time.time < trackEnd)
+            if (isDead || player == null)
             {
-                if (player != null)
-                {
-                    frozenDirection = (player.position - firePoint.position).normalized;
-                }
-                telegraphLine.SetPosition(0, firePoint.position);
-                telegraphLine.SetPosition(1, firePoint.position + frozenDirection * laserRange);
-                yield return null;
+                _isAttacking = false;
+                yield break;
             }
 
-            // Freeze: the line stops tracking here, giving the player a fixed path to dodge.
-            Vector3 frozenOrigin = firePoint.position;
-            telegraphLine.SetPosition(0, frozenOrigin);
-            telegraphLine.SetPosition(1, frozenOrigin + frozenDirection * laserRange);
-
-            yield return new WaitForSeconds(pauseDuration);
-
-            telegraphLine.startColor = beamColor;
-            telegraphLine.endColor = beamColor;
-            telegraphLine.startWidth = 0.12f;
-            telegraphLine.endWidth = 0.12f;
+            Vector3 origin = firePoint.position;
+            Vector3 direction = (player.position - origin).normalized;
 
             int playerLayer = LayerMask.NameToLayer("Player");
             int mask = playerLayer >= 0 ? 1 << playerLayer : ~0;
-            if (Physics.Raycast(frozenOrigin, frozenDirection, out RaycastHit hitInfo, laserRange, mask,
-                    QueryTriggerInteraction.Ignore) && playerHealth != null)
-            {
-                playerHealth.ApplyDamage(laserDamage, hitInfo.point, gameObject);
-            }
 
-            yield return new WaitForSeconds(beamDuration);
-            telegraphLine.enabled = false;
+            var visuals = new BossProjectileVisuals
+            {
+                ImportedVisualPrefab = shurikenVisualPrefab,
+                ImportedVisualScale = shurikenVisualScale,
+                ExtraRotationOffset = shurikenRotationOffset,
+                ImpactEffectPrefab = shurikenImpactEffectPrefab,
+                ImpactEffectScale = shurikenImpactEffectScale,
+            };
+
+            BossProjectile.Create(origin, direction, player, shurikenSpeed, laserDamage,
+                false, shurikenLifetime, mask, Color.white, shurikenHitRadius, ProjectileVisualStyle.Bolt,
+                visuals: visuals);
 
             _isAttacking = false;
             _lastAttackTime = Time.time;

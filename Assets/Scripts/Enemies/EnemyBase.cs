@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Combat;
 using UnityEngine;
+using Vfx;
 
 namespace Enemies
 {
@@ -19,6 +20,18 @@ namespace Enemies
         [SerializeField] private float dissolveDuration = 1f;
         [SerializeField] private float deathFallGravity = 20f;
 
+        [Header("Melee Hit VFX")]
+        [Tooltip("Imported slash effect (e.g. Lana Studio's Slash_stone_once) played on the " +
+                 "player where this enemy's melee attack connects.")]
+        [SerializeField] private GameObject meleeHitVfxPrefab;
+        [SerializeField] private float meleeHitVfxScale = 1f;
+
+        [Header("Slow Debuff (e.g. Ultimate electric bolts)")]
+        [Tooltip("Looping fog VFX (e.g. Lana Studio's Fog/Fog_electric) worn for the duration " +
+                 "of an active slow, so the debuff is visible, not just a numeric multiplier.")]
+        [SerializeField] private GameObject slowVfxPrefab;
+        [SerializeField] private float slowVfxScale = 1f;
+
         private static readonly int DissolveAmountId = Shader.PropertyToID("_DissolveAmount");
         private static Shader _dissolveShader;
 
@@ -26,6 +39,19 @@ namespace Enemies
         protected Transform player;
         protected Health playerHealth;
         protected bool isDead;
+        // Gates AI movement/attacks the same way isDead already does (subclasses add
+        // `|| isFrozen` next to their existing `if (isDead) return;` in Update) - used by
+        // BossFightController to guarantee no basic enemy can attack the player during the
+        // Stage 1 -> Stage 2 cutscene, regardless of whether it happens to be active in the scene.
+        protected bool isFrozen;
+
+        // 1 = no slow. AI movement scripts (EnemyFlyingAI/EnemySmallAI/EnemyLargeAI) multiply
+        // their own speed fields by this at their existing move call sites - simpler than a full
+        // keyed-modifier dictionary (PlayerController's SetMovementSpeedModifier) since there's
+        // only one debuff source today (the Ultimate's electric bolts).
+        public float SpeedMultiplier { get; private set; } = 1f;
+        private Coroutine _slowRoutine;
+        private GameObject _slowVfxInstance;
 
         protected virtual void Awake()
         {
@@ -48,6 +74,28 @@ namespace Enemies
         protected virtual void OnDisable()
         {
             health.Died -= HandleDeath;
+        }
+
+        // Cancels any in-flight attack coroutine outright (not paused/resumed) rather than
+        // leaving it to finish later - StopAllCoroutines() kills it mid-flight, which would leave
+        // a subclass's own private "_isAttacking" flag stuck true forever (nothing left to ever
+        // clear it) unless that subclass resets it here via the OnFrozen override below.
+        public void SetFrozen(bool frozen)
+        {
+            if (isDead) return;
+
+            isFrozen = frozen;
+            if (frozen)
+            {
+                StopAllCoroutines();
+                OnFrozen();
+            }
+        }
+
+        /// Subclasses with their own private "is currently mid-attack" flag (EnemyFlyingAI/
+        /// EnemySmallAI/EnemyLargeAI) override this to reset it - see SetFrozen's comment.
+        protected virtual void OnFrozen()
+        {
         }
 
         // Movement/attack scripts check isDead themselves rather than being disabled outright,
@@ -157,6 +205,54 @@ namespace Enemies
         protected float DistanceToPlayer()
         {
             return player == null ? Mathf.Infinity : Vector3.Distance(transform.position, player.position);
+        }
+
+        // Shared by every melee-capable subclass (EnemySmallAI/EnemyLargeAI) so the imported-
+        // prefab instantiate/fix/destroy boilerplate isn't duplicated in each attack routine.
+        // point should be an upward-offset hit point (e.g. player.position + Vector3.up), not the
+        // bare feet-level position ApplyDamage is called with, so the effect reads as landing on
+        // the body.
+        protected void SpawnMeleeHitVfx(Vector3 point)
+        {
+            if (meleeHitVfxPrefab == null) return;
+
+            var effect = Instantiate(meleeHitVfxPrefab, point, Quaternion.identity);
+            effect.transform.localScale = Vector3.one * meleeHitVfxScale;
+            ImportedVfxUtility.FixUrpMaterials(effect);
+            ImportedVfxUtility.ForceHierarchyParticleScaling(effect);
+            Destroy(effect, 2f);
+        }
+
+        // Refreshes duration on reapply rather than stacking - a sustained burst of slowing
+        // shots should just keep the debuff topped up, not compound it below the intended floor.
+        public void ApplySlow(float multiplier, float duration)
+        {
+            if (isDead) return;
+
+            SpeedMultiplier = Mathf.Clamp01(multiplier);
+            if (_slowRoutine != null) StopCoroutine(_slowRoutine);
+            _slowRoutine = StartCoroutine(SlowRoutine(duration));
+
+            if (_slowVfxInstance == null && slowVfxPrefab != null)
+            {
+                _slowVfxInstance = Instantiate(slowVfxPrefab, transform);
+                _slowVfxInstance.transform.localPosition = Vector3.zero;
+                _slowVfxInstance.transform.localScale = Vector3.one * slowVfxScale;
+                ImportedVfxUtility.FixUrpMaterials(_slowVfxInstance);
+                ImportedVfxUtility.ForceHierarchyParticleScaling(_slowVfxInstance);
+            }
+        }
+
+        private IEnumerator SlowRoutine(float duration)
+        {
+            yield return new WaitForSeconds(duration);
+            SpeedMultiplier = 1f;
+            _slowRoutine = null;
+            if (_slowVfxInstance != null)
+            {
+                Destroy(_slowVfxInstance);
+                _slowVfxInstance = null;
+            }
         }
     }
 }

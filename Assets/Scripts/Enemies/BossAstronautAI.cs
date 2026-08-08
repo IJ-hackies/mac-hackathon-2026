@@ -35,6 +35,18 @@ namespace Enemies
         [SerializeField] private float rangedProjectileSpeed = 16f;
         [SerializeField] private float rangedProjectileLifetime = 3f;
         [SerializeField] private Color rangedProjectileColor = new Color(1f, 0.25f, 0.2f);
+        [Tooltip("Imported bolt visual (Lana Studio's Projectiles_light) - replaces the " +
+                 "procedural streak look. Null falls back to the procedural bolt.")]
+        [SerializeField] private GameObject rangedProjectileVisualPrefab;
+        [SerializeField] private float rangedProjectileVisualScale = 0.4f;
+        // Lana Studio's Range_attack prefabs (Projectiles_light here) are authored travelling
+        // along local +Y, not +Z - BossProjectile's LookRotation only aligns +Z to the travel
+        // direction, so without this the beam rendered as a near-vertical column regardless of
+        // aim. (90,0,0) rotates authored +Y onto +Z.
+        [SerializeField] private Quaternion rangedProjectileRotationOffset = Quaternion.Euler(0f, 90f, 0f);
+        [Tooltip("Imported impact burst (Lana Studio's Hit_light) played where the bolt connects.")]
+        [SerializeField] private GameObject rangedImpactEffectPrefab;
+        [SerializeField] private float rangedImpactEffectScale = 1f;
 
         [Header("Melee Attacks")]
         [SerializeField] private float meleeRange = 2.2f;
@@ -314,8 +326,18 @@ namespace Enemies
             int playerLayer = LayerMask.NameToLayer("Player");
             int mask = playerLayer >= 0 ? 1 << playerLayer : ~0;
 
+            var visuals = new BossProjectileVisuals
+            {
+                ImportedVisualPrefab = rangedProjectileVisualPrefab,
+                ImportedVisualScale = rangedProjectileVisualScale,
+                ExtraRotationOffset = rangedProjectileRotationOffset,
+                ImpactEffectPrefab = rangedImpactEffectPrefab,
+                ImpactEffectScale = rangedImpactEffectScale,
+            };
+
             BossProjectile.Create(origin, direction, player, rangedProjectileSpeed, rangedDamagePerTick,
-                false, rangedProjectileLifetime, mask, rangedProjectileColor, 0.15f, ProjectileVisualStyle.Bolt);
+                false, rangedProjectileLifetime, mask, rangedProjectileColor, 0.15f, ProjectileVisualStyle.Bolt,
+                visuals: visuals);
         }
 
         // Weapon is this boss's highest-damage move - a confirmed hit fires Taunt (Wave)
