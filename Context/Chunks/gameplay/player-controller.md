@@ -12,36 +12,35 @@ owns:
   - "Assets/Scripts/Player/ThirdPersonCameraController.cs*"
   - "Assets/Scripts/UI/CrosshairUI.cs*"
   - "Assets/Scripts/UI/EmoteWheelUI.cs*"
+  - "Assets/Scripts/UI/SettingsMenuController.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
-related: [control-model, core-loop, gameplay-areas, unity-project, runtime-art, world-authoring, state]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
+related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, runtime-art, world-authoring, state]
+verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
 ## What this is
-
-The single-player prototype controls one astronaut with full locomotion,
-camera, combat, and emotes. `Player.unity` is the flat sandbox; `SampleScene`
-uses `PlayerRig.prefab` on the planet. The future two-player split is undecided.
-
+The single-player prototype controls one astronaut with full locomotion, camera,
+combat, and emotes. `Player.unity` is the flat sandbox; `SampleScene` uses
+`PlayerRig.prefab` on the planet. The future two-player split is undecided.
 The astronaut uses a rotatable `CapsuleCollider` and kinematic `Rigidbody`
 driven by `RadialCapsuleMotor`; unlike Unity's world-upright
 `CharacterController`, its physical capsule follows planetary up at every
 latitude. The motor sweeps, slides, depenetrates, and preserves the former
 `0.3`-unit local-radial step behavior. Its gate accepts steep upward seam and
 bevel normals, while clearance and 45-degree landing checks stay authoritative.
-A centerline foot ray selects the support normal that may steer adhesion. A broad foot
-sphere bridges stair lips and broken slope triangles only after a physical
+A centerline foot ray selects the support normal that may steer adhesion. A broad
+foot sphere bridges stair lips and broken slope triangles only after a physical
 bottom contact; it never consumes a wall normal. Surface pull is capped at 35
 degrees from radial gravity and follows support changes at 120 degrees per
 second. Losing direct/bottom support releases adhesion immediately, so radial
 gravity pulls the player toward a hole floor. Body and camera retain stable
 center-radial up. Falling speed is capped at 30 units per second. If no
-`Planet Ground` exists, the controller uses world up for the flat sandbox. A
-startup raycast places the capsule's feet on rendered ground.
+`Planet Ground` exists, the controller uses world up for the flat sandbox. A startup
+raycast places the capsule's feet on rendered ground.
 
 The camera orbit is controlled independently and its horizontal direction is
 parallel-transported as radial up changes, preventing snaps while walking
@@ -49,15 +48,16 @@ around the sphere. The astronaut body continuously turns toward that camera/
 aim direction; lateral and reverse movement therefore strafe and backpedal
 instead of turning the character away from the crosshair. The camera retains
 shoulder offset, collision pull-in, and mouse-look suspension while the emote
-wheel is active.
+wheel is active. Escape opens the rig-owned settings console, pauses gameplay,
+suspends player look/input and the crosshair, and restores those states when it
+closes. Master volume and look sensitivity persist locally and are shared with
+the startup menu through `GameSettings`; Controls opens a placeholder subpage.
 
-`SampleScene` opens with a six-second terminator-to-NAUT orbit/dolly, then runs
-through the NAUT zoom, Wave, and collision-resolved handoff while suspending input
-and HUD. It temporarily raises the active URP shadow distance to 500, then restores
-the captured value on every exit so Mobile gameplay returns to its 50-unit range.
+`SampleScene` opens with a six-second terminator-to-NAUT orbit/dolly, then runs through
+the NAUT zoom, Wave, and collision-resolved handoff while suspending input and HUD. It
+raises the active URP shadow distance to 500, then restores the captured value on exit.
 
 ## Key files
-
 - `PlayerController.cs` - tangent locomotion, speed modifiers, surface-relative
   gravity/jump, ground probing, alignment, stagger gating, and spawn snap.
 - `LandingBaseMovementSpeedEffect.cs` - owns the keyed 2x modifier inside LandingBase.
@@ -74,14 +74,17 @@ the captured value on every exit so Mobile gameplay returns to its 50-unit range
 - `PlayerCombat.cs` and the health/death HUD are documented in
   [player-combat](player-combat.md). Ranged damage is hitscan; its traveling
   bolt is cosmetic and the former `Projectile.cs`/prefab were removed.
-- `PlayerEmoteController.cs` / `Assets/Scripts/UI/**` - locked-cursor emote
-  wheel plus an input-suspended cinematic Wave API.
+- `PlayerEmoteController.cs` / `Assets/Scripts/UI/**` - locked-cursor emote wheel
+  plus an input-suspended cinematic Wave API.
+- `SettingsMenuController.cs` - Escape toggle, pause/input ownership, persisted
+  master-volume and sensitivity settings, and the in-menu Controls page.
 - `PlayerRig.prefab` - normalized radial player, area/speed components, camera, and UI.
-- `PlayerSceneSetup.cs` - builds the sandbox; its repair command safely relinks,
-  normalizes, reloads, and validates `PlayerRig.prefab`.
+- `SettingsMenuPrefabSetup.cs` - imports/configures selected UI assets and
+  idempotently rebuilds the rig-owned settings console.
+- `PlayerSceneSetup.cs` builds the sandbox and repairs the rig; `Refresh Health
+  HUD` idempotently replaces only the rig's health module.
 
 ## Invariants
-
 - Planet up uses the assigned `planetCenter` / exact scene object named
   `Planet Ground`. The motor's capsule axis must rotate with this local up;
   reintroducing a world-upright `CharacterController` recreates latitude-based
@@ -110,12 +113,13 @@ the captured value on every exit so Mobile gameplay returns to its 50-unit range
 - `PlayerRig` root and nested Player local transforms stay identity/zero/one.
   Scene instances own world placement; `Player.unity` compensates with a zero
   root override after rig normalization.
-- The rig camera is the sole active runtime camera/audio listener and must keep
-  shadows, post-processing, and FXAA enabled in its URP camera data.
-- The opening is owned by `SampleScene`, not `PlayerRig.prefab`. Its wide path
-  stays spherical around `Planet Ground`; its top shot uses art-bounds radial up and
-  actual N-to-T screen-right, not BaseCenter. Missing contracts skip safely. Every
-  exit restores gameplay, presentation, and the captured URP shadow distance.
+- The rig camera is the sole active runtime camera/audio listener; keep shadows,
+  post-processing, and FXAA enabled in its URP camera data.
+- Settings must restore the pre-open time scale and only release input/cursor
+  ownership they acquired. Closing first returns the console to its main page.
+- The opening is owned by `SampleScene`, not `PlayerRig.prefab`. Its path stays
+  spherical around `Planet Ground`; its top shot uses art-bounds radial up and actual
+  N-to-T screen-right. Missing contracts skip; every exit restores captured state.
 - `InputSystem_Actions` map name is `Player`. `Attack` is reused for shooting,
   while `Melee` and `EmoteWheel` are separate typed actions. `Crouch` remains
   reserved and has no behavior.
@@ -126,7 +130,6 @@ the captured value on every exit so Mobile gameplay returns to its 50-unit range
   `Emoting` bool is only an interrupt condition.
 
 ## Gotchas
-
 - Do not replace the crater mesh collider with an approximate sphere. The
   visible crater floor differs enough from a sphere to make the player appear
   buried or floating even when physics reports grounded; its support normal
@@ -142,9 +145,6 @@ the captured value on every exit so Mobile gameplay returns to its 50-unit range
   sandbox scene/prefab. Do not run it merely to repair the rig.
 
 ## How to extend
-
-Split locomotion versus camera/tool authority at system boundaries when the
-cooperative control model is approved; do not add player-index branches inside
-this single-player controller. Extend combat through [player-combat]
-(player-combat.md) and the shared damage interfaces rather than adding it to
-the locomotion component.
+Split locomotion versus camera/tool authority at system boundaries when the cooperative
+model is approved; keep player-index branches out. Extend combat through
+[player-combat](player-combat.md) and the shared damage interfaces.

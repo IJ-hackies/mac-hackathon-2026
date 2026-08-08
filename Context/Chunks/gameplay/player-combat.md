@@ -8,7 +8,7 @@ owns:
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
 related: [player-controller, enemies, runtime-art, state, boss-fight]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
+verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
@@ -94,11 +94,10 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
   movement/input; does not touch the camera). `PlayerCombat.OnDisable` also
   zeroes the `Arms` layer weight and `Firing`, otherwise a frozen shoot pose
   would keep overriding `Death`'s full-body base-layer pose.
-- `Assets/Scripts/UI/HealthHudUI.cs` - segmented "HULL INTEGRITY" energy-cell
-  readout, top-right, built the same procedural-UI-rect way as the crosshair/
-  emote wheel (no external asset). Segments light left-to-right by health
-  fraction and shift color from `lowColor` to `fullColor`. `Bind()` (called
-  by `PlayerSceneSetup` at edit time) only stores the `Health` reference; the
+- `Assets/Scripts/UI/HealthHudUI.cs` - minimal top-right health readout: one
+  fixed-red sliced Space Expansion bar with rounded current HP centered inside.
+  It has no surrounding panel, labels, percent sign, or damage trail. `Bind()`
+  only stores `Health`; the
   `HealthChanged` subscription itself happens in `OnEnable` — see
   [enemies](enemies.md) Gotchas for why (edit-time delegate subscriptions
   don't survive the Play-mode domain reload). If a prefab cannot serialize a

@@ -21,5 +21,7 @@ namespace Player.UI
                 canvasGroup.alpha = visible ? 1f : 0f;
             }
         }
+
+        public bool IsVisible => canvasGroup == null || canvasGroup.alpha > 0.001f;
     }
 }

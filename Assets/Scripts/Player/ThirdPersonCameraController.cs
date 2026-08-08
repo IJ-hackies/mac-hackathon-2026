@@ -4,6 +4,9 @@ namespace Player
 {
     public class ThirdPersonCameraController : MonoBehaviour
     {
+        public const float MinimumMouseSensitivity = 0.01f;
+        public const float MaximumMouseSensitivity = 0.3f;
+
         [Header("Target")]
         [SerializeField] private Transform target;
         [Tooltip("Camera height above the player. This sits well above head height on purpose: " +
@@ -42,6 +45,15 @@ namespace Player
         [Tooltip("While true, mouse Look input is ignored (e.g. the emote wheel is using the " +
                  "cursor). The camera still follows the target's position.")]
         public bool InputSuspended;
+
+        public float MouseSensitivity
+        {
+            get => mouseSensitivity;
+            set => mouseSensitivity = Mathf.Clamp(
+                value,
+                MinimumMouseSensitivity,
+                MaximumMouseSensitivity);
+        }
 
         private InputSystem_Actions _actions;
         private float _pitch = 15f;

@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, gameplay-areas, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
+related: [system, control-model, core-loop, gameplay-areas, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
+verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
@@ -23,9 +23,9 @@ lastVerified: 2026-08-08
 The repository root is the Unity `6000.3.10f1` project root, initialized from
 the Universal Render Pipeline empty template. The project uses Universal Render
 Pipeline and Visual Effect Graph `17.3.0`, Input System `1.18.0`, and Unity's
-3D physics module. `Assets/Scenes/SampleScene.unity` is the only enabled build
-scene and current prototype. Other top-level scenes may be used as sandboxes
-without implying build inclusion. WebGL using the production WebGL2 graphics
+3D physics module. `MainMenu.unity` and `SampleScene.unity` are enabled build
+scenes 0 and 1; other top-level scenes are sandboxes without implied build
+inclusion. WebGL using the production WebGL2 graphics
 path is the confirmed publication target. WebGL selects the Mobile quality
 tier and its forward URP asset; project settings disable WebGL static and
 dynamic batching because generated planet props use explicit runtime

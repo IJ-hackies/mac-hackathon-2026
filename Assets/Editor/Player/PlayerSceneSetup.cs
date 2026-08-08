@@ -26,6 +26,11 @@ namespace PlayerEditor
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string PrefabPath = "Assets/Art/Models/Characters/Player.prefab";
         private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
+        private const string HealthBarTrackPath =
+            "Assets/Art/Textures/UI/Health/SpaceExpansion_BarTrack_Grey.png";
+        private const string HealthBarFillPath =
+            "Assets/Art/Textures/UI/Health/SpaceExpansion_BarFill_Gloss.png";
+        private const string HudUtilityFontPath = "Assets/Art/Fonts/UI/KenneyFutureNarrow.ttf";
         private const string PlayerLayerName = "Player";
         private const string EnemyLayerName = "Enemy";
 
@@ -254,6 +259,38 @@ namespace PlayerEditor
 
             Debug.Log(
                 $"PlayerSceneSetup: repaired and validated {PlayerRigPrefabPath} against {PrefabPath}.");
+        }
+
+        [MenuItem("Tools/Player Prototype/Refresh Health HUD %#h")]
+        public static void RefreshPlayerRigHealthHud()
+        {
+            GameObject rigRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+                HealthHudUI existingHud =
+                    RequireComponentInChildren<HealthHudUI>(hudCanvas.gameObject);
+                int siblingIndex = existingHud.transform.GetSiblingIndex();
+
+                Object.DestroyImmediate(existingHud.gameObject);
+                HealthHudUI replacementHud = BuildHealthHud(hudCanvas);
+                replacementHud.transform.SetSiblingIndex(siblingIndex);
+                replacementHud.Bind(RequireComponentInChildren<Health>(rigRoot));
+
+                if (PrefabUtility.SaveAsPrefabAsset(rigRoot, PlayerRigPrefabPath) == null)
+                {
+                    throw new System.InvalidOperationException(
+                        $"PlayerSceneSetup: failed to save {PlayerRigPrefabPath}.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rigRoot);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log($"PlayerSceneSetup: refreshed the Space Expansion health HUD in {PlayerRigPrefabPath}.");
         }
 
         private static Transform RequireDirectChild(Transform parent, string childName)
@@ -1081,66 +1118,109 @@ namespace PlayerEditor
             return (wheelUi, crosshairUi, healthHudUi, canvasGo);
         }
 
-        /// Segmented "energy cell" readout, built the same way as the emote wheel/crosshair -
-        /// generated UI rects, no external art - so a health bar doesn't require an extra asset
-        /// pack dependency. Anchored top-right per the game's HUD layout.
+        /// Minimal Space Expansion UI health module: one red bar with current HP centered in it.
         private static HealthHudUI BuildHealthHud(Transform parent)
         {
-            const int segmentCount = 12;
-            const float segmentWidth = 16f;
-            const float segmentHeight = 16f;
-            const float segmentGap = 3f;
-            const float panelWidth = 260f;
-            const float panelHeight = 86f;
-            float rowWidth = segmentCount * segmentWidth + (segmentCount - 1) * segmentGap;
+            const float barWidth = 304f;
+            const float barHeight = 36f;
 
             var topRight = new Vector2(1f, 1f);
-            var topLeft = new Vector2(0f, 1f);
 
-            var root = CreateUiRect("HealthHud", parent, new Vector2(panelWidth, panelHeight),
-                new Vector2(-24f, -24f), topRight);
+            Sprite trackSprite = LoadHudSprite(
+                HealthBarTrackPath,
+                new Vector4(24f, 12f, 24f, 12f));
+            Sprite fillSprite = LoadHudSprite(
+                HealthBarFillPath,
+                new Vector4(24f, 12f, 24f, 12f));
+            Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
+
+            var root = CreateUiRect("HealthHud", parent, new Vector2(barWidth, barHeight),
+                new Vector2(-28f, -28f), topRight);
             var hud = root.gameObject.AddComponent<HealthHudUI>();
 
-            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, topRight);
-            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+            Image track = CreateStretchImage("Track", root, trackSprite);
+            track.type = Image.Type.Sliced;
+            track.color = new Color(0.16f, 0.025f, 0.035f, 0.92f);
 
-            var labelRect = CreateUiRect("Label", root, new Vector2(panelWidth - 24f, 18f),
-                new Vector2(-12f, -10f), topRight);
-            var label = labelRect.gameObject.AddComponent<Text>();
-            label.text = "HULL INTEGRITY";
-            label.alignment = TextAnchor.MiddleRight;
-            label.color = new Color(0.75f, 0.92f, 1f);
-            label.fontSize = 13;
-            label.fontStyle = FontStyle.Bold;
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.raycastTarget = false;
+            Image fill = CreateStretchImage("Fill", root, fillSprite);
+            fill.type = Image.Type.Sliced;
+            fill.color = new Color(0.94f, 0.055f, 0.09f, 1f);
 
-            var rowRect = CreateUiRect("SegmentsRow", root, new Vector2(rowWidth, segmentHeight),
-                new Vector2(-12f, -32f), topRight);
+            var valueRect = CreateUiRect("HealthValue", root, new Vector2(barWidth, barHeight),
+                Vector2.zero);
+            Text valueText = valueRect.gameObject.AddComponent<Text>();
+            valueText.alignment = TextAnchor.MiddleCenter;
+            valueText.color = Color.white;
+            valueText.fontSize = 20;
+            valueText.fontStyle = FontStyle.Bold;
+            valueText.font = utilityFont;
+            valueText.raycastTarget = false;
+            var valueOutline = valueRect.gameObject.AddComponent<Outline>();
+            valueOutline.effectColor = new Color(0.08f, 0f, 0f, 0.9f);
+            valueOutline.effectDistance = new Vector2(1f, -1f);
 
-            var segments = new Image[segmentCount];
-            for (int i = 0; i < segmentCount; i++)
-            {
-                var segmentRect = CreateUiRect($"Segment_{i}", rowRect, new Vector2(segmentWidth, segmentHeight),
-                    new Vector2(i * (segmentWidth + segmentGap), 0f), topLeft);
-                var segmentImage = segmentRect.gameObject.AddComponent<Image>();
-                segmentImage.raycastTarget = false;
-                segments[i] = segmentImage;
-            }
-
-            var percentRect = CreateUiRect("Percent", root, new Vector2(panelWidth - 24f, 16f),
-                new Vector2(-12f, -52f), topRight);
-            var percentText = percentRect.gameObject.AddComponent<Text>();
-            percentText.alignment = TextAnchor.MiddleRight;
-            percentText.color = Color.white;
-            percentText.fontSize = 12;
-            percentText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            percentText.raycastTarget = false;
-
-            hud.SetSegments(segments);
-            hud.SetPercentText(percentText);
+            hud.Configure(fill, valueText);
 
             return hud;
+        }
+
+        private static Image CreateStretchImage(string name, Transform parent, Sprite sprite)
+        {
+            var gameObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            gameObject.transform.SetParent(parent, false);
+
+            RectTransform rect = gameObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = gameObject.GetComponent<Image>();
+            image.sprite = sprite;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static Sprite LoadHudSprite(string path, Vector4 border)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: no UI texture found at {path}.");
+            }
+
+            bool requiresImport = importer.textureType != TextureImporterType.Sprite ||
+                                  importer.spriteImportMode != SpriteImportMode.Single ||
+                                  importer.mipmapEnabled ||
+                                  importer.wrapMode != TextureWrapMode.Clamp ||
+                                  importer.spriteBorder != border;
+            if (requiresImport)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.filterMode = FilterMode.Bilinear;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.spriteBorder = border;
+                importer.SaveAndReimport();
+            }
+
+            return RequireAsset<Sprite>(path);
+        }
+
+        private static T RequireAsset<T>(string path) where T : Object
+        {
+            T asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (asset == null)
+            {
+                throw new System.InvalidOperationException(
+                    $"PlayerSceneSetup: required {typeof(T).Name} is missing at {path}.");
+            }
+
+            return asset;
         }
 
         private static CrosshairUI BuildCrosshair(Transform parent)

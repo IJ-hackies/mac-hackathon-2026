@@ -12,8 +12,8 @@ projectRoot: ./
 The repository root is also the Unity project root; open
 `mac-hackathon-2026/` directly in Unity Hub. It uses the Universal Render
 Pipeline with separate template PC and mobile renderer assets, Force Text asset
-serialization, and the new Input System. `Assets/Scenes/SampleScene.unity` is
-currently the only enabled build scene.
+serialization, and the new Input System. `Assets/Scenes/MainMenu.unity` and
+`SampleScene.unity` are enabled build scenes 0 and 1.
 
 WebGL with WebGL2 is the confirmed publication target, but no repeatable
 project-level WebGL build, browser test, or deployment command has been
@@ -42,6 +42,30 @@ regenerated that project file. In Unity,
 command for relinking and validating `PlayerRig.prefab`, including its camera
 shadows, post-processing, and FXAA. Do not use the destructive `Build Test
 Scene` command for that repair.
+
+`Tools > Player Prototype > Configure Settings Menu` (`Ctrl+Shift+U`)
+idempotently imports/configures the selected Cartoon UI and Space Expansion UI
+sprites and rebuilds the rig-owned Escape settings console. In Play mode,
+`Preview Settings Menu` (`Ctrl+Shift+O`) opens it for visual inspection. The
+current dark-header/high-contrast pass compiled through
+`Assembly-CSharp-Editor.csproj` with zero warnings/errors and was checked in
+the live Game view.
+
+`Tools > Main Menu > Rebuild Main Menu Scene` imports its Cartoon UI icons,
+regenerates `MainMenu.unity`, and restores MainMenu/SampleScene as enabled build
+scenes 0/1. It safely replaces an already-open generated MainMenu scene and
+builds a deterministic 61-prop menu-only planet vignette against the exact
+crater collider. `Validate Main Menu Scene` checks page references, disabled
+Multiplayer, Singleplayer's SampleScene target, settings controls, build order,
+the dressing hierarchy, and disabled presentation colliders. The refined
+alignment/dressing pass was checked in the live 2560x1440 Game view; both
+generated assemblies compile with zero warnings/errors.
+
+`Tools > Player Prototype > Refresh Health HUD` (`Ctrl+Shift+H`) replaces only
+the rig's `HealthHud` child with the minimal red Space Expansion bar and
+preserves the other prefab UI. Runtime/editor builds pass with zero warnings/
+errors; a live SampleScene handoff verified the centered raw HP value, absence
+of labels/panel, imported sprites, and top-right placement.
 
 Player movement EditMode tests live at `Assets/Tests/EditMode/Player`.
 `dotnet build Player.Movement.Tests.csproj --no-restore` is a verified compile

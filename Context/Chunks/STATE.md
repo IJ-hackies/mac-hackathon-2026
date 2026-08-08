@@ -11,8 +11,8 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, gameplay-areas, unity-project, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: 148a3fe3150d9a1b051c8129dbc8e3051832eff7
+related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
@@ -23,7 +23,8 @@ lastVerified: 2026-08-08
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
   replace or remove remaining template content, define cooperative input and
   authority, then establish the assembly layout and repeatable WebGL
-  build/test/deployment workflows. WebGL2 is the confirmed publication target.
+  build/test/deployment workflows. A dedicated startup menu and explicit
+  menu/gameplay build order now exist. WebGL2 is the confirmed publication target.
   Planet-aligned locomotion, grounded surface adhesion with radial
   airborne gravity, stable radial body orientation, and camera conventions now
   exist in the single-player prototype.
@@ -33,7 +34,8 @@ lastVerified: 2026-08-08
   [player-controller](gameplay/player-controller.md)) but does not resolve
   this split.
 - **`multiplayer-topology`** - decide whether two-player play is local,
-  networked, or both, including input-device expectations.
+  networked, or both, including input-device expectations. Its main-menu entry
+  remains visibly unavailable until this is resolved.
 - **`core-game-loop`** - turn the confirmed crash-site defense and planetary
   scavenging loop into exact phases. Decide wave timing/scaling, breaks,
   residual enemies, failure states, dark-region risk/reward behavior,
