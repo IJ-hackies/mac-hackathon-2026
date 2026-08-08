@@ -11,7 +11,7 @@ namespace WorldEditor
 {
     /// <summary>
     /// Imports the selected Ultimate Space Kit vegetation and scatters a
-    /// replaceable, editor-authored dressing pass over the active planet mesh.
+    /// replaceable, clustered editor-authored pass over the active planet mesh.
     /// </summary>
     public static class UltimateSpaceVegetationScatter
     {
@@ -23,17 +23,35 @@ namespace WorldEditor
             "Assets/Art/Materials/PlanetVegetation";
         private const string BaseMaterialPath =
             RuntimeMaterialFolder + "/M_PlanetVegetation.mat";
+        private const string OrangeMaterialPath =
+            RuntimeMaterialFolder + "/M_PlanetVegetation_Orange.mat";
+        private const string LegacyRedMaterialPath =
+            RuntimeMaterialFolder + "/M_PlanetVegetation_Red.mat";
         private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
         private const string VendorRelativeFolder =
             "asset packs/visuals/Ultimate Space Kit - March 2023/Environment/FBX";
 
-        // Keep rerolls centered on the approximately 1,200-instance target.
-        private const int DefaultMinimumCount = 1100;
-        private const int DefaultMaximumCount = 1300;
-        private const int AuthoredSampleCount = 1200;
+        private const int DefaultVegetationCount = 16000;
+        private const int AuthoredSampleCount = DefaultVegetationCount;
         private const int AuthoredSampleSeed = 80;
-        private const float MinimumScale = 65f;
-        private const float MaximumScale = 75f;
+        private const int BushModelStartIndex = 0;
+        private const int GrassModelStartIndex = 3;
+        private const int PlantModelStartIndex = 6;
+        private const int ModelsPerCategory = 3;
+        private const int BushWeight = 1;
+        private const int GrassWeight = 8;
+        private const int PlantWeight = 1;
+        private const int ClusterCount = 64;
+        private const int ClusterCenterCandidateCount = 20;
+        private const float ClusteredPlacementFraction = 0.25f;
+        private const float MinimumClusterRadiusDegrees = 10f;
+        private const float MaximumClusterRadiusDegrees = 14f;
+        private const float MinimumBushScale = 40f;
+        private const float MaximumBushScale = 50f;
+        private const float MinimumGrassScale = 60f;
+        private const float MaximumGrassScale = 70f;
+        private const float MinimumPlantScale = 50f;
+        private const float MaximumPlantScale = 60f;
         private const float ModelLocalXRotation = -90f;
         private const float SurfaceEmbed = 0.075f;
         private const int TerrainFitIterations = 3;
@@ -47,20 +65,13 @@ namespace WorldEditor
             "Plant_1", "Plant_2", "Plant_3"
         };
 
-        private static readonly int[] ModelWeights =
-        {
-            2, 2, 2,
-            10, 10, 10,
-            2, 2, 2
-        };
-
         private static readonly MaterialVariant[] MaterialVariants =
         {
             new MaterialVariant("Dark Orange", BaseMaterialPath, new Color32(150, 55, 12, 255)),
             new MaterialVariant(
-                "Red",
-                RuntimeMaterialFolder + "/M_PlanetVegetation_Red.mat",
-                new Color32(170, 32, 28, 255))
+                "Orange",
+                OrangeMaterialPath,
+                new Color32(232, 119, 25, 255))
         };
 
         [InitializeOnLoadMethod]
@@ -100,12 +111,12 @@ namespace WorldEditor
         {
             Regenerate(
                 unchecked(Environment.TickCount * 397) ^ DateTime.Now.Millisecond,
-                DefaultMinimumCount,
-                DefaultMaximumCount);
+                DefaultVegetationCount,
+                DefaultVegetationCount);
         }
 
         /// <summary>
-        /// CI/batch entry point used to author the initial checked-in pass
+        /// Batch/reload entry point used to reproduce the checked-in pass
         /// without requiring menu interaction in an already-open editor.
         /// </summary>
         public static void RegenerateSampleSceneForBatch()
@@ -128,6 +139,7 @@ namespace WorldEditor
             EnsureFolder(RuntimeMaterialFolder);
             CopyVendorModelsWhenMissing();
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            MigrateLegacyOrangeMaterial();
 
             List<Material> materials = CreateOrUpdateVegetationMaterials();
             foreach (string modelName in ModelNames)
@@ -143,7 +155,7 @@ namespace WorldEditor
 
         /// <summary>
         /// Replaces this tool's generated root in the active scene. The seed is
-        /// explicit so a pleasing pass can be reproduced exactly.
+        /// explicit so a pleasing pass and its category scales reproduce exactly.
         /// </summary>
         public static void Regenerate(int seed, int minimumCount, int maximumCount)
         {
@@ -182,6 +194,12 @@ namespace WorldEditor
             UnityEngine.Random.State previousRandomState = UnityEngine.Random.state;
             UnityEngine.Random.InitState(seed);
             int requestedCount = UnityEngine.Random.Range(minimumCount, maximumCount + 1);
+            List<GameObject> modelSelection = BuildModelSelection(
+                modelPrefabs,
+                requestedCount);
+            List<bool> clusteredPlacements = BuildClusteredPlacementSelection(
+                requestedCount);
+            List<VegetationCluster> clusters = BuildClusters();
 
             Undo.SetCurrentGroupName("Regenerate Planet Vegetation");
             int undoGroup = Undo.GetCurrentGroup();
@@ -204,7 +222,9 @@ namespace WorldEditor
                      attempt < maximumAttempts && placedCount < requestedCount;
                      attempt++)
                 {
-                    Vector3 direction = UnityEngine.Random.onUnitSphere;
+                    Vector3 direction = GetPlacementDirection(
+                        clusteredPlacements[placedCount],
+                        clusters);
                     if (!RadialSurfaceSnapWindow.TryGetSurfaceHit(
                             planet.transform.position + direction,
                             planet.transform.position,
@@ -216,8 +236,7 @@ namespace WorldEditor
                         continue;
                     }
 
-                    GameObject source = modelPrefabs[
-                        UnityEngine.Random.Range(0, modelPrefabs.Count)];
+                    GameObject source = modelSelection[placedCount];
                     var instance = PrefabUtility.InstantiatePrefab(source, scene) as GameObject;
                     if (instance == null)
                     {
@@ -234,7 +253,7 @@ namespace WorldEditor
                     Quaternion randomHeading = Quaternion.AngleAxis(
                         UnityEngine.Random.Range(0f, 360f),
                         up);
-                    float scale = UnityEngine.Random.Range(MinimumScale, MaximumScale);
+                    float scale = GetRandomScale(source);
                     Material material = materials[
                         UnityEngine.Random.Range(0, materials.Count)];
 
@@ -302,8 +321,11 @@ namespace WorldEditor
                 SceneView.RepaintAll();
                 Debug.Log(
                     $"Planet Vegetation Scatter: placed {placedCount} objects across " +
-                    $"'{surface.name}' with seed {seed} and scale range " +
-                    $"{MinimumScale:0.#}x-{MaximumScale:0.#}x.");
+                    $"'{surface.name}' with seed {seed}; grass " +
+                    $"{MinimumGrassScale:0.#}x-{MaximumGrassScale:0.#}x, bushes " +
+                    $"{MinimumBushScale:0.#}x-{MaximumBushScale:0.#}x, plants " +
+                    $"{MinimumPlantScale:0.#}x-{MaximumPlantScale:0.#}x; " +
+                    $"{ClusteredPlacementFraction:P0} use {ClusterCount} mild clusters.");
             }
             finally
             {
@@ -373,6 +395,7 @@ namespace WorldEditor
                     material.shader = shader;
                 }
 
+                material.name = Path.GetFileNameWithoutExtension(variant.Path);
                 Color color = variant.Color;
                 if (shader != null)
                 {
@@ -464,10 +487,9 @@ namespace WorldEditor
 
         private static List<GameObject> LoadModelPrefabs()
         {
-            var models = new List<GameObject>(ModelWeights.Sum());
-            for (int modelIndex = 0; modelIndex < ModelNames.Length; modelIndex++)
+            var models = new List<GameObject>(ModelNames.Length);
+            foreach (string modelName in ModelNames)
             {
-                string modelName = ModelNames[modelIndex];
                 string path = $"{RuntimeModelFolder}/{modelName}.fbx";
                 GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (model == null)
@@ -476,15 +498,191 @@ namespace WorldEditor
                         $"Planet Vegetation Scatter could not load '{path}'.");
                 }
 
-                for (int weightIndex = 0;
-                     weightIndex < ModelWeights[modelIndex];
-                     weightIndex++)
-                {
-                    models.Add(model);
-                }
+                models.Add(model);
             }
 
             return models;
+        }
+
+        private static List<GameObject> BuildModelSelection(
+            IReadOnlyList<GameObject> models,
+            int requestedCount)
+        {
+            int totalWeight = BushWeight + GrassWeight + PlantWeight;
+            int bushCount = Mathf.RoundToInt(
+                requestedCount * BushWeight / (float)totalWeight);
+            int grassCount = Mathf.RoundToInt(
+                requestedCount * GrassWeight / (float)totalWeight);
+            int plantCount = requestedCount - bushCount - grassCount;
+
+            var selection = new List<GameObject>(requestedCount);
+            AddRandomCategoryModels(
+                selection,
+                models,
+                BushModelStartIndex,
+                bushCount);
+            AddRandomCategoryModels(
+                selection,
+                models,
+                GrassModelStartIndex,
+                grassCount);
+            AddRandomCategoryModels(
+                selection,
+                models,
+                PlantModelStartIndex,
+                plantCount);
+
+            Shuffle(selection);
+
+            return selection;
+        }
+
+        private static void AddRandomCategoryModels(
+            ICollection<GameObject> selection,
+            IReadOnlyList<GameObject> models,
+            int categoryStartIndex,
+            int count)
+        {
+            for (int index = 0; index < count; index++)
+            {
+                selection.Add(models[
+                    categoryStartIndex +
+                    UnityEngine.Random.Range(0, ModelsPerCategory)]);
+            }
+        }
+
+        private static float GetRandomScale(GameObject source)
+        {
+            if (source.name.StartsWith("Grass_", StringComparison.Ordinal))
+            {
+                return UnityEngine.Random.Range(MinimumGrassScale, MaximumGrassScale);
+            }
+
+            if (source.name.StartsWith("Bush_", StringComparison.Ordinal))
+            {
+                return UnityEngine.Random.Range(MinimumBushScale, MaximumBushScale);
+            }
+
+            if (source.name.StartsWith("Plant_", StringComparison.Ordinal))
+            {
+                return UnityEngine.Random.Range(MinimumPlantScale, MaximumPlantScale);
+            }
+
+            throw new InvalidOperationException(
+                $"Planet Vegetation Scatter has no scale range for '{source.name}'.");
+        }
+
+        private static List<bool> BuildClusteredPlacementSelection(int requestedCount)
+        {
+            int clusteredCount = Mathf.RoundToInt(
+                requestedCount * ClusteredPlacementFraction);
+            var selection = new List<bool>(requestedCount);
+            for (int index = 0; index < requestedCount; index++)
+            {
+                selection.Add(index < clusteredCount);
+            }
+
+            Shuffle(selection);
+            return selection;
+        }
+
+        private static void MigrateLegacyOrangeMaterial()
+        {
+            Material orange = AssetDatabase.LoadAssetAtPath<Material>(OrangeMaterialPath);
+            Material legacyRed = AssetDatabase.LoadAssetAtPath<Material>(
+                LegacyRedMaterialPath);
+            if (orange != null || legacyRed == null)
+            {
+                return;
+            }
+
+            string error = AssetDatabase.MoveAsset(
+                LegacyRedMaterialPath,
+                OrangeMaterialPath);
+            if (!string.IsNullOrEmpty(error))
+            {
+                throw new InvalidOperationException(
+                    $"Planet Vegetation Scatter could not migrate the orange material: {error}");
+            }
+        }
+
+        private static List<VegetationCluster> BuildClusters()
+        {
+            var clusters = new List<VegetationCluster>(ClusterCount);
+            for (int clusterIndex = 0; clusterIndex < ClusterCount; clusterIndex++)
+            {
+                Vector3 bestDirection = UnityEngine.Random.onUnitSphere;
+                float bestMinimumDistance = -1f;
+                for (int candidateIndex = 0;
+                     candidateIndex < ClusterCenterCandidateCount;
+                     candidateIndex++)
+                {
+                    Vector3 candidate = UnityEngine.Random.onUnitSphere;
+                    float minimumDistance = float.PositiveInfinity;
+                    foreach (VegetationCluster cluster in clusters)
+                    {
+                        float squaredDistance =
+                            (candidate - cluster.Direction).sqrMagnitude;
+                        minimumDistance = Mathf.Min(minimumDistance, squaredDistance);
+                    }
+
+                    if (minimumDistance > bestMinimumDistance)
+                    {
+                        bestMinimumDistance = minimumDistance;
+                        bestDirection = candidate;
+                    }
+                }
+
+                clusters.Add(new VegetationCluster(
+                    bestDirection,
+                    UnityEngine.Random.Range(
+                        MinimumClusterRadiusDegrees,
+                        MaximumClusterRadiusDegrees)));
+            }
+
+            return clusters;
+        }
+
+        private static Vector3 GetPlacementDirection(
+            bool clustered,
+            IReadOnlyList<VegetationCluster> clusters)
+        {
+            if (!clustered)
+            {
+                return UnityEngine.Random.onUnitSphere;
+            }
+
+            VegetationCluster cluster = clusters[
+                UnityEngine.Random.Range(0, clusters.Count)];
+            Vector3 tangent = Vector3.ProjectOnPlane(
+                UnityEngine.Random.onUnitSphere,
+                cluster.Direction);
+            if (tangent.sqrMagnitude <= 0.0001f)
+            {
+                tangent = Vector3.Cross(
+                    cluster.Direction,
+                    Mathf.Abs(cluster.Direction.y) < 0.9f
+                        ? Vector3.up
+                        : Vector3.right);
+            }
+
+            tangent.Normalize();
+            Vector3 rotationAxis = Vector3.Cross(
+                cluster.Direction,
+                tangent).normalized;
+            float angle = cluster.AngularRadiusDegrees *
+                          Mathf.Sqrt(UnityEngine.Random.value);
+            return Quaternion.AngleAxis(angle, rotationAxis) * cluster.Direction;
+        }
+
+        private static void Shuffle<T>(IList<T> values)
+        {
+            for (int index = values.Count - 1; index > 0; index--)
+            {
+                int swapIndex = UnityEngine.Random.Range(0, index + 1);
+                (values[index], values[swapIndex]) =
+                    (values[swapIndex], values[index]);
+            }
         }
 
         private static Collider FindSurfaceCollider(GameObject planet)
@@ -521,7 +719,6 @@ namespace WorldEditor
             {
                 GameObjectUtility.SetStaticEditorFlags(
                     child.gameObject,
-                    StaticEditorFlags.BatchingStatic |
                     StaticEditorFlags.ReflectionProbeStatic);
             }
         }
@@ -743,6 +940,18 @@ namespace WorldEditor
             public string DisplayName { get; }
             public string Path { get; }
             public Color Color { get; }
+        }
+
+        private readonly struct VegetationCluster
+        {
+            public VegetationCluster(Vector3 direction, float angularRadiusDegrees)
+            {
+                Direction = direction.normalized;
+                AngularRadiusDegrees = angularRadiusDegrees;
+            }
+
+            public Vector3 Direction { get; }
+            public float AngularRadiusDegrees { get; }
         }
     }
 }

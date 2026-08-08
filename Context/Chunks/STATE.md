@@ -11,8 +11,8 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, unity-project, git-collaboration, player-controller]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+related: [control-model, core-loop, unity-project, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 
@@ -22,8 +22,9 @@ lastVerified: 2026-08-08
 
 - **`unity-project-bootstrap`** - finish the initialized Unity/URP foundation:
   replace or remove remaining template content, define cooperative input and
-  authority, then select target platforms, assembly layout, and build/test
-  workflows. Planet-aligned locomotion, grounded surface adhesion with radial
+  authority, then establish the assembly layout and repeatable WebGL
+  build/test/deployment workflows. WebGL2 is the confirmed publication target.
+  Planet-aligned locomotion, grounded surface adhesion with radial
   airborne gravity, stable radial body orientation, and camera conventions now
   exist in the single-player prototype.
 - **`cooperative-control-partition`** - decide which movement, body, equipment,

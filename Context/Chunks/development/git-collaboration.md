@@ -3,7 +3,7 @@ chunk: git-collaboration
 title: Two-person branches and worktrees
 owns: []
 related: [system, unity-project]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 

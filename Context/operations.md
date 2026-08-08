@@ -15,10 +15,13 @@ Pipeline with separate template PC and mobile renderer assets, Force Text asset
 serialization, and the new Input System. `Assets/Scenes/SampleScene.unity` is
 currently the only enabled build scene.
 
-No repeatable project-level build or test command has been established, and
-target platforms remain undecided. A one-off Unity batch-mode check using the
-local package cache has successfully recognized the repository root, loaded
-both prototype scenes, and confirmed the build-scene configuration; its
+WebGL with WebGL2 is the confirmed publication target, but no repeatable
+project-level WebGL build, browser test, or deployment command has been
+established. WebGL maps to quality tier 0 (`Mobile`) and its forward URP asset.
+WebGL-specific static and dynamic batching are disabled because the generated
+planet props use explicit runtime instancing. A one-off Unity batch-mode check
+using the local package cache has successfully recognized the repository root,
+loaded both prototype scenes, and confirmed the build-scene configuration; its
 temporary verifier is not a shared project workflow. Development is shared by
 two people and will use separate Git branches and worktrees for parallel tasks.
 
@@ -39,6 +42,19 @@ regenerated that project file. In Unity,
 command for relinking and validating `PlayerRig.prefab`. Do not use the
 destructive `Build Test Scene` command for that repair.
 
+A 2026-08-08 interactive Play-mode smoke test verified the planet prop runtime:
+it captured 17,100 generated vegetation/rock renderers into 288 spherical
+sectors and 4,082 instanced draw batches, with a 112.5-unit maximum prop
+distance. Both generated C# projects compiled with zero warnings and errors.
+This verifies Editor runtime initialization, not an exported WebGL player;
+browser memory, frame timing, and final build size still require a WebGL build.
+
+A 2026-08-08 batch import attempt at current `HEAD` was blocked during initial
+package resolution with `The "path" argument must be of type string. Received
+undefined`; `-noUpm` is not a substitute because Input System and UI assemblies
+then cannot load. The rock setup script was instead checked against Unity's
+editor/core/physics assemblies, and its asset metadata was validated directly.
+
 Planet dressing tools live under `Tools > Planet Design`. `Radial Surface
 Snap` opens the configurable selection-snap window; `Snap Selection To Planet`
 uses surface-normal alignment, preserved heading, and zero pivot offset.
@@ -46,17 +62,43 @@ uses surface-normal alignment, preserved heading, and zero pivot offset.
 repair command for the curated landing-base FBXs; it also restores their static
 mesh-collider import setting.
 
+`Prepare Planet Rock Assets` imports/configures all seven Ultimate Space Kit
+rock FBXs under `Assets/Art/Models/Environment/PlanetRocks`, remaps their
+`Atlas` slot to the shared-palette `M_PlanetRock` material, disables animation
+and mesh readability, and enables static non-convex mesh colliders.
+
+`Landing Base NAUT Rock Art` opens the configurable lettering window. Its
+default command (`Ctrl+Alt+Shift+N`) replaces only
+`LandingBase/Generated NAUT Rock Art` with 59 `Rock_1` instances at literal
+local scale `(180, 100, 180)` and 2.88-unit pitch around `Layout/BaseCenter`.
+The seed-`1401` pass maps the grid geodesically, fits every mesh to the crater
+collider, and saves the scene. Collision defaults off for walkable-base
+aesthetics; adjust Y scale, the X/Z multiplier, pitch, heading, seed, or
+collision in the window before regenerating.
+
+`Regenerate Planet Rocks` (shortcut `Ctrl+Shift+R`) replaces `Generated Planet
+Rocks` with exactly 800 small and 300 large rocks, both at literal 100x-200x
+Transform scale. The recipe creates 146 clusters: 26 small-only, 89 large-only,
+and 31 mixed. Small-bearing clusters contain 10-20 small rocks; large-bearing
+clusters contain 1-3 large rocks. It uses exact crater grounding and closed
+pole-ring exclusions with the largest 200x rock radius plus 2 units of clearance.
+Regeneration fails on malformed rings or incomplete quotas, is Undoable, and
+saves the scene. The authored SampleScene seed is `80826`.
+
 `Regenerate Planet Vegetation` (shortcut `Ctrl+Shift+V`) replaces the existing
-`Generated Planet Vegetation` scene root with a randomized 1,100-1,300-instance
+`Generated Planet Vegetation` scene root with an exactly 16,000-instance
 scatter of all nine configured bush, grass, and plant FBXs. Placement samples
 the active crater `MeshCollider` through the shared radial-snap cast, aligns to
 its normals, and iteratively fits transformed mesh vertices to the real terrain
 before applying a slight `0.075`-unit inward embed. It applies a fixed
--90-degree local-X model correction, uses uniform 65x-75x scale, weights bushes
-and plants at 2x and grasses at 10x, assigns only shared dark-orange or red
-materials, disables vegetation collision, and saves the active scene. The
-authored SampleScene pass contains exactly 1,200 instances from seed `80` (193
-bushes, 810 grasses, and 197 plants).
+-90-degree local-X model correction, uses uniform 60x-70x grass, 40x-50x bush,
+and 50x-60x plant scale, and shuffles an exact 8:1:1 allocation. Of the 16,000
+placements, 12,000
+remain uniform and 4,000 use 64 best-candidate-spaced clusters with randomized
+10-14-degree radii for mild density variation. It assigns only shared dark
+orange or orange materials, disables vegetation collision, and saves the active
+scene. The authored seed-`80` pass has 12,800 grasses, 1,600 bushes, and 1,600
+plants. The former red material is GUID-preservingly migrated to orange.
 Unity also binds `Ctrl+Shift+V` to Paste as Child; if its shortcut-conflict
 dialog appears, select `Regenerate Planet Vegetation`, or invoke it from the
 `Tools > Planet Design` menu.

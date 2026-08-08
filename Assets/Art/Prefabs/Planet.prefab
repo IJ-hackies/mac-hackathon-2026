@@ -123,6 +123,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1000000001}
   - component: {fileID: 1000000003}
+  - component: {fileID: 1000000004}
   m_Layer: 0
   m_Name: Planet Ground
   m_TagString: Untagged
@@ -167,3 +168,26 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 50
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1000000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e3f4c9a2b1d48c0a6e5f7b8c9d0e1f2, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  targetCamera: {fileID: 0}
+  planetRadiusSource: {fileID: 1000000003}
+  generatedRootNames:
+  - Generated Planet Vegetation
+  - Generated Planet Rocks
+  renderDistanceDiameterFraction: 0.375
+  sectorSizeDegrees: 15
+  horizonPaddingDegrees: 8
+  useHorizonCulling: 1
+  fallbackPlanetRadius: 150
+  logInitializationSummary: 1

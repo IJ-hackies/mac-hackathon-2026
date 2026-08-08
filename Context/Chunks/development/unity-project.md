@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, git-collaboration, runtime-art, world-authoring, player-controller]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+related: [system, control-model, core-loop, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 
@@ -25,7 +25,11 @@ the Universal Render Pipeline empty template. The project uses Universal Render
 Pipeline and Visual Effect Graph `17.3.0`, Input System `1.18.0`, and Unity's
 3D physics module. `Assets/Scenes/SampleScene.unity` is the only enabled build
 scene and current prototype. Other top-level scenes may be used as sandboxes
-without implying build inclusion.
+without implying build inclusion. WebGL using the production WebGL2 graphics
+path is the confirmed publication target. WebGL selects the Mobile quality
+tier and its forward URP asset; project settings disable WebGL static and
+dynamic batching because generated planet props use explicit runtime
+instancing.
 
 The sample scene contains a directional light and global volume plus an
 instance of `Assets/Art/Prefabs/Planet.prefab`, placed at the established
@@ -64,6 +68,12 @@ poles with a generated curved-wall mesh and an intentional opening. These are
 static collidable scene assets; no base interaction, economy, or construction
 logic is attached.
 
+`LandingBase/Generated NAUT Rock Art` contains 59 deterministic, terrain-fitted
+`Rock_1` instances arranged as 5x7 lettering around `Layout/BaseCenter`. The
+authored default uses local scale `(180, 100, 180)`, 2.88-unit pitch, seed 1401,
+and disabled per-instance collision so the decorative word does not snag the
+player.
+
 Separate top-level `Arena1` and `Arena2` perimeter hierarchies each contain 17
 `Column_Hollow` poles plus one curved wall sheet. Arena1 uses dark-orange
 material overrides; Arena2 uses near-black blood-red overrides. Their dedicated
@@ -71,10 +81,27 @@ materials use solid albedo with the imported normal maps and avoid recoloring
 shared base or importer materials.
 
 The scene also contains one top-level `Generated Planet Vegetation` hierarchy
-with 1,200 static, non-colliding prefab instances sampled across the full crater
-mesh: 193 bushes, 810 grasses, and 197 plants. It mixes all nine selected
-variants, uses uniform 65x-75x source-relative scale with a -90-degree local-X
-model correction, and distributes only shared dark-orange and red materials.
+with 16,000 static, non-colliding prefab instances sampled across the full
+crater mesh: 1,600 bushes, 12,800 grasses, and 1,600 plants. The exact 8:1:1
+grass:bush:plant mix blends 12,000 uniform placements with 4,000 placements in
+64 broad, mild-density clusters. It uses all nine variants: grasses at 60x-70x,
+bushes at 40x-50x, and plants at 50x-60x source-relative uniform scale. Every
+instance has the -90-degree local-X correction and uses a shared dark-orange or
+orange material.
+
+`Generated Planet Rocks` contains the authored seed-`80826` pass: exactly
+800 small and 300 large rocks, both at literal 100x-200x Transform scale,
+grouped into 146 clusters. There are 26 small-only, 89 large-only, and 31 mixed
+clusters; small-bearing clusters hold 10-20 small rocks while every
+large-bearing cluster holds 1-3 large rocks. Exact crater grounding and closed
+pole-ring exclusions keep `LandingBase`, `Arena1`, and `Arena2` clear.
+
+The planet prefab owns `SphericalPropInstancingRenderer`, which captures only
+the top-level `Generated Planet Vegetation` and `Generated Planet Rocks`
+hierarchies in Play mode. It submits WebGL2-compatible instanced mesh batches
+after spherical-sector distance, frustum, and horizon culling. `LandingBase`,
+`Arena1`, and `Arena2` remain ordinary renderers, so the prop draw distance does
+not prevent arenas from being visible farther away.
 
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
@@ -88,8 +115,8 @@ root `.gitignore`.
 
 - The cooperative versus single-player input/authority abstraction; the current
   radial controller is deliberately single-player.
-- Target platforms, intentional package baseline, assembly layout, testing,
-  and builds.
+- The intentional package baseline, assembly layout, and repeatable WebGL
+  build, browser test, and deployment workflows.
 - Whether to retain or remove the template readme and tutorial content, and
   when to rename or replace the prototype sample scene.
 

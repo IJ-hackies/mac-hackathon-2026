@@ -3,7 +3,7 @@ chunk: core-loop
 title: Crash-site wave survival and planetary scavenging
 owns: []
 related: [system, state, control-model, player-controller, unity-project]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 

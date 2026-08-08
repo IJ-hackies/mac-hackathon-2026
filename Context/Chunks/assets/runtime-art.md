@@ -4,8 +4,8 @@ title: Unity-ready art derived from source packs
 owns:
   - "Assets/Art.meta"
   - "Assets/Art/**"
-related: [asset-library, unity-project, player-controller, world-authoring]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+related: [asset-library, unity-project, player-controller, world-authoring, world-runtime]
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 
@@ -25,7 +25,8 @@ type and gameplay role rather than separated by vendor.
   5,496 render vertices after the authored UV seams are split.
 - `Prefabs/Planet.prefab` - reusable approximately 150-unit-radius planet
   hierarchy. Its stable `Planet Ground` root contains the scaled shell, active
-  crater-matched `MeshCollider`, and disabled reference `SphereCollider`.
+  crater-matched `MeshCollider`, disabled reference `SphereCollider`, and the
+  runtime spherical prop instancing/culling component.
 - `Shaders/S_ProceduralMoonSurface.shader` - opaque URP-lit, texture-free planet
   surface shader. Object-space 3D value noise creates seam-free large lunar
   mottling, fine dusty breakup, and matching analytic bump normals without
@@ -34,27 +35,22 @@ type and gameplay role rather than separated by vendor.
 - `Materials/M_PlanetCrateredMoon.mat` - active matte planet material using the
   procedural moon shader. It preserves the established warm clay/ochre base
   color and low smoothness while adding tonal, roughness, and normal variation.
-- `Models/Environment/PlanetVegetation/` - runtime FBX copies of `Bush_1..3`,
-  `Grass_1..3`, and `Plant_1..3`. Animation and generated colliders are disabled
-  because these are lightweight, static visual dressing rather than obstacles.
-- `Materials/PlanetVegetation/` - the active instancing-enabled vegetation
-  palette is `M_PlanetVegetation.mat` in dark orange and
-  `M_PlanetVegetation_Red.mat` in red. Older generated palette materials may
-  remain in this folder, but the scatter generator and authored scene do not
+- `Models/Environment/PlanetVegetation/` - runtime FBX copies of `Bush_1..3`, `Grass_1..3`, and `Plant_1..3`; animation and colliders are disabled because these are visual dressing rather than obstacles.
+- `Models/Environment/PlanetRocks/` - all seven `Rock_1..4` and
+  `Rock_Large_1..3` FBXs. Their `Atlas` slots use the role-owned
+  `Materials/PlanetRocks/M_PlanetRock.mat`, which shares `T_SpacePalette`;
+  animation/readability are off and generated non-convex colliders are on.
+- `Materials/PlanetVegetation/` - active instancing-enabled palette uses `M_PlanetVegetation.mat` in dark orange and
+  `M_PlanetVegetation_Orange.mat` in orange. Older generated palette materials
+  may remain here, but the scatter generator and authored scene do not
   reference them.
 - `Shaders/S_ProceduralSpaceSkybox.shader` - texture-free starfield shader with
   a subtle galactic band and an HDR sun disc in a fixed world direction.
 - `Materials/M_ProceduralSpaceSkybox.mat` - SampleScene's configured space
   skybox, including star density, deep-space colors, and sun appearance.
-- `Models/Environment/LandingBase/` - a curated 19-model base-building kit:
-  18 Ultimate Space Kit structures plus the Modular SciFi MegaKit
-  `Column_Hollow`. Static-model animation is disabled and Unity generates
-  non-convex mesh colliders for the placed environment instances.
-- `Materials/LandingBase/` - shared URP remaps plus independent dark-orange
-  Arena1 and near-black blood-red Arena2 variants using MegaKit normal maps.
-- `Textures/ModularSciFi/` - the base-color, normal, and packed ORM textures
-  required by `Column_Hollow`. Normal maps use Unity's Normal Map import type;
-  ORM maps remain linear source data.
+- `Models/Environment/LandingBase/` - 18 Ultimate Space Kit structures plus the Modular SciFi MegaKit `Column_Hollow`; animation is disabled and Unity generates non-convex mesh colliders.
+- `Materials/LandingBase/` - shared URP remaps plus dark-orange Arena1 and near-black blood-red Arena2 variants using MegaKit normal maps.
+- `Textures/ModularSciFi/` - base-color, normal, and packed ORM textures for `Column_Hollow`; normals use Normal Map import type and ORM maps remain linear.
 - `Generated/LandingBaseWalls/` - persistent mesh assets produced explicitly
   by the Wall Ring Builder's curved-sheet command. Each generation uses a
   unique asset path so earlier authored walls are never overwritten.
@@ -112,11 +108,12 @@ type and gameplay role rather than separated by vendor.
   controller resolves that exact active scene name when no center is assigned.
 - Planet vegetation is authored as FBX prefab instances beneath the scene-level
   `Generated Planet Vegetation` root. The root stays at world scale 1 so each
-  instance's 65x-75x uniform scale remains relative to the source FBX. A fixed
+  grass uses 60x-70x scale, bushes 40x-50x, and plants 50x-60x relative to
+  their source FBXs. A fixed
   -90-degree local-X correction is applied before surface fitting, followed by
   a slight `0.075`-unit terrain embed. Instances use shared material assets
   rather than per-renderer material clones, and the active palette stays limited
-  to dark orange and red.
+  to dark orange and orange.
 - Generated wall meshes are project-owned runtime art. Keep their `.asset` and
   `.meta` files while referenced by a scene; remove confirmed orphaned versions
   from the Project window when iterative authoring leaves unused generations.
@@ -140,10 +137,14 @@ The procedural sky material stores the visible sun direction. If the scene's
 directional `Sun Light` is rotated later, update `_SunDirection` to the opposite
 of the light's forward direction so the disc and illumination remain aligned.
 
+Ultimate Space Kit environment models use a -90-degree local-X placement
+correction and small source-unit scale. Keep importer scale defaults consistent;
+correct orientation and size on instances. Rock mesh colliders stay static.
+
 ## How to extend
 
 Copy the selected FBX into the appropriate semantic model folder. Create shared
 project materials and textures in their type folders, use descriptive names,
 and record non-default import settings or UV assumptions when they affect
 multiple assets. Use the verified planet-design commands in
-`Context/operations.md` for landing-base and vegetation regeneration.
+`Context/operations.md` for landing-base, vegetation, and rock regeneration.

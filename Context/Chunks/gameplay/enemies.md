@@ -10,7 +10,7 @@ owns:
   - "Assets/Editor/Enemies/**"
   - "Assets/Editor/ModelAnimationUtility.cs*"
 related: [player-controller, player-combat, runtime-art, state, boss-fight]
-verifiedAtCommit: 71b7468850b4e64c25da49ef3deff2ff354c4778
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 

@@ -1,6 +1,6 @@
 ## User Instructions : 
 
-deploy gpt-5.6-luna with max effort subagents to complete any implementation whenever needed for increased speed with lower costs.
+deploy gpt-5.6-terra with high effort subagents to complete any implementation whenever needed for increased speed with lower costs.
 
 When making decisions, follow this order:
 1. Preserve the user's core idea and intended experience.

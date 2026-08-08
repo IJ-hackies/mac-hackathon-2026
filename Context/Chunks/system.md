@@ -2,8 +2,8 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, core-loop, asset-library, runtime-art, unity-project, world-authoring, git-collaboration, player-controller]
-verifiedAtCommit: 927321aeae479a32412bb0928052db406373cf8a
+related: [control-model, core-loop, asset-library, runtime-art, unity-project, world-authoring, world-runtime, git-collaboration, player-controller]
+verifiedAtCommit: db81cd848e59c29f89795a89d512b044041e215a
 lastVerified: 2026-08-08
 ---
 
@@ -21,8 +21,9 @@ required actions.
 
 The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
-Input System `1.18.0`. Target platforms, networking topology, cooperative input
-ownership, and the build pipeline have not been selected. Planet-wide enemy
+Input System `1.18.0`. WebGL with WebGL2 is the confirmed publication target;
+networking topology, cooperative input ownership, and the build/deployment
+pipeline have not been selected. Planet-wide enemy
 navigation/spawning, timed waves, loot, economy, base interaction, and scoring
 are not implemented; combat and enemy prototypes currently live in the
 separate flat-ground player sandbox. The
@@ -44,7 +45,12 @@ The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
 curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base
 gameplay or construction system. The rest of the authored crater shell carries
-a dense planet-wide scatter of oversized vegetation in dark orange and red.
+16,000 oversized orange/dark-orange vegetation instances plus 800 small and
+300 large clustered, collidable rocks; all three walled gameplay areas remain
+clear of rock generation. At runtime, the generated vegetation and rock
+renderers are regrouped into spherical sectors for WebGL2 GPU instancing,
+distance, frustum, and horizon culling. Their source objects and rock colliders
+remain present, while the landing base and arenas stay outside this prop system.
 
 A separate `Player.unity` prototype scene (not yet merged into the planet
 scene) now carries a working single-player third-person controller with
@@ -76,6 +82,7 @@ removed during this work — see [asset-library](assets/asset-library.md) and
 - Kills award gold and may drop items; progression at the base uses buying,
   upgrading, and crafting, while kill score scales through a wave multiplier.
 - The game will be developed in Unity.
+- The published game targets WebGL using the production WebGL2 graphics path.
 - The exact division of controls and responsibilities between cooperative
   players is deliberately undecided.
 
