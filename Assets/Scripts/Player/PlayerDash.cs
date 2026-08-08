@@ -1,4 +1,5 @@
 using System;
+using Audio;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Vfx;
@@ -83,6 +84,7 @@ namespace Player
             playerController.Dash(direction, dashSpeed, dashDuration);
             _cooldownEndsAt = Time.time + dashCooldown;
             SpawnDashVfx(direction);
+            AudioManager.Instance.PlaySfx(SfxId.PlayerDash, transform.position);
 
             DashPerformed?.Invoke();
             CooldownChanged?.Invoke();

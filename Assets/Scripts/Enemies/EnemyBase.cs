@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Audio;
 using Combat;
 using UnityEngine;
 using Vfx;
@@ -69,11 +70,20 @@ namespace Enemies
         protected virtual void OnEnable()
         {
             health.Died += HandleDeath;
+            health.Hit += HandleHit;
         }
 
         protected virtual void OnDisable()
         {
             health.Died -= HandleDeath;
+            health.Hit -= HandleHit;
+        }
+
+        // BossAstronautAI/BossMechAI override this to play their own Boss1HitReact/MechHitReact
+        // cue instead - this base implementation covers the three basic enemy types.
+        protected virtual void HandleHit(DamageType damageType)
+        {
+            AudioManager.Instance.PlaySfx(SfxId.EnemyHitReact, transform.position);
         }
 
         // Cancels any in-flight attack coroutine outright (not paused/resumed) rather than
@@ -109,6 +119,7 @@ namespace Enemies
         protected virtual void HandleDeath()
         {
             isDead = true;
+            AudioManager.Instance.PlaySfx(SfxId.EnemyDeath, transform.position);
             StopAllCoroutines();
             StartCoroutine(DissolveAndDestroy());
         }

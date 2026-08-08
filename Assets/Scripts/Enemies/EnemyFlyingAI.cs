@@ -1,4 +1,5 @@
 using System.Collections;
+using Audio;
 using UnityEngine;
 
 namespace Enemies
@@ -137,6 +138,8 @@ namespace Enemies
 
             Vector3 origin = firePoint.position;
             Vector3 direction = (player.position - origin).normalized;
+
+            AudioManager.Instance.PlaySfx(SfxId.EnemyFlyingShoot, origin);
 
             int playerLayer = LayerMask.NameToLayer("Player");
             int mask = playerLayer >= 0 ? 1 << playerLayer : ~0;

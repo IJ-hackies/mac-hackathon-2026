@@ -1,3 +1,4 @@
+using Audio;
 using Player.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -50,6 +51,12 @@ namespace Player
         private bool _isEmoting;
         private bool _ignoreGameplayInterrupts;
         private float _emoteEndTime;
+
+        [Tooltip("Cadence for the boss-mech leg-step cues played while the mech Dance emote loops.")]
+        [SerializeField] private float mechDanceStepInterval = 0.45f;
+        private bool _mechDanceAudioActive;
+        private float _nextMechDanceStepTime;
+        private bool _mechDanceStepAlternate;
 
         public bool InputSuspended { get; private set; }
 
@@ -193,12 +200,20 @@ namespace Player
                 animator.SetTrigger(PlayEmoteParam);
             }
 
+            // Dance is mech-only (see MechLabels) - while it loops, play the same leg-step cues
+            // the boss mech uses for movement, on their own cadence rather than tying it to actual
+            // locomotion (the player isn't moving during Dance).
+            bool isMechDance = index == DanceIndex && playerUltimate != null && playerUltimate.IsActive;
+            _mechDanceAudioActive = isMechDance;
+            if (isMechDance) _nextMechDanceStepTime = Time.time;
+
             return clips[index].length;
         }
 
         private void StopEmote()
         {
             _isEmoting = false;
+            _mechDanceAudioActive = false;
             if (animator != null)
             {
                 animator.SetBool(EmotingParam, false);
@@ -226,6 +241,14 @@ namespace Player
                 {
                     StopEmote();
                 }
+            }
+
+            if (_mechDanceAudioActive && Time.time >= _nextMechDanceStepTime)
+            {
+                _nextMechDanceStepTime = Time.time + mechDanceStepInterval;
+                SfxId step = _mechDanceStepAlternate ? SfxId.BossLegStepB : SfxId.BossLegStepA;
+                _mechDanceStepAlternate = !_mechDanceStepAlternate;
+                AudioManager.Instance.PlaySfx(step, transform.position);
             }
         }
     }

@@ -1,3 +1,4 @@
+using Audio;
 using Combat;
 using UnityEngine;
 
@@ -9,6 +10,7 @@ namespace Items
         {
             var health = player.GetComponent<Health>();
             if (health != null) health.FullyHeal();
+            AudioManager.Instance.PlaySfx(SfxId.ItemHealthPickup, transform.position);
         }
     }
 }

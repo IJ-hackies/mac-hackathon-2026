@@ -1,4 +1,5 @@
 using System.Collections;
+using Audio;
 using Combat;
 using Player;
 using UnityEngine;
@@ -134,11 +135,17 @@ namespace Enemies
         private PlayerController _playerController;
         private ThirdPersonCameraController _cameraController;
 
+        [Header("Audio - Leg Steps")]
+        [SerializeField] private float legStepInterval = 0.5f;
+        [SerializeField] private float legStepMinSpeed = 0.3f;
+
         private Vector3 _wanderDirection = Vector3.forward;
         private float _nextWanderTime;
         private int _attackIndex;
         private float _attackReadyTime;
         private bool _isAttacking;
+        private float _nextLegStepTime;
+        private bool _legStepAlternate;
         // JumpSlam hand-animates height directly via CharacterController.Move - the normal
         // gravity/verticalVelocity handling below would otherwise fight that arc (Update() still
         // runs every frame regardless of the coroutine, so without this it would apply falling
@@ -167,10 +174,38 @@ namespace Enemies
             health.SuppressHitReact = true;
         }
 
+        // Reuses PlayerHitAudio/PlayerAnimatorRelay's Mech* cue ("the same conceptual metal impact"
+        // per spec) rather than a separate boss-only sfx id.
+        protected override void HandleHit(DamageType damageType)
+        {
+            AudioManager.Instance.PlaySfx(SfxId.MechHitReact, transform.position);
+        }
+
         protected override void HandleDeath()
         {
             animator.SetFloat(SpeedParam, 0f);
+
+            // Sequencing only, per spec - a full "spasm the mech" animation/VFX sequence is out of
+            // scope for this audio task and is left as a follow-up.
+            AudioManager.Instance.PlaySfx(SfxId.Boss2DeathImpact, transform.position);
+
+            BossFightController.BossFightActive = false;
+            var musicManager = MusicManager.Instance;
+            if (musicManager != null)
+            {
+                musicManager.PlayMusic(musicManager.baseMusic);
+            }
+
+            // base.HandleDeath() calls StopAllCoroutines() - start the delayed explosion AFTER it,
+            // not before, or it would be killed before its 0.4s wait elapses.
             base.HandleDeath();
+            StartCoroutine(PlayDelayedDeathExplosion());
+        }
+
+        private IEnumerator PlayDelayedDeathExplosion()
+        {
+            yield return new WaitForSeconds(0.4f);
+            AudioManager.Instance.PlaySfx(SfxId.Boss2DeathExplosion, transform.position);
         }
 
         private void Update()
@@ -225,8 +260,38 @@ namespace Enemies
                 speed = chaseSpeed;
             }
 
+            Vector3 posBeforeMove = transform.position;
             _controller.Move((direction * speed + _verticalVelocity) * Time.deltaTime);
             animator.SetFloat(SpeedParam, 1f, 0.1f, Time.deltaTime);
+
+            // Measured against actual displacement this frame, not the intended wander
+            // direction/speed - Wander() runs (and issues a Move call) essentially every frame
+            // it's not attacking, so gating on intent alone made leg-step audio play even while
+            // the mech was effectively holding position (e.g. pinned against the band boundary or
+            // blocked by a collision) and reads as "moving" sound with nothing visibly moving.
+            float horizontalSpeed = (transform.position - posBeforeMove).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+            UpdateLegSteps(horizontalSpeed);
+        }
+
+        // No existing step event to hook into (unlike PlayerAnimatorRelay, which drives off
+        // NormalizedSpeed) - a simple fixed-cadence timer while actually displacing, same interval
+        // approach as the player's footsteps.
+        private void UpdateLegSteps(float horizontalSpeed)
+        {
+            if (horizontalSpeed < legStepMinSpeed)
+            {
+                // Re-arm immediately so a step plays right away once it starts moving again,
+                // instead of waiting out whatever fraction of the interval was left when it stopped.
+                _nextLegStepTime = Time.time;
+                return;
+            }
+
+            if (Time.time < _nextLegStepTime) return;
+            _nextLegStepTime = Time.time + legStepInterval;
+
+            SfxId stepId = _legStepAlternate ? SfxId.BossLegStepB : SfxId.BossLegStepA;
+            _legStepAlternate = !_legStepAlternate;
+            AudioManager.Instance.PlaySfx(stepId, transform.position);
         }
 
         private void ApplyGravity()
@@ -299,7 +364,17 @@ namespace Enemies
             Vector3 groundPoint = player.position;
             groundPoint.y = transform.position.y;
 
-            yield return TopDownGroundEffect.Play(vfxPrefab, groundPoint, topDownTelegraphDelay,
+            // SFX moved from cast-time to hit-confirm - it should only be heard when the attack
+            // actually connects, not on every telegraph/cast regardless of whether the player
+            // dodged out of the marked area.
+            SfxId hitSfx = triggerParam == TopDownBeamParam ? SfxId.Boss2TopDownV1 : SfxId.Boss2TopDownV2;
+
+            // groundPoint (boss's own y, used for the hit-check distance below) stays untouched -
+            // this is only for where the VFX visually spawns, so a jumping/airborne player doesn't
+            // leave the ground-impact effect floating at their feet mid-air.
+            Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(groundPoint);
+
+            yield return TopDownGroundEffect.Play(vfxPrefab, vfxPoint, topDownTelegraphDelay,
                 topDownVfxLingerAfterHit, () =>
                 {
                     if (isDead) return;
@@ -307,6 +382,7 @@ namespace Enemies
                         playerHealth != null && !playerHealth.IsDead)
                     {
                         playerHealth.ApplyDamage(topDownDamage, groundPoint, gameObject, DamageType.Generic);
+                        AudioManager.Instance.PlaySfx(hitSfx, groundPoint);
                     }
                 });
         }
@@ -317,11 +393,24 @@ namespace Enemies
         // per shot - "come out of the mech guns like machine guns" instead of every shot spawning
         // from one point (which, left unassigned, was the mech's own root - reading as "the
         // bottom centre").
+        // Shoot_Small (fast/frequent/long burst) reads as the "forward machine-gun-style burst" -
+        // bracketed with the manual half-clip-loop Boss2ShootPrimaryLoop cue for its whole burst,
+        // per spec ("machine-gun loop + ricochet" pairing). Shoot_Big (slow/heavy/long-range) gets
+        // just the per-impact Boss2Ricochet cue on each hit, no sustained loop - there's no
+        // dedicated sfx id for it in the spec's table, and its lower fire rate doesn't read as a
+        // sustained "loop" the way Shoot_Small's 80-bullet burst does.
         private IEnumerator ShootAttack(int triggerParam, float delay, float speed, float damage, float lifetime,
             Color color, int burstCount, float burstInterval, ProjectileVisualStyle style)
         {
             animator.SetTrigger(triggerParam);
             yield return new WaitForSeconds(delay);
+
+            bool isMachineGunBurst = style == ProjectileVisualStyle.Bullet;
+            AudioHandle loopHandle = AudioHandle.Invalid;
+            if (isMachineGunBurst)
+            {
+                loopHandle = AudioManager.Instance.PlayLoop(SfxId.Boss2ShootPrimaryLoop, transform);
+            }
 
             float visualRadius = style == ProjectileVisualStyle.BigProjectile ? 0.4f : 0.3f;
             for (int i = 0; i < burstCount; i++)
@@ -330,6 +419,8 @@ namespace Enemies
                 SpawnProjectile(origin.position, speed, damage, lifetime, false, color, visualRadius, style, 90f, 10f);
                 if (i < burstCount - 1) yield return new WaitForSeconds(burstInterval);
             }
+
+            if (loopHandle.IsValid) AudioManager.Instance.StopLoop(loopHandle);
         }
 
         private void SpawnProjectile(Vector3 origin, float speed, float damage, float lifetime, bool homing,
@@ -363,7 +454,8 @@ namespace Enemies
             }
 
             BossProjectile.Create(origin, direction, player, speed, damage, homing, lifetime, mask,
-                color, visualRadius, style, homingTurnDegreesPerSecond, homingRange, visuals);
+                color, visualRadius, style, homingTurnDegreesPerSecond, homingRange, visuals,
+                onHit: _ => AudioManager.Instance.PlaySfx(SfxId.Boss2Ricochet, origin));
         }
 
         // Lets BossFightController play the exact same ground-slam (arc, camera shake, player
@@ -417,6 +509,8 @@ namespace Enemies
             }
 
             _manualHeightControl = false;
+
+            AudioManager.Instance.PlaySfx(SfxId.Boss2JumpSlam, transform.position);
 
             if (_cameraController != null)
             {

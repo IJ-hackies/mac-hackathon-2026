@@ -1,3 +1,4 @@
+using Audio;
 using Player;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace Items
         {
             var ultimate = player.GetComponent<PlayerUltimate>();
             ultimate?.ActivateUltimate();
+            AudioManager.Instance.PlaySfx(SfxId.ItemMechUpgradePickup, transform.position);
         }
     }
 }

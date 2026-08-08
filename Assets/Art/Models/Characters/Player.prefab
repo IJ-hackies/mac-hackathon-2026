@@ -221,6 +221,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerAnimatorRelay
   animator: {fileID: 1424160039300829942}
   speedDampTime: 0.1
+  footstepIntervalWalk: 0.35
+  footstepIntervalRun: 0.22
+  playerUltimate: {fileID: 0}
 --- !u!114 &5645547821882719250
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -404,6 +407,7 @@ MonoBehaviour:
   mechNoClip: {fileID: 4203162683634984400, guid: 8c4030059c8524e348f789f0116da765, type: 3}
   danceClip: {fileID: -4746579845412563721, guid: 8c4030059c8524e348f789f0116da765, type: 3}
   wheelSensitivity: 0.012
+  mechDanceStepInterval: 0.45
 --- !u!114 &2010552431361617059
 MonoBehaviour:
   m_ObjectHideFlags: 0

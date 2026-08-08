@@ -1,3 +1,4 @@
+using Audio;
 using UnityEngine;
 
 namespace Player.UI
@@ -25,9 +26,20 @@ namespace Player.UI
                 global::Player.ThirdPersonCameraController.MaximumMouseSensitivity);
         }
 
+        // Single funnel for master volume, called by both MainMenuController and
+        // SettingsMenuController's sliders. Previously this set AudioListener.volume directly,
+        // which double-attenuated everything on top of AudioManager/MusicManager's own
+        // category-multiplier system once those existed (both paths scaling the same slider value
+        // multiplicatively), and SettingsMenuController's in-gameplay slider never touched
+        // AudioManager/MusicManager at all, so it silently had zero effect on any SFX. Routing
+        // exclusively through AudioManager/MusicManager (and pinning AudioListener.volume to 1, see
+        // AudioManager.Awake) makes this the one place volume is actually applied.
         public static void ApplyMasterVolume(float value)
         {
-            AudioListener.volume = Mathf.Clamp01(value);
+            float clamped = Mathf.Clamp01(value);
+            AudioListener.volume = 1f;
+            AudioManager.Instance.SetMasterVolume(clamped);
+            MusicManager.Instance.SetMasterVolume(clamped);
         }
 
         public static void Save(float masterVolume, float mouseSensitivity)

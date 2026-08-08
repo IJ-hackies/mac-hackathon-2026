@@ -1,3 +1,4 @@
+using Audio;
 using Combat;
 using UnityEngine;
 
@@ -29,6 +30,7 @@ namespace Player
         {
             if (controller != null) controller.enabled = false;
             if (combat != null) combat.enabled = false;
+            AudioManager.Instance.PlaySfx(SfxId.PlayerDeath, transform.position);
         }
     }
 }
