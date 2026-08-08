@@ -170,6 +170,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &3438064331127113663
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5742571840426654104}
+  m_Layer: 0
+  m_Name: FirePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5742571840426654104
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3438064331127113663}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.971, z: 0.563}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1387748719014395775}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7235947097365285467
 GameObject:
   m_ObjectHideFlags: 0
@@ -342,6 +373,9 @@ PrefabInstance:
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 1d538548329f442699d99baf199105c7, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 5742571840426654104}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 1d538548329f442699d99baf199105c7, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 3868048399044550300}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 1d538548329f442699d99baf199105c7, type: 3}
@@ -444,6 +478,10 @@ MonoBehaviour:
   deathAnimationHold: 1.2
   dissolveDuration: 1
   deathFallGravity: 20
+  meleeHitVfxPrefab: {fileID: 0}
+  meleeHitVfxScale: 1
+  slowVfxPrefab: {fileID: 7042460137364555477, guid: ecabc7a4007a8ad43be3e17217dd9057, type: 3}
+  slowVfxScale: 1
   hoverHeight: 2
   bobAmplitude: 0.25
   bobSpeed: 1.5
@@ -452,15 +490,16 @@ MonoBehaviour:
   maxDistanceFromPlayer: 14
   wanderRadius: 4
   wanderInterval: 3
-  firePoint: {fileID: 0}
-  telegraphLine: {fileID: 0}
+  firePoint: {fileID: 5742571840426654104}
   attackRange: 16
-  attackCooldown: 4
-  chargeStartDelay: 0.5
-  trackDuration: 0.7
-  pauseDuration: 0.4
-  beamDuration: 0.15
+  attackCooldown: 2.2222223
+  chargeStartDelay: 0.3
   laserDamage: 15
-  laserRange: 60
-  telegraphColor: {r: 1, g: 0.85, b: 0.2, a: 0.9}
-  beamColor: {r: 1, g: 0.15, b: 0.1, a: 1}
+  shurikenVisualPrefab: {fileID: 3069835964258947450, guid: 9d7886058ed12e34b901240a31cb5a8e, type: 3}
+  shurikenVisualScale: 0.4
+  shurikenRotationOffset: {x: 0, y: 0.70710677, z: 0, w: 0.70710677}
+  shurikenImpactEffectPrefab: {fileID: 1574516568193800055, guid: e563edd5302ec2340a5bc06e57d1e901, type: 3}
+  shurikenImpactEffectScale: 1
+  shurikenSpeed: 14
+  shurikenLifetime: 4
+  shurikenHitRadius: 0.2
