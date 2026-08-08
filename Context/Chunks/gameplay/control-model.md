@@ -3,8 +3,8 @@ chunk: control-model
 title: Shared-body cooperative and single-player control model
 owns: []
 related: [system, state, core-loop]
-verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is

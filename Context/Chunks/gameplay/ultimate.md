@@ -10,8 +10,8 @@ owns:
   - "Assets/Scripts/UI/UltimateHudUI.cs*"
   - "Assets/Scripts/Vfx/TopDownGroundEffect.cs*"
 related: [player-controller, player-combat, enemies, boss-fight, items, state]
-verifiedAtCommit: efe8c5547b0a83b0eeadffbff6751ad39f8c28b9
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is

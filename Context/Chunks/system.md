@@ -3,8 +3,8 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, core-loop, gameplay-areas, asset-library, runtime-art, unity-project, main-menu, world-authoring, world-runtime, git-collaboration, player-controller]
-verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is

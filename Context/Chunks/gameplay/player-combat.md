@@ -8,8 +8,8 @@ owns:
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
 related: [player-controller, enemies, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is

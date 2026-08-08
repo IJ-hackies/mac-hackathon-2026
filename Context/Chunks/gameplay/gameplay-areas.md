@@ -15,8 +15,8 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
 related: [system, state, core-loop, player-controller, unity-project, world-authoring]
-verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is

@@ -14,8 +14,8 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, core-loop, gameplay-areas, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
-lastVerified: 2026-08-08
+verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+lastVerified: 2026-08-09
 ---
 
 ## What this is
