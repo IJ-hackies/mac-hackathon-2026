@@ -17,134 +17,108 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
-related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, runtime-art, world-authoring, state]
+related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
 verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
 ## What this is
+
 The single-player prototype controls one astronaut with full locomotion, camera,
-combat, and emotes. `Player.unity` is the flat sandbox; `SampleScene` uses
-`PlayerRig.prefab` on the planet. The future two-player split is undecided.
-The astronaut uses a rotatable `CapsuleCollider` and kinematic `Rigidbody`
-driven by `RadialCapsuleMotor`; unlike Unity's world-upright
-`CharacterController`, its physical capsule follows planetary up at every
-latitude. The motor sweeps, slides, depenetrates, and preserves the former
-`0.3`-unit local-radial step behavior. Its gate accepts steep upward seam and
-bevel normals, while clearance and 45-degree landing checks stay authoritative.
-A centerline foot ray selects the support normal that may steer adhesion. A broad
-foot sphere bridges stair lips and broken slope triangles only after a physical
-bottom contact; it never consumes a wall normal. Surface pull is capped at 35
-degrees from radial gravity and follows support changes at 120 degrees per
-second. Losing direct/bottom support releases adhesion immediately, so radial
-gravity pulls the player toward a hole floor. Body and camera retain stable
-center-radial up. Falling speed is capped at 30 units per second. If no
-`Planet Ground` exists, the controller uses world up for the flat sandbox. A startup
-raycast places the capsule's feet on rendered ground.
+combat, and emotes. `Player.unity` is a flat-ground sandbox; `SampleScene.unity`
+instantiates `PlayerRig.prefab` on the spherical planet. It does not decide the
+two-player responsibility split.
 
-The camera orbit is controlled independently and its horizontal direction is
-parallel-transported as radial up changes, preventing snaps while walking
-around the sphere. The astronaut body continuously turns toward that camera/
-aim direction; lateral and reverse movement therefore strafe and backpedal
-instead of turning the character away from the crosshair. The camera retains
-shoulder offset, collision pull-in, and mouse-look suspension while the emote
-wheel is active. Escape opens the rig-owned settings console, pauses gameplay,
-suspends player look/input and the crosshair, and restores those states when it
-closes. Master volume and look sensitivity persist locally and are shared with
-the startup menu through `GameSettings`; Controls opens a placeholder subpage.
+`RadialCapsuleMotor` drives a rotatable capsule and kinematic Rigidbody, so its
+physical capsule follows planetary up at every latitude. It sweeps, slides,
+depenetrates, and keeps the former `0.3`-unit local-radial step behavior. A
+centerline foot ray alone may select the support normal for adhesion; a broad
+foot sphere bridges lips/broken slope triangles only after real bottom contact
+and never consumes a wall normal. Adhesion accepts support within 35 degrees of
+radial gravity, follows it at 120 degrees/s, and releases immediately on loss of
+direct/bottom support; airborne gravity is radial and caps falling at 30 units/s.
+Without `Planet Ground`, the sandbox uses world up and startup snaps feet to
+rendered ground.
 
-`SampleScene` opens with a six-second terminator-to-NAUT orbit/dolly, then runs through
-the NAUT zoom, Wave, and collision-resolved handoff while suspending input and HUD. It
-raises the active URP shadow distance to 500, then restores the captured value on exit.
+Camera orbit parallel-transports horizontal direction as radial up changes,
+preventing sphere-walk snaps. The body faces the camera/aim tangent, preserving
+strafe and backpedal; camera keeps shoulder offset, collision pull-in, and
+mouse-look suspension while the emote wheel is open. The opening cutscene runs
+terminator-to-NAUT orbit/dolly, NAUT zoom, Wave, then collision-resolved handoff
+with input/HUD suspended. It raises URP shadow distance to 500 temporarily and
+always restores the captured gameplay value (Mobile is 50).
 
 ## Key files
-- `PlayerController.cs` - tangent locomotion, speed modifiers, surface-relative
-  gravity/jump, ground probing, alignment, stagger gating, and spawn snap.
-- `LandingBaseMovementSpeedEffect.cs` - owns the keyed 2x modifier inside LandingBase.
-- `RadialCapsuleMotor.cs` - rotation-aware sweep/slide, local-radial stepping
-  across vertical or steep upward lips, contact classification, and depenetration.
-- `PlayerVisualGroundConformer.cs` - tilts and lifts only the astronaut visual
-  root toward reported support while the physical capsule and camera stay
-  radial.
+
+- `PlayerController.cs` - one `moveSpeed` (walk/sprint removed; `Sprint` was
+  repurposed as `Ability`), acceleration-smoothed tangent movement, composable
+  keyed speed modifiers, ground probing, jump/gravity, body alignment, boss
+  stagger gate, and one-time surface snap. `Dash(direction, speed, duration)`
+  bypasses acceleration for `PlayerDash`; `GetCameraRelativeTangentDirection`
+  shares its `FixedUpdate` camera-relative math. `Stagger()` parents imported
+  Stun VFX to the hand-authored `headAnchor` for `Max(duration, DuckClipLength)`.
+- `RadialCapsuleMotor.cs` - rotation-aware sweep/slide, local-radial stepping,
+  contact classification, and overlap depenetration through the kinematic body.
+  `PlayerVisualGroundConformer.cs` only tilts/lifts the astronaut visual root.
+  `LandingBaseMovementSpeedEffect.cs` owns LandingBase's keyed 2x modifier.
 - `ThirdPersonCameraController.cs` - radial-up orbit, shoulder framing,
-  collision, mouse look, shake, and collision-consistent cutscene handoff APIs.
-- `OpeningCutsceneController.cs` - radial/Bezier paths, independent angular,
-  dolly, aim, and beat curves, NAUT framing, temporary shadow range, and handoff.
-- `PlayerAnimatorRelay.cs` - maps state to `Speed`, `Grounded`, and `Jump`.
-- `PlayerCombat.cs` and the health/death HUD are documented in
-  [player-combat](player-combat.md). Ranged damage is hitscan; its traveling
-  bolt is cosmetic and the former `Projectile.cs`/prefab were removed.
-- `PlayerEmoteController.cs` / `Assets/Scripts/UI/**` - locked-cursor emote wheel
-  plus an input-suspended cinematic Wave API.
-- `SettingsMenuController.cs` - Escape toggle, pause/input ownership, persisted
-  master-volume and sensitivity settings, and the in-menu Controls page.
-- `PlayerRig.prefab` - normalized radial player, area/speed components, camera, and UI.
-- `SettingsMenuPrefabSetup.cs` - imports/configures selected UI assets and
-  idempotently rebuilds the rig-owned settings console.
-- `PlayerSceneSetup.cs` builds the sandbox and repairs the rig; `Refresh Health
-  HUD` idempotently replaces only the rig's health module.
+  `SphereCast` collision, smoothing, mouse look, boss shake, and cutscene
+  follow pose. Its clamped `MouseSensitivity` API is the settings hook;
+  `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
+- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT
+  framing, temporary shadow range, and safe handoff; it belongs to `SampleScene`,
+  not `PlayerRig.prefab`.
+- `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
+  and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
+  jump, or attack interrupts it. `Configure(labels)` rebuilds for three labels,
+  or four including `+Dance` in Mech mode. Ultimate retargets astronaut/Mech
+  animators through `SetAnimator` on relay/controller/health; see [ultimate].
+- `SettingsMenuController.cs` owns the rig's Escape settings console: it toggles
+  pause, input/cursor/look and crosshair ownership, persists `GameSettings`
+  master volume and `MouseSensitivity`, and opens a placeholder Controls page.
+  Closing restores the main page and only state it acquired.
+- `PlayerRig.prefab` contains nested radial `Player.prefab`, area tracker,
+  LandingBase effect, camera pivot, UI, and health HUD. `Repair Player Rig
+  Prefab` safely rewires/validates it; destructive `Build Test Scene` recreates
+  sandbox artifacts including ammo/ability/ultimate HUDs (see [items]/[ultimate]).
 
 ## Invariants
-- Planet up uses the assigned `planetCenter` / exact scene object named
-  `Planet Ground`. The motor's capsule axis must rotate with this local up;
-  reintroducing a world-upright `CharacterController` recreates latitude-based
-  sinking. A center ray exclusively gates surface-normal adhesion. A broad foot
-  sphere may preserve grounding for slopes/stairs only with a real bottom
-  contact and may not steer gravity; side-only contacts cannot grab hole walls.
-  Unsupported or falling movement returns to radial gravity, then flat-world
-  behavior when the planet is absent.
-- Planet ground collision must have outward-facing normals and be included in
-  `groundMask`. The controller ignores its own colliders during casts.
-- Surface gravity is filtered independently from center-radial body/camera up.
-  Ground casts use the body's radial local up, while tangent movement is
-  projected against the filtered support direction so the controller settles
-  on the same terrain it is being pulled toward.
-- Step eligibility may admit a non-walkable upward seam, but remains separate
-  from contact classification and must not broaden grounding or adhesion.
-- Character facing follows the camera's tangent forward/aim direction, not the
-  movement vector. Preserve strafe and backpedal behavior when changing turn
-  smoothing or input projection.
-- `VisualRoot` directly contains the astronaut render hierarchy and muzzle. It
-  may tilt 30 degrees and lift `0.12` units, then returns to its authored pose
-  airborne. Never put physics/controller/camera objects beneath it.
-- The Player capsule is `height 2.55`, `radius 0.55`, `center.y 1.275`, origin
-  at its feet. Its Rigidbody stays kinematic, interpolated, gravity-off, and
-  Continuous Speculative; keep mesh, motor, and snap math scale-consistent.
-- `PlayerRig` root and nested Player local transforms stay identity/zero/one.
-  Scene instances own world placement; `Player.unity` compensates with a zero
-  root override after rig normalization.
-- The rig camera is the sole active runtime camera/audio listener; keep shadows,
-  post-processing, and FXAA enabled in its URP camera data.
-- Settings must restore the pre-open time scale and only release input/cursor
-  ownership they acquired. Closing first returns the console to its main page.
-- The opening is owned by `SampleScene`, not `PlayerRig.prefab`. Its path stays
-  spherical around `Planet Ground`; its top shot uses art-bounds radial up and actual
-  N-to-T screen-right. Missing contracts skip; every exit restores captured state.
-- `InputSystem_Actions` map name is `Player`. `Attack` is reused for shooting,
-  while `Melee` and `EmoteWheel` are separate typed actions. `Crouch` remains
-  reserved and has no behavior.
-- The `Player` physics layer is excluded from camera collision and aim masks.
-- `Animator.applyRootMotion` is disabled; the controller owns movement.
-- Keyed speed modifiers multiply; removal downscales current speed immediately.
-- Emote `AnyState` entry uses `PlayEmote` trigger plus `EmoteIndex`; the held
-  `Emoting` bool is only an interrupt condition.
+
+- `planetCenter` or the exact active scene object `Planet Ground` defines radial
+  up. The capsule axis rotates with it; a world-upright `CharacterController`
+  causes latitude sinking. Ground must have outward normals and `groundMask`;
+  all casts ignore the player's colliders.
+- Surface gravity is independently filtered from radial body/camera up. Center
+  ray gates adhesion; the broad sphere may retain grounding only with bottom
+  contact and cannot steer gravity. Side contacts cannot grab hole walls.
+  Step eligibility for an upward seam remains separate from grounding/adhesion.
+- Facing follows camera tangent/aim, never movement. `VisualRoot` is the direct
+  Player child holding render hierarchy and muzzle; conform it no more than 30
+  degrees or `0.12` units. Never put capsule, controller, camera, or pivot below it.
+- Capsule: height `2.55`, radius `0.55`, center.y `1.275`, feet-origin.
+  Rigidbody is kinematic, gravity off, interpolation on, Continuous Speculative.
+  Rig/nested Player transforms stay identity; the sandbox uses a zero root
+  override. The rig camera is the sole active runtime camera/audio listener.
+- Input map is `Player`: `Attack` shoots; `Melee`, `EmoteWheel`, `Reload`,
+  `Ability`, and `Attack2` are distinct; `Crouch` is reserved. Exclude Player
+  layer from camera collision/aim masks; root motion stays off. Removing a keyed
+  speed modifier immediately downscales speed. Emotes use `PlayEmote` +
+  `EmoteIndex`; `Emoting` only interrupts.
 
 ## Gotchas
-- Do not replace the crater mesh collider with an approximate sphere. The
-  visible crater floor differs enough from a sphere to make the player appear
-  buried or floating even when physics reports grounded; its support normal
-  also defines grounded adhesion.
-- When scaling the planet, scale the spawn's center-relative position too; an
-  inside-shell spawn cannot use the short outward startup cast reliably.
-- Move the top-level `PlayerRig` scene instance, never its nested Player or
-  prefab. Radial-snap it with radial-up alignment off, heading preserved, and
-  zero offset; keep the cast clear of roofs and other `groundMask` art.
-- Do not hand-edit a broken nested Player GUID. Run `Repair Player Rig Prefab`;
-  it validates the current prefab source and every critical object reference.
-- `Build Test Scene` rebuilds generated assets and is destructive to the
-  sandbox scene/prefab. Do not run it merely to repair the rig.
+
+- Do not replace the crater mesh collider with a sphere: its floor/support
+  normals visibly affect grounding. Do not hand-edit nested Player GUIDs; repair
+  the rig. For planet-scale changes, move top-level scene `PlayerRig` by the same
+  center-relative factor with radial-snap (alignment off, heading preserved), and
+  keep its short outward startup cast clear of roofs/other `groundMask` art.
+- The cutscene wide path is spherical around `Planet Ground`; its top shot uses
+  art-bounds radial up and true N-to-T screen-right, not `BaseCenter`. Missing
+  contracts must skip safely and every exit must restore gameplay, presentation,
+  and shadow distance.
 
 ## How to extend
-Split locomotion versus camera/tool authority at system boundaries when the cooperative
-model is approved; keep player-index branches out. Extend combat through
-[player-combat](player-combat.md) and the shared damage interfaces.
+
+Split cooperative locomotion, camera, and tool authority at system boundaries;
+do not add player-index branches to this controller. Extend combat via
+[player-combat](player-combat.md), not the locomotion component.

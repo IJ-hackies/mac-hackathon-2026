@@ -11,7 +11,7 @@ openWork:
   - enemy-wave-prototype
   - progression-economy
   - branching-and-integration-policy
-related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller]
+related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller, items, ultimate]
 verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
@@ -43,13 +43,17 @@ lastVerified: 2026-08-08
   Reusable perimeter membership now drives a 2x landing-base movement-speed
   benefit; both arenas currently have membership only.
 - **`enemy-wave-prototype`** - implement planet-wide spawning, a timed wave
-  director, drops, and player/base failure. Health, melee/hitscan damage, three
+  director, drops, and player/base failure. Health, melee/projectile damage, three
   basic enemy types, and a two-stage boss now work in the flat-ground
   `Player.unity` sandbox, but their movement/spawning is not planet-ready and
   no wave orchestration exists.
 - **`progression-economy`** - define and implement gold, dropped/scavenged
   items, buying, pistol/player/equipment upgrades, crafting, loot tables, and
-  the kill-score formula with its wave multiplier.
+  the kill-score formula with its wave multiplier. First Health/Ammo/Thunder
+  power-up pickups and an ammo/reload system (magazine + storage,
+  no upgrades yet) now exist - see [items](gameplay/items.md); random
+  planet-wide spawning of pickups is not implemented (test-scene placement
+  only).
 - **`branching-and-integration-policy`** - define branch naming, worktree
   placement, integration and review rules, and ownership of conflict-prone
   Unity scenes, prefabs, and project settings.

@@ -41,6 +41,10 @@ namespace Combat
         // animation, reading as "the enemy can't attack at all." Hit still fires either way -
         // this only gates the automatic Animator trigger below.
         public bool SuppressHitReact { get; set; }
+        // Multiplies incoming damage before anything else runs - 0 means "fully mitigated" (e.g.
+        // PlayerShield holding Shift in ultimate mode). Simpler than every attacker needing to
+        // ask a target whether it's shielded; the target just controls its own multiplier.
+        public float IncomingDamageMultiplier { get; set; } = 1f;
 
         public event Action<float, float> HealthChanged;
         public event Action Died;
@@ -58,9 +62,21 @@ namespace Combat
             if (animator == null) animator = GetComponentInChildren<Animator>();
         }
 
+        // GetComponentInChildren only ever finds the model that was active at Awake, which for
+        // the player is permanently the astronaut - Player.PlayerUltimate calls this on activate/
+        // end so a mid-Ultimate death plays the mech's own Death clip instead.
+        public void SetAnimator(Animator target)
+        {
+            animator = target;
+        }
+
         public void ApplyDamage(float amount, Vector3 hitPoint, GameObject instigator, DamageType damageType = DamageType.Generic)
         {
             if (IsDead || amount <= 0f) return;
+
+            amount *= Mathf.Max(0f, IncomingDamageMultiplier);
+            if (amount <= 0f) return;
+
             if (_currentHealth < 0f) _currentHealth = maxHealth;
 
             _currentHealth = Mathf.Max(0f, _currentHealth - amount);
@@ -80,6 +96,21 @@ namespace Combat
                 Hit?.Invoke(damageType);
                 if (animator != null && !SuppressHitReact) animator.SetTrigger(HitReactParam);
             }
+        }
+
+        /// Restores health (e.g. a pickup). No-ops once dead - death isn't reversible here.
+        public void Heal(float amount)
+        {
+            if (IsDead || amount <= 0f) return;
+            if (_currentHealth < 0f) _currentHealth = maxHealth;
+
+            _currentHealth = Mathf.Min(maxHealth, _currentHealth + amount);
+            HealthChanged?.Invoke(_currentHealth, maxHealth);
+        }
+
+        public void FullyHeal()
+        {
+            Heal(maxHealth);
         }
     }
 }

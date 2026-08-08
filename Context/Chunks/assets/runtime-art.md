@@ -6,145 +6,101 @@ owns:
   - "Assets/Art/**"
   - "Assets/Scripts/Presentation.meta"
   - "Assets/Scripts/Presentation/**"
-related: [asset-library, unity-project, main-menu, player-controller, world-authoring, world-runtime]
+related: [asset-library, unity-project, main-menu, player-controller, world-authoring, world-runtime, items, ultimate]
 verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
 
 ## What this is
-`Assets/Art/` contains project-owned Unity imports and materials derived from
-the preserved vendor packs under `asset packs/`. Runtime assets are unified by
-type and gameplay role rather than separated by vendor.
+
+`Assets/Art/` holds project-owned Unity imports and materials derived from the
+preserved vendor packs under `asset packs/`, organized by type and gameplay role
+rather than vendor. Main menu uses the same planet/runtime-art system as gameplay
+for its menu-only vignette; see [main-menu].
 
 ## Key files
-- `Textures/T_SpacePalette.png` - shared 512x512 color atlas, imported without
-  mipmaps and with point filtering.
-- `Models/Environment/Planet_CrateredMoon_Subdivided.obj` - the active static
-  visual shell, produced by one Catmull-Clark pass over `Planet_3`: 4,802
-  geometric positions, 4,800 quads, and 9,600 rendered triangles. Unity imports
-  5,496 render vertices after the authored UV seams are split.
-- `Prefabs/Planet.prefab` - reusable approximately 150-unit-radius planet
-  hierarchy. Its stable `Planet Ground` root contains the scaled shell, active
-  crater-matched `MeshCollider`, disabled reference `SphereCollider`, and the
-  runtime spherical prop instancing/culling component.
-- `Shaders/S_ProceduralMoonSurface.shader` - texture-free URP planet shader;
-  its active flat mode retains procedural mottling and full cast shadows while
-  removing normal-angle/PBR shading; `M_PlanetCrateredMoon.mat` uses that mode.
-- `Shaders/S_StylizedShadowReceiver.shader` is the shared opaque receiver for
-  active vegetation, rocks, landing/arena structures, and the astronaut. It
-  keeps base/normal/emission maps and full shadow casting, but floors dark-side
-  illumination at 0.20 and applies only 0.25 received/self-shadow strength.
-- `Models/Environment/PlanetVegetation/` - runtime FBX copies of `Bush_1..3`, `Grass_1..3`, and `Plant_1..3`; animation and colliders are disabled because these are visual dressing rather than obstacles.
-- `Models/Environment/PlanetRocks/` - all seven `Rock_1..4` and
-  `Rock_Large_1..3` FBXs. Their `Atlas` slots use the role-owned
-  `Materials/PlanetRocks/M_PlanetRock.mat`, which shares `T_SpacePalette`;
-  animation/readability are off and generated non-convex colliders are on.
-- `Models/Vehicles/` - all three rovers and four character-themed spaceships
-  from the Ultimate Space Kit. Their `Atlas`/`Atlas.001` slots share
-  `M_UltimateSpaceVehicles.mat` and `T_SpacePalette`; static non-convex mesh
-  colliders are on; animation, readability, cameras, and lights are off.
-- `Materials/PlanetVegetation/` - the active instancing palette is dark orange
-  and orange. Older generated materials may remain, but the authored scene and
-  scatter generator do not reference them.
-- The space-sky shader/material and `Textures/Sky/T_CosmicFog.png` supply
-  triplanar cosmic fog, tinted/twinkling stars, and a layered HDR sun.
-- Shooting-star resources create one self-bootstrapped pooled billboard.
-- `Models/Environment/LandingBase/` - 19 Ultimate Space Kit models including `Ramp`, plus MegaKit `Column_Hollow`; animation is off and Unity generates non-convex mesh colliders.
-- `Materials/LandingBase/` - shared URP remaps; only selective Trim01 details emit: landing base teal, Arena1 amber, and Arena2 red. Broad Trim02/wall surfaces stay non-emissive.
-- `Textures/ModularSciFi/` - base, normal, linear ORM, and project-derived grayscale Trim01 emission mask; the mask imports linear with mipmaps and a 1024 maximum.
-- `Generated/LandingBaseWalls/` - persistent mesh assets produced explicitly
-  by the Wall Ring Builder's curved-sheet command. Each generation uses a
-  unique asset path so earlier authored walls are never overwritten.
-- `Models/Characters/Astronaut_FinnTheFrog.fbx` - rigged playable-character
-  source (Ultimate Space Kit), imported with its baked animation takes
-  (Idle, Walk, Run, Jump, Jump_Idle, Jump_Land, plus unused takes). See
-  [player-controller](../gameplay/player-controller.md).
-- `Models/Characters/Player.prefab` - gameplay-ready astronaut root with a
-  feet-origin `CapsuleCollider` (`height 2.55`, `radius 0.55`, `center.y 1.275`),
-  kinematic Rigidbody, and rotation-aware radial motor. Its direct `VisualRoot`
-  contains the astronaut model and muzzle so terrain conforming remains
-  cosmetic and cannot independently tilt the physical capsule or camera.
-  `PlayerRig.prefab` nests this asset rather than duplicating its components.
-- `Materials/M_Astronaut.mat` samples `T_SpacePalette` through authored UVs.
-- `Fonts/UI/` and `Textures/UI/{Settings,Health,MainMenu}/` contain runtime-ready
-  Kenney fonts and selected UI sprites. Settings/main menu combine Cartoon and
-  Space Expansion art; health uses sliced Space Expansion track/fill sprites.
-- `Animations/AC_Player.controller` - AnimatorController generated by
-  `Assets/Editor/Player/PlayerSceneSetup.cs`; not hand-authored. It uses two
-  layers and generated `Animations/AM_UpperBody.mask`:
-  base (full-body locomotion + one-shots) and `Arms` (upper-body-masked
-  Shoot poses only) — see [player-controller](../gameplay/player-controller.md).
-- Enemy characters (`Enemy_Flying.fbx`, `Enemy_Large.fbx`, `Enemy_Small.fbx`,
-  `Astronaut_BarbaraTheBee.fbx`, `Mech_BarbaraTheBee.fbx`) share the same
-  `T_SpacePalette` atlas as the player, confirmed by checksum against the
-  vendor source. Each has its own bound material (`M_EnemyFlying.mat`,
-  `M_EnemyLarge.mat`, `M_EnemySmall.mat`, `M_Astronaut_BarbaraTheBee.mat`,
-  `M_Mech_BarbaraTheBee.mat`) rather than sharing `M_Astronaut.mat`, for
-  per-model traceability even though the binding is identical.
-  `Animations/AC_EnemyFlying.controller`/`AC_EnemyLarge.controller`/
-  `AC_EnemySmall.controller` are generated the same way as
-  `AC_Player.controller`, by `Assets/Editor/Enemies/EnemySceneSetup.cs`. See
-  [enemies](../gameplay/enemies.md).
-- `Shaders/S_EnemyDissolve.shader` - hand-written URP unlit shader (`Custom/
-  EnemyDissolve`), noise-clips pixels away against a `_DissolveAmount`
-  property with a glowing edge, for the enemy death dissolve. Deliberately
-  unlit (no lighting recalculation) to keep the hand-rolled HLSL low-risk;
-  only ever used via per-instance material clones created at runtime by
-  `EnemyBase.DissolveAndDestroy`, never assigned directly to `M_Enemy*.mat`.
-  See [enemies](../gameplay/enemies.md).
+
+- `Textures/T_SpacePalette.png` - shared 512x512 point-filtered, no-mipmap
+  atlas. `Planet_CrateredMoon_Subdivided.obj` is the active one-pass
+  Catmull-Clark `Planet_3` shell (4,802 positions, 4,800 quads, 9,600 triangles;
+  5,496 Unity render vertices after UV seams).
+- `Prefabs/Planet.prefab` - reusable ~150-unit-radius hierarchy. `Planet Ground`
+  contains the scaled visual shell, crater-matched active `MeshCollider`,
+  disabled reference `SphereCollider`, and runtime spherical prop culling.
+- `S_ProceduralMoonSurface.shader`/`M_PlanetCrateredMoon.mat` - texture-free URP
+  moon. Active flat mode keeps procedural mottling and cast shadows without
+  normal-angle/PBR shading; standard mode retains analytic bumps.
+  `S_StylizedShadowReceiver.shader` is the opaque receiver for vegetation, rocks,
+  structures, and astronaut: maps/emission and full cast shadows, dark-side floor
+  0.20, received/self-shadow strength 0.25.
+- `Models/Environment/PlanetVegetation/` - `Bush_1..3`, `Grass_1..3`,
+  `Plant_1..3`, with animation/colliders off. Instancing palette is dark-orange
+  `M_PlanetVegetation` plus orange variant. `PlanetRocks/` has seven
+  `Rock_1..4`/`Rock_Large_1..3` FBXs sharing `M_PlanetRock`/palette; animation
+  and readability off, static non-convex colliders on.
+- `Models/Vehicles/` - three rovers and four character-themed spaceships. Their
+  palette slots share `M_UltimateSpaceVehicles`; animation/readability, imported
+  cameras, and lights are off; static mesh colliders are on.
+- `S_ProceduralSpaceSkybox.shader`/`M_ProceduralSpaceSkybox.mat` - SampleScene
+  starfield: galactic band, HDR sun at fixed world direction, triplanar
+  `T_CosmicFog`, and tinted/twinkling stars. Shooting-star shader/material plus
+  `SpaceShootingStarController.cs` self-bootstrap one pooled billboard.
+- `Models/Environment/LandingBase/` - 19 Ultimate Space Kit models (including
+  `Ramp`) plus MegaKit `Column_Hollow`, animation off with non-convex colliders.
+  Shared remaps use selective Trim01 emission: base teal, Arena1 amber, Arena2
+  red; broad Trim02/walls do not emit. `ModularSciFi/` includes base/normal/
+  linear-ORM and the linear, mipmapped, 1024-max Trim01 emission mask.
+  `Generated/LandingBaseWalls/` keeps persistent unique-path curved-sheet meshes.
+- `Models/Characters/Astronaut_FinnTheFrog.fbx` includes baked Idle/Walk/Run/
+  Jump takes. `Player.prefab` has feet-origin capsule (height `2.55`, radius
+  `0.55`, center.y `1.275`), kinematic Rigidbody, radial motor, and direct
+  `VisualRoot`; `PlayerRig.prefab` nests it. `M_Astronaut` samples the palette
+  via authored UVs. See [player-controller].
+- `Fonts/UI/` and `Textures/UI/{Settings,Health,MainMenu}/` contain ready Kenney
+  fonts/sprites. Settings and main menu mix Cartoon + Space Expansion; health
+  uses sliced Space Expansion track/fill art.
+- `Animations/AC_Player.controller` and `AM_UpperBody.mask` are generated by
+  `PlayerSceneSetup`: base full-body locomotion/one-shots plus masked Arms Shoot.
+  `AC_PlayerMech`/`AM_MechUpperBody` mirror the same parameter/state names for
+  Mech mode; see [ultimate].
+- Enemy models share the checksum-confirmed palette but bind separate traceable
+  materials. Enemy controllers are generated by `EnemySceneSetup`; see [enemies].
+  Item health/bullets/thunder models import without animation/mesh colliders,
+  use `M_PlanetItem`, and receive runtime trigger spheres; see [items].
+  `Mech_FinnTheFrog.fbx` is first copied by `BuildUltimate` with `File.Copy`
+  because `AssetDatabase.CopyAsset` cannot source outside `Assets/`.
+- `S_EnemyDissolve.shader` is a low-risk hand-written URP unlit `Custom/
+  EnemyDissolve`: per-instance runtime material clones noise-clip against
+  `_DissolveAmount` with a glowing edge; never assign it to `M_Enemy*.mat`.
 
 ## Invariants
 
-- Keep vendor originals and license files under `asset packs/`; never edit them
-  in place.
-- Commit every Unity `.meta` file with its asset and preserve stable GUIDs.
-- Organize runtime imports by asset type and gameplay role, not by vendor. Keep
-  source attribution traceable through the preserved vendor library and clear
-  runtime filenames.
-- Use FBX as the default runtime model format and keep alternate source formats
-  out of the Unity project unless a concrete requirement justifies them.
-- Prefer one shared palette import over duplicating the same texture per model
-  category.
-- Keep the planet prefab root named `Planet Ground`; the radial player
-  controller resolves that exact active scene name when no center is assigned.
-- Planet vegetation is authored as FBX prefab instances beneath the scene-level
-  `Generated Planet Vegetation` root. The root stays at world scale 1 so each
-  grass uses 60x-70x scale, bushes 40x-50x, and plants 50x-60x relative to
-  their source FBXs. A fixed -90-degree local-X correction is applied before
-  surface fitting, followed by
-  a slight `0.075`-unit terrain embed. Instances use shared material assets
-  rather than per-renderer material clones, and the active palette stays limited
-  to dark orange and orange.
-- Generated wall meshes are project-owned runtime art. Keep their `.asset` and
-  `.meta` files while referenced by a scene; remove confirmed orphaned versions
-  from the Project window when iterative authoring leaves unused generations.
+- Preserve vendor originals/licenses under `asset packs/`; never edit them.
+  Commit every `.meta` with its asset and retain GUIDs. Organize runtime imports
+  semantically, default to FBX, retain source attribution, and use shared
+  palettes rather than duplicated model textures.
+- Keep planet root exactly `Planet Ground`, which radial locomotion resolves when
+  no center is assigned. Vegetation lives beneath scene `Generated Planet
+  Vegetation` at world scale 1 (grass 60x-70x, bushes 40x-50x, plants 50x-60x),
+  with -90-degree local-X correction and `0.075` terrain embed. Share material
+  assets, never per-renderer clones; active colors stay dark orange/orange.
+- Generated walls are project-owned runtime art. Retain referenced `.asset`/`.meta`
+  pairs; remove only confirmed orphaned generations.
 
 ## Gotchas
 
-The Ultimate Space Kit atlas is a palette for the pack's authored mesh UVs, not
-a seamless surface texture. Do not apply the whole atlas to generic planes or
-the planet; interpolated atlas regions introduced unwanted purple color
-variation. The planet's procedural shader intentionally derives its pattern
-from local 3D position instead of those UVs, keeping the color variation
-seam-free and attached to the object.
-
-The MegaKit ORM textures are preserved and imported as linear data, but the
-current standard URP Lit landing-base materials use only their base-color and
-normal maps. Using the packed occlusion/roughness/metallic channels requires a
-deliberate repack or a compatible custom shader; do not bind the ORM texture to
-an incompatible single-channel slot.
-
-The procedural sky material stores the visible sun direction. If the scene's
-directional `Sun Light` is rotated later, update `_SunDirection` to the opposite
-of the light's forward direction so the disc and illumination remain aligned.
-
-Ultimate Space Kit environment models use a -90-degree local-X placement
-correction and small source-unit scale. Keep importer scale defaults consistent;
-correct orientation and size on instances. Rock mesh colliders stay static.
+- Ultimate Space Kit atlas is authored-UV palette, not a seamless surface map:
+  do not put it on generic planes or the planet. The planet shader instead uses
+  local 3D position for seam-free, object-attached variation.
+- MegaKit ORM is linear but current base materials only use base-color/normal;
+  its packed channels need repacking or a custom shader. Keep Ultimate Space Kit
+  environment -90-degree local-X correction and source-unit scale consistent;
+  rock colliders remain static.
+- If `Sun Light` rotates, set sky material `_SunDirection` opposite its forward.
 
 ## How to extend
-Copy the selected FBX into the appropriate semantic model folder. Create shared
-project materials and textures in their type folders, use descriptive names,
-and record non-default import settings or UV assumptions when they affect multiple
-assets. Use the verified planet-design commands in
-`Context/operations.md` for landing-base, vegetation, and rock regeneration.
+
+Copy selected FBX into the semantic model folder, create descriptive shared
+materials/textures, and document non-default importer or UV assumptions that
+affect multiple assets. Use the verified `Context/operations.md` commands for
+landing-base, vegetation, and rock regeneration.

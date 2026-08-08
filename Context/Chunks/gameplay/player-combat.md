@@ -1,13 +1,13 @@
 ---
 chunk: player-combat
-title: Player melee/hitscan combat, health, and death
+title: Player melee and projectile combat, health, and death
 owns:
   - "Assets/Scripts/Player/PlayerCombat.cs*"
   - "Assets/Scripts/Player/PlayerDeathHandler.cs*"
   - "Assets/Scripts/Player/Projectile.cs*"
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
-related: [player-controller, enemies, runtime-art, state, boss-fight]
+related: [player-controller, enemies, runtime-art, state, boss-fight, items, ultimate]
 verifiedAtCommit: 10712abb643f2ed039720b40bf9ba14a72b8b4dd
 lastVerified: 2026-08-08
 ---
@@ -20,18 +20,24 @@ The player's side of the combat/health system shared with
 [player-controller](player-controller.md) to keep both chunks under the
 150-line limit.
 
-Ranged combat still resolves as hitscan, not a traveling projectile
-(`Projectile.cs` and its prefab/material were removed as "finicky"), but now
-spawns a purely cosmetic `FlyProjectileVisual` coroutine after the hit is
-already resolved — an imported-VFX or procedural bolt that flies from the
-muzzle to the already-known hit point. When no visual prefab is assigned, a
-short-lived `LineRenderer` remains as the fallback tracer. Muzzle flash
-similarly prefers `muzzleFlashEffectPrefab` (an imported
-VFX asset) over the procedural flash `Light`. Shooting arm poses live on their
+Ranged combat resolves as a real travelling, damage-dealing projectile -
+`FireProjectile` (formerly `FireHitscan`) raycasts from the crosshair only
+to pick an aim **direction**, then spawns an `Enemies.BossProjectile` (the
+same generic component the bosses/flying enemy use) carrying the imported
+dark-magic bolt visual (Lana Studio's `Projectiles_dark_magic`/
+`Hit_dark_magic`, wired via `projectileVisualPrefab`/`impactEffectPrefab` in
+`PlayerSceneSetup.BuildCombatAndEmotes`); damage applies in
+`BossProjectile.OnTriggerEnter`, not at fire time. The historical
+`Projectile.cs`/prefab (removed earlier as "finicky") stay unused/removed;
+this reuses `BossProjectile` instead of a player-specific component. When no
+`projectileVisualPrefab` is assigned, `FireProjectile` falls back to the old
+instant-hitscan-plus-tracer behavior. Muzzle flash similarly prefers
+`muzzleFlashEffectPrefab` over the procedural flash `Light`. Landed melee
+hits spawn an imported `meleeHitEffectPrefab` (Lana Studio's `Hit_stone`) at
+the actual `OverlapSphere` contact point. Shooting arm poses live on their
 own upper-body-masked `Arms` Animator layer (`BuildArmsLayer`, see
 [player-controller](player-controller.md)) so firing never touches leg/base
-locomotion — `PlayerCombat` toggles that layer's weight and drives its
-`FireStart`/`Firing` parameters; it doesn't touch the base layer at all.
+locomotion.
 
 ## Key files
 
@@ -49,7 +55,8 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
   - **Melee**: `MeleeDamageWindow` coroutine waits `meleeHitDelay` after the
     trigger, then `Physics.OverlapSphere` in front of the player using its
     radial `transform.up`, and damages whatever `IDamageable` it finds
-    (skipping the player's own root).
+    (skipping the player's own root), then calls `SpawnMeleeHitEffect` at the
+    same `hit.ClosestPoint` used for damage.
   - **Fire is held, not click-per-shot**: `Attack.started` fires `FireStart`
     (a one-shot trigger, once per firing *bout*, not once per shot) and sets
     `Firing` true; `Attack.canceled` schedules `Firing` false after
@@ -65,44 +72,50 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
   - **`CheckShootBeat` (Update, while firing)** fires the hitscan/muzzle
     flash once per loop by watching `Animator.GetCurrentAnimatorStateInfo`
     for the `Arms` layer cross `shootBeatFraction` (0.5, or
-    `shootBeatFractionWalk` — 0.2 — specifically for `Arms_Shoot_Walk`, which
-    plays the same clip as `Arms_Shoot_Run` but slowed, compressing its
-    recoil arc earlier into the loop). This is driven off the Animator's own
-    `normalizedTime`, not a wall-clock timer, because a timer re-armed every
-    shot as `now + cooldown` drifts over a sustained hold — each frame's
-    unavoidable rounding between "cooldown elapsed" and `Update()` noticing
-    compounds shot over shot, since the next target rebases off the already-
-    late "now" instead of a fixed schedule. Reading the Animator's playback
-    position has no such drift. Baseline resets on any Arms-layer state
-    change (not just from `Arms_Idle`), since each state's timeline restarts
-    fresh on entry and comparing against the *previous* state's leftover
-    phase misreads as a spurious crossing. `FireHitscan` raycasts from the
-    camera through the screen-center crosshair; `FlyProjectileVisual` then
-    animates the cosmetic bolt to the resolved point, with `SpawnTracer` as
-    the no-prefab fallback.
+    `shootBeatFractionWalk` 0.2 for `Arms_Shoot_Walk`, which plays the same
+    clip as `Arms_Shoot_Run` but slowed). Driven off the Animator's own
+    `normalizedTime`, not a wall-clock timer - a timer re-armed every shot as
+    `now + cooldown` drifts over a sustained hold, since each frame's
+    rounding compounds shot over shot; reading Animator playback position has
+    no such drift. Baseline resets on any Arms-layer state change (not just
+    from `Arms_Idle`), since each state's timeline restarts fresh on entry.
+    `FireProjectile` raycasts from the camera through the screen-center
+    crosshair for an aim direction only, then spawns the real
+    `BossProjectile`; `SpawnTracer` remains the no-imported-prefab fallback.
   - Walking fires slower than running purely because `Arms_Shoot_Walk` plays
     at `WalkShootAnimSpeed` (0.6, see [player-controller](player-controller.md))
-    — not a separately tuned rate; the loop period (and so the fire rate)
-    follows directly from clip length/playback speed.
+    - not a separately tuned rate, just clip length/playback speed.
   - Muzzle transform is built in `PlayerSceneSetup.BuildCombatAndEmotes`,
-    positioned forward of the body so the flash doesn't render inside the
-    character mesh.
-  Exposes `IsAttacking` (now `_isFiring || Time.time < _attackingUntil`,
-  covering the whole held-fire duration) for the emote-interrupt check.
-- `Assets/Scripts/Player/PlayerDeathHandler.cs` - on the player's
-  `Health.Died`, disables `PlayerController` and `PlayerCombat` (freezes
-  movement/input; does not touch the camera). `PlayerCombat.OnDisable` also
-  zeroes the `Arms` layer weight and `Firing`, otherwise a frozen shoot pose
-  would keep overriding `Death`'s full-body base-layer pose.
+    positioned forward of the body so the flash doesn't render inside the mesh.
+  Exposes `IsAttacking` (`_isFiring || Time.time < _attackingUntil`, covering
+  the whole held-fire duration) for the emote-interrupt check.
+- `Assets/Scripts/Player/PlayerDeathHandler.cs` - on `Health.Died`, disables
+  `PlayerController` and `PlayerCombat` (freezes movement/input, not the
+  camera). `PlayerCombat.OnDisable` zeroes the `Arms` layer weight/`Firing`,
+  otherwise a frozen shoot pose would override `Death`'s base-layer pose.
 - `Assets/Scripts/UI/HealthHudUI.cs` - minimal top-right health readout: one
-  fixed-red sliced Space Expansion bar with rounded current HP centered inside.
-  It has no surrounding panel, labels, percent sign, or damage trail. `Bind()`
-  only stores `Health`; the
-  `HealthChanged` subscription itself happens in `OnEnable` — see
-  [enemies](enemies.md) Gotchas for why (edit-time delegate subscriptions
-  don't survive the Play-mode domain reload). If a prefab cannot serialize a
-  direct reference across the nested player boundary, `OnEnable` discovers
-  the active `PlayerController` and binds its colocated `Health`.
+  fixed-red sliced Space Expansion bar with rounded current HP centered
+  inside. It has no panel, labels, percent sign, or damage trail. `Bind()`
+  stores `Health`; `OnEnable` subscribes after domain reload and falls back
+  to the active `PlayerController`'s colocated `Health` when needed.
+
+`CheckShootBeat` now gates each shot behind `Player.PlayerAmmo.
+TryConsumeRound()` before calling `FireProjectile`/`SpawnMuzzleFlash` -
+running dry (with storage left) auto-starts a reload, and a reload in
+progress silently withholds the shot without touching the Shoot animation
+loop. A `Reload` action (keyboard `R`, gamepad West) calls
+`PlayerAmmo.StartReload()` directly - see [items](items.md) for
+`PlayerAmmo`/`AmmoHudUI` and the `AmmoPickup` that refills them.
+
+`PlayerCombat.SetUltimateActive(bool)` (called by `Player.PlayerUltimate`)
+switches `FireProjectile`'s primary-fire path from the single dark-magic
+bolt to `FireElectricBolts()` (both mech muzzles fire every beat, each with
+a per-hit `EnemyBase.ApplySlow` callback), and a new `Attack2` action
+(right-click) adds a cooldown-gated secondary in both modes (nearest-enemy
+beam normally, N-nearest lightning circles with falloff damage in Ultimate)
+via `Vfx.TopDownGroundEffect.Play`. `Combat.Health` also gained
+`IncomingDamageMultiplier` (used by `PlayerShield` to fully mitigate damage
+while held). Full detail in [ultimate](ultimate.md).
 
 ## Invariants
 
@@ -128,5 +141,4 @@ locomotion — `PlayerCombat` toggles that layer's weight and drives its
 `PlayerCombat.IsAttacking` and `Combat.IDamageable` are the hook points for
 further combat work rather than rebuilding the trigger plumbing. Any new
 sustained/looping Animator action should sync off `AnimatorStateInfo.
-normalizedTime` (see `CheckShootBeat`) rather than a wall-clock timer, for
-the same drift reason.
+normalizedTime` (see `CheckShootBeat`), not a wall-clock timer.

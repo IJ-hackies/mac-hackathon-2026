@@ -658,6 +658,10 @@ MonoBehaviour:
   deathAnimationHold: 1.2
   dissolveDuration: 1
   deathFallGravity: 20
+  meleeHitVfxPrefab: {fileID: 3894563636541966133, guid: c27fac790990ed84f8ffc7736dd4b189, type: 3}
+  meleeHitVfxScale: 1
+  slowVfxPrefab: {fileID: 7042460137364555477, guid: ecabc7a4007a8ad43be3e17217dd9057, type: 3}
+  slowVfxScale: 1
   walkSpeed: 1.6
   runSpeed: 3.6
   runDistanceThreshold: 6

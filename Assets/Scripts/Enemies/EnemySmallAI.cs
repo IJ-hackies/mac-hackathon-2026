@@ -35,7 +35,7 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead) return;
+            if (isDead || isFrozen) return;
 
             FacePlayer();
 
@@ -62,13 +62,19 @@ namespace Enemies
             }
         }
 
+        // See EnemyBase.SetFrozen's comment on why this reset is needed.
+        protected override void OnFrozen()
+        {
+            _isAttacking = false;
+        }
+
         private void MoveTowardPlayer()
         {
             Vector3 flat = player.position - transform.position;
             flat.y = 0f;
             Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.zero;
 
-            Vector3 nextPosition = transform.position + direction * approachSpeed * Time.deltaTime;
+            Vector3 nextPosition = transform.position + direction * approachSpeed * SpeedMultiplier * Time.deltaTime;
             nextPosition.y = hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude;
             transform.position = nextPosition;
         }
@@ -83,6 +89,7 @@ namespace Enemies
             if (DistanceToPlayer() <= attackRange && playerHealth != null)
             {
                 playerHealth.ApplyDamage(punchDamage, player.position, gameObject);
+                SpawnMeleeHitVfx(player.position + Vector3.up);
             }
 
             yield return new WaitForSeconds(recoveryAfterHit);

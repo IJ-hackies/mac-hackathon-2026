@@ -27,6 +27,12 @@ namespace EnemiesEditor
         private const string ParentName = "Enemies";
         private const string EnemyLayerName = "Enemy";
 
+        private const string LanaVfxFolder = "Assets/Lana Studio/Casual RPG VFX/Prefabs/";
+        private const string ShurikenProjectilePath = LanaVfxFolder + "Range_attack/Projectiles_green_shuriken.prefab";
+        private const string ShurikenImpactPath = LanaVfxFolder + "Range_attack/Hit_wind.prefab";
+        private const string SlashStoneOncePath = LanaVfxFolder + "Slash/Slash_stone_once.prefab";
+        private const string FogElectricPath = LanaVfxFolder + "Fog/Fog_electric.prefab";
+
         // Added to each melee enemy's measured collider radius to get its attackRange, so
         // "right in front of me" (meshes touching/overlapping) reliably counts as in range
         // instead of a guessed flat distance that didn't account for how big the model actually
@@ -89,7 +95,28 @@ namespace EnemiesEditor
 
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
-            instance.AddComponent<EnemyFlyingAI>();
+            var flyingAi = instance.AddComponent<EnemyFlyingAI>();
+
+            // Explicit child transform (was defaulting to the enemy's own root, which meant the
+            // shuriken always launched from the model's pivot with no way to reposition it
+            // independently) - same "own adjustable Transform" convention as the player/mech/
+            // boss muzzles. Placeholder offset - nudge in the Inspector once visible.
+            var firePoint = new GameObject("FirePoint").transform;
+            firePoint.SetParent(instance.transform, false);
+            firePoint.localPosition = new Vector3(0f, 1.971f, 0.563f); // hand-tuned in Editor
+
+            var flyingSo = new SerializedObject(flyingAi);
+            flyingSo.FindProperty("firePoint").objectReferenceValue = firePoint;
+            flyingSo.FindProperty("shurikenVisualPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(ShurikenProjectilePath);
+            flyingSo.FindProperty("shurikenImpactEffectPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(ShurikenImpactPath);
+            flyingSo.FindProperty("slowVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(FogElectricPath);
+            // Lana Studio's Range_attack prefabs are authored travelling along local +Y, not +Z -
+            // see BossAstronautAI's rangedProjectileRotationOffset wiring for the full explanation.
+            flyingSo.FindProperty("shurikenRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
+            flyingSo.ApplyModifiedProperties();
             AddHealthBar(instance, bounds, health);
         }
 
@@ -116,6 +143,10 @@ namespace EnemiesEditor
             var ai = instance.AddComponent<EnemySmallAI>();
             var aiSo = new SerializedObject(ai);
             aiSo.FindProperty("attackRange").floatValue = radius + MeleeReachMargin;
+            aiSo.FindProperty("meleeHitVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(SlashStoneOncePath);
+            aiSo.FindProperty("slowVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(FogElectricPath);
             aiSo.ApplyModifiedProperties();
             AddHealthBar(instance, bounds, health);
         }
@@ -143,6 +174,10 @@ namespace EnemiesEditor
             var ai = instance.AddComponent<EnemyLargeAI>();
             var aiSo = new SerializedObject(ai);
             aiSo.FindProperty("attackRange").floatValue = radius + MeleeReachMargin;
+            aiSo.FindProperty("meleeHitVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(SlashStoneOncePath);
+            aiSo.FindProperty("slowVfxPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(FogElectricPath);
             aiSo.ApplyModifiedProperties();
             AddHealthBar(instance, bounds, health);
         }

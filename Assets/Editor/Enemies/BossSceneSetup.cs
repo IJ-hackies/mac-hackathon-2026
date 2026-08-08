@@ -19,28 +19,32 @@ namespace EnemiesEditor
         private const string MaterialFolder = "Assets/Art/Materials/";
 
         // Imported Asset Store packs (optional - BossMechAI/PlayerCombat fall back to their
-        // procedural look if any of these fail to load, e.g. the pack hasn't been imported).
+        // procedural look if any of these fail to load, e.g. the pack hasn't been imported). Only
+        // the transformation-cutscene burst still uses Free Quick Effects Vol.1 - the mech's
+        // machine guns and top-down attacks were reworked onto Lana Studio's Casual RPG VFX (see
+        // LanaVfxFolder below); its old bullet/big-projectile/impact/fireball-conjure prefab paths
+        // were removed rather than left dangling.
         private const string VfxPackFolder = "Assets/GabrielAguiarProductions/FreeQuickEffectsVol1/Prefabs/";
-        private const string BulletVisualPath = VfxPackFolder + "vfx_Projectile_01.prefab";
-        private const string BigProjectileVisualPath = VfxPackFolder + "vfx_Projectile_02.prefab";
-        private const string ImpactEffectPath = VfxPackFolder + "vfx_Explosion_01.prefab";
-        // A portal ring for the fireball's "conjuring" windup ("make it look like the fireballs
-        // are coming out of portals") - not vfx_Flames_01/vfx_Flamethrower_01, which are
-        // deliberately NOT used as the fireball's own flight visual: a directional flamethrower
-        // stream authored to sit at a stationary nozzle looked "wild"/wrong-direction once flown
-        // through space as a travelling projectile, so fireballLoopEffectPrefab is left null
-        // (falls back to the procedural glow+embers look) - only the conjure windup uses an
-        // imported asset.
-        private const string FireballConjureEffectPath = VfxPackFolder + "vfx_Portal_01.prefab";
         // The Creepy Cat pack (Effect_06/Effect_07) has been removed from the project - these now
         // point at the still-present Free Quick Effects Vol.1 pack instead.
         private const string TransformationBurstEffectPath = VfxPackFolder + "vfx_Explosion_02.prefab";
+
+        // Lana Studio "Casual RPG VFX" - imported for the projectile/hit-effect rework (dark magic
+        // player shot, light bolts for the astronaut/mech machine guns, magic bolts for the mech's
+        // heavy machine gun, top-down ground-target attacks replacing the mech's Dance fireballs).
+        private const string LanaVfxFolder = "Assets/Lana Studio/Casual RPG VFX/Prefabs/";
+        private const string LightProjectilePath = LanaVfxFolder + "Range_attack/Projectiles_light.prefab";
+        private const string LightImpactPath = LanaVfxFolder + "Range_attack/Hit_light.prefab";
+        private const string MagicProjectilePath = LanaVfxFolder + "Range_attack/Projectiles_magic.prefab";
+        private const string MagicImpactPath = LanaVfxFolder + "Range_attack/Hit_magic.prefab";
+        private const string TopDownBeamPath = LanaVfxFolder + "Top_down_attack/top_down_beam_line_blue.prefab";
+        private const string TopDownRocketPath = LanaVfxFolder + "Top_down_attack/top_down_rocket_circle_red.prefab";
 
         private static readonly Vector3 AstronautScale = new Vector3(2f, 2f, 2f);
         private static readonly Vector3 MechScale = new Vector3(4f, 4f, 4f);
 
         private static readonly string[] AstronautLoopClipNames = { "Idle_Gun", "Walk_Gun", "Run_Gun", "Run_Gun_Shoot" };
-        private static readonly string[] MechLoopClipNames = { "Idle", "Walk", "Dance" };
+        private static readonly string[] MechLoopClipNames = { "Idle", "Walk" };
 
         private static readonly string[] LowerBodyBoneNameFragments =
         {
@@ -82,16 +86,21 @@ namespace EnemiesEditor
 
             // BossAstronautAI is CharacterController-driven (like EnemyLargeAI/BossMechAI), not a
             // CapsuleCollider-only flyer. Astronaut_BarbaraTheBee shares its CharacterArmature rig
-            // with the player model, so this uses the same fixed local-space dimensions
-            // PlayerSceneSetup.BuildPlayer uses (center (0,1,0), height 2, radius 0.35) instead of
-            // measuring render bounds - GetLocalRenderBounds samples the SkinnedMeshRenderer's
-            // bind/T-pose bounds at edit time (arms spread far wider than the standing idle pose),
-            // which produced a radius wide enough to invalidate the capsule and made the boss
-            // hover instead of resting on the ground.
+            // with the player model, so this uses the same fixed local-space dimensions as the
+            // player's own capsule (PlayerSceneSetup.BuildPlayer: center (0, 1.275, 0), height
+            // 2.55, radius 0.55 - the comment here previously cited stale/incorrect values (0.35/2)
+            // that predated the player's own capsule being tuned up, leaving this collider visibly
+            // too small relative to the rendered (2x-scaled) model) instead of measuring render
+            // bounds - GetLocalRenderBounds samples the SkinnedMeshRenderer's bind/T-pose bounds at
+            // edit time (arms spread far wider than the standing idle pose), which produced a
+            // radius wide enough to invalidate the capsule and made the boss hover instead of
+            // resting on the ground. CharacterController dimensions scale with the transform's
+            // lossyScale automatically, so these local-space values become 2x in world space to
+            // match AstronautScale.
             var characterController = instance.AddComponent<CharacterController>();
-            characterController.center = new Vector3(0f, 1f, 0f);
-            characterController.height = 2f;
-            characterController.radius = 0.35f;
+            characterController.center = new Vector3(0f, 1.275f, 0f);
+            characterController.height = 2.55f;
+            characterController.radius = 0.55f;
 
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
@@ -103,9 +112,17 @@ namespace EnemiesEditor
             // the ground).
             var muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(instance.transform, false);
-            muzzle.localPosition = new Vector3(0.383f, 1.863f, 2.661f);
+            muzzle.localPosition = new Vector3(0.208f, 1.574f, 2.558f); // hand-tuned in Editor
             var astronautSo = new SerializedObject(astronautAi);
             astronautSo.FindProperty("muzzle").objectReferenceValue = muzzle;
+            astronautSo.FindProperty("rangedProjectileVisualPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(LightProjectilePath);
+            astronautSo.FindProperty("rangedImpactEffectPrefab").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<GameObject>(LightImpactPath);
+            // Lana Studio's Range_attack prefabs are authored travelling along local +Y, not the
+            // +Z BossProjectile's LookRotation aligns to the aim direction - without this the
+            // bolt rendered as a near-vertical column regardless of aim.
+            astronautSo.FindProperty("rangedProjectileRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
             astronautSo.ApplyModifiedProperties();
 
             AddHealthBar(instance, new Bounds(new Vector3(0f, 1f, 0f), new Vector3(0.7f, 2.2f, 0.7f)), health);
@@ -126,13 +143,44 @@ namespace EnemiesEditor
             // BuildBossAstronaut: measuring the SkinnedMeshRenderer at edit time samples whatever
             // bind/reference pose it's sitting in (not the actual standing Idle pose), which can
             // skew the center/height/radius enough to invalidate the capsule and leave the
-            // CharacterController's ground-contact point floating above the visible mesh. The mech
-            // is a bulkier biped than the astronaut, hence the wider radius/taller height.
-            var bounds = new Bounds(new Vector3(0f, 1.1f, 0f), new Vector3(1.1f, 2.2f, 1.1f));
+            // CharacterController's ground-contact point floating above the visible mesh.
+            //
+            // The original (0, 1.1, 0) / height 2.2 / radius 0.55 left the collider visibly far
+            // too small - only wrapping roughly the hip-to-knee area, well below the head/
+            // shoulders - the same class of stale-undersized-collider bug as BuildBossAstronaut's
+            // fix above. Re-derived from the vendor OBJ export's actual measured mesh bounds
+            // (asset packs/.../Characters/OBJ/Mech_BarbaraTheBee.obj - Y 2.882, X 2.912, Z 2.173)
+            // scaled proportionally against Astronaut_BarbaraTheBee.obj's own measured bounds
+            // (Y 3.025, Z 1.028) and the astronaut's now-correct Unity capsule (height 2.55,
+            // radius 0.55) as a calibration reference - the mech's raw mesh is ~0.95x the
+            // astronaut's height but ~2.1x its depth (a wide, low, 4-legged stance, not a taller
+            // biped), so the fix widens the radius more than it grows the height. Still an
+            // estimate, not an in-Editor measurement - if it's off, the CharacterController's
+            // Center/Height/Radius are plain Inspector fields; report back the values you find
+            // work (same workflow as the muzzle transforms) and they'll be baked in here.
+            var bounds = new Bounds(new Vector3(0f, 1.6f, 0f), new Vector3(1.5f, 2.9f, 1.5f));
             var characterController = instance.AddComponent<CharacterController>();
             characterController.center = bounds.center;
             characterController.height = bounds.size.y;
-            characterController.radius = 0.55f;
+            characterController.radius = 0.75f;
+
+            // Supplementary trigger hit collider for the legs - a single capsule fundamentally
+            // cannot wrap both the torso AND a 4-legged splayed stance without either missing the
+            // legs entirely (a torso-sized capsule, what CharacterController above is) or being
+            // absurdly oversized (a capsule wide enough to reach the full leg spread would engulf
+            // huge empty space between the legs too). This is a second, separate collider purely
+            // for hit registration - BossProjectile's OnTriggerEnter only needs the hit collider's
+            // GameObject to sit on the Enemy layer and resolve an IDamageable via
+            // GetComponentInParent, so this works automatically alongside the CharacterController
+            // without touching movement/grounding at all. Positioned low and wide to span the leg
+            // footprint; a rough estimate like the CharacterController above - report back exact
+            // Center/Radius/Height found in Play mode and they'll be baked in here.
+            var legHitCollider = instance.AddComponent<CapsuleCollider>();
+            legHitCollider.isTrigger = true;
+            legHitCollider.direction = 0; // capsule's long axis along local X - spans left/right leg spread
+            legHitCollider.center = new Vector3(0f, 0.7f, 0f);
+            legHitCollider.radius = 1.3f;
+            legHitCollider.height = 3.2f;
 
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
@@ -153,30 +201,39 @@ namespace EnemiesEditor
             // muzzleLeft/muzzleRight by hand in the Inspector if they don't line up with the guns.
             var muzzleLeft = new GameObject("MuzzleLeft").transform;
             muzzleLeft.SetParent(instance.transform, false);
-            muzzleLeft.localPosition = new Vector3(-0.65f, 1.6f, 0.4f);
+            muzzleLeft.localPosition = new Vector3(-1.001f, 1.943f, 0.677f); // hand-tuned in Editor
 
             var muzzleRight = new GameObject("MuzzleRight").transform;
             muzzleRight.SetParent(instance.transform, false);
-            muzzleRight.localPosition = new Vector3(0.65f, 1.6f, 0.4f);
+            muzzleRight.localPosition = new Vector3(1.01f, 2.0189f, 0.612f); // hand-tuned in Editor
 
-            var bulletVisual = AssetDatabase.LoadAssetAtPath<GameObject>(BulletVisualPath);
-            var bigProjectileVisual = AssetDatabase.LoadAssetAtPath<GameObject>(BigProjectileVisualPath);
-            var impactEffect = AssetDatabase.LoadAssetAtPath<GameObject>(ImpactEffectPath);
-            var fireballConjureEffect = AssetDatabase.LoadAssetAtPath<GameObject>(FireballConjureEffectPath);
-            if (bulletVisual == null) Debug.LogWarning($"BossSceneSetup: no bullet visual at {BulletVisualPath} - falling back to the procedural look. Import Free Quick Effects Vol.1 (URP) first.");
-            if (bigProjectileVisual == null) Debug.LogWarning($"BossSceneSetup: no big-projectile visual at {BigProjectileVisualPath} - falling back to the procedural look.");
-            if (impactEffect == null) Debug.LogWarning($"BossSceneSetup: no impact effect at {ImpactEffectPath} - impacts won't play a burst.");
-            if (fireballConjureEffect == null) Debug.LogWarning($"BossSceneSetup: no portal effect at {FireballConjureEffectPath} - fireballs won't get a conjure windup visual.");
+            // Shoot_Small -> Projectiles_light, Shoot_Big -> Projectiles_magic (reskin of the
+            // existing bullet/missile burst attacks - see BossMechAI's Shoot Small/Big headers).
+            var lightVisual = AssetDatabase.LoadAssetAtPath<GameObject>(LightProjectilePath);
+            var lightImpact = AssetDatabase.LoadAssetAtPath<GameObject>(LightImpactPath);
+            var magicVisual = AssetDatabase.LoadAssetAtPath<GameObject>(MagicProjectilePath);
+            var magicImpact = AssetDatabase.LoadAssetAtPath<GameObject>(MagicImpactPath);
+            var topDownBeam = AssetDatabase.LoadAssetAtPath<GameObject>(TopDownBeamPath);
+            var topDownRocket = AssetDatabase.LoadAssetAtPath<GameObject>(TopDownRocketPath);
+            if (lightVisual == null) Debug.LogWarning($"BossSceneSetup: no light-bolt visual at {LightProjectilePath} - falling back to the procedural look. Import Lana Studio's Casual RPG VFX first.");
+            if (magicVisual == null) Debug.LogWarning($"BossSceneSetup: no magic-bolt visual at {MagicProjectilePath} - falling back to the procedural look.");
+            if (topDownBeam == null) Debug.LogWarning($"BossSceneSetup: no top-down beam prefab at {TopDownBeamPath} - TopDownBeam attack will skip its VFX/damage.");
+            if (topDownRocket == null) Debug.LogWarning($"BossSceneSetup: no top-down rocket prefab at {TopDownRocketPath} - TopDownRocket attack will skip its VFX/damage.");
 
             var aiSo = new SerializedObject(ai);
             aiSo.FindProperty("firePointLeft").objectReferenceValue = muzzleLeft;
             aiSo.FindProperty("firePointRight").objectReferenceValue = muzzleRight;
-            aiSo.FindProperty("bulletVisualPrefab").objectReferenceValue = bulletVisual;
-            aiSo.FindProperty("bigProjectileVisualPrefab").objectReferenceValue = bigProjectileVisual;
-            aiSo.FindProperty("impactEffectPrefab").objectReferenceValue = impactEffect;
-            aiSo.FindProperty("fireballConjureEffectPrefab").objectReferenceValue = fireballConjureEffect;
-            // fireballLoopEffectPrefab intentionally left unset - see the comment on
-            // FireballConjureEffectPath above.
+            aiSo.FindProperty("bulletVisualPrefab").objectReferenceValue = lightVisual;
+            aiSo.FindProperty("impactEffectPrefab").objectReferenceValue = lightImpact;
+            aiSo.FindProperty("bigProjectileVisualPrefab").objectReferenceValue = magicVisual;
+            aiSo.FindProperty("bigProjectileImpactEffectPrefab").objectReferenceValue = magicImpact;
+            // Lana Studio's Range_attack prefabs are authored travelling along local +Y, not +Z -
+            // see BossAstronautAI's rangedProjectileRotationOffset wiring above for the full
+            // explanation.
+            aiSo.FindProperty("bulletVisualRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
+            aiSo.FindProperty("bigProjectileVisualRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
+            aiSo.FindProperty("topDownBeamPrefab").objectReferenceValue = topDownBeam;
+            aiSo.FindProperty("topDownRocketPrefab").objectReferenceValue = topDownRocket;
             aiSo.ApplyModifiedProperties();
 
             AddHealthBar(instance, bounds, health);
@@ -487,11 +544,14 @@ namespace EnemiesEditor
             return mask;
         }
 
-        /// Single layer: Idle/Walk blend tree, AnyState one-shots for Dance/Shoot_Small/Shoot_Big/
-        /// Jump (chained into Jump_Landing), HitRecieve_1/HitRecieve_2 (BossMechAI drives these
-        /// directly via Health.Hit rather than the generic HitReact path), Death. HitReact/Death
-        /// params are still declared (unused for HitReact) purely so Health's own SetTrigger calls
-        /// don't warn about a missing animator parameter.
+        /// Single layer: Idle/Walk blend tree, AnyState one-shots for TopDownBeam/TopDownRocket/
+        /// Shoot_Small/Shoot_Big/Jump (chained into Jump_Landing), HitRecieve_1/HitRecieve_2
+        /// (BossMechAI drives these directly via Health.Hit rather than the generic HitReact
+        /// path), Death. HitReact/Death params are still declared (unused for HitReact) purely so
+        /// Health's own SetTrigger calls don't warn about a missing animator parameter.
+        /// TopDownBeam/TopDownRocket reuse the old Dance clip (if present in the source FBX) as a
+        /// simple animated hold - the imported Lana Studio ground-target VFX carries the actual
+        /// read for these attacks, not character animation, so no dedicated clip was authored.
         private static AnimatorController BuildBossMechController(GameObject model, string controllerPath)
         {
             EnsureFolder("Assets/Art/Animations");
@@ -505,7 +565,7 @@ namespace EnemiesEditor
 
             AnimationClip idle = Get("Idle");
             AnimationClip walk = Get("Walk");
-            AnimationClip dance = Get("Dance");
+            AnimationClip topDownHold = Get("Dance"); // reused as a simple animated hold - see doc comment above
             AnimationClip shootSmall = Get("Shoot_Small");
             AnimationClip shootBig = Get("Shoot_Big");
             AnimationClip jump = Get("Jump");
@@ -516,7 +576,8 @@ namespace EnemiesEditor
 
             var controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
-            controller.AddParameter("Dance", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("TopDownBeam", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("TopDownRocket", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("ShootSmall", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("ShootBig", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
@@ -537,8 +598,11 @@ namespace EnemiesEditor
             var walkState = sm.AddState("Walk");
             walkState.motion = walk;
 
-            var danceState = sm.AddState("Dance");
-            danceState.motion = dance;
+            var topDownBeamState = sm.AddState("TopDown_Beam");
+            topDownBeamState.motion = topDownHold;
+
+            var topDownRocketState = sm.AddState("TopDown_Rocket");
+            topDownRocketState.motion = topDownHold;
 
             var shootSmallState = sm.AddState("Shoot_Small");
             shootSmallState.motion = shootSmall;
@@ -573,17 +637,8 @@ namespace EnemiesEditor
             walkToIdle.duration = 0.15f;
             walkToIdle.AddCondition(AnimatorConditionMode.Less, 0.05f, "Speed");
 
-            var anyToDance = sm.AddAnyStateTransition(danceState);
-            anyToDance.canTransitionToSelf = false;
-            anyToDance.hasExitTime = false;
-            anyToDance.duration = 0.1f;
-            anyToDance.AddCondition(AnimatorConditionMode.If, 0, "Dance");
-
-            var danceToIdle = danceState.AddTransition(idleState);
-            danceToIdle.hasExitTime = false;
-            danceToIdle.duration = 0.15f;
-            danceToIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Dance");
-
+            AddOneShot(sm, idleState, topDownBeamState, "TopDownBeam");
+            AddOneShot(sm, idleState, topDownRocketState, "TopDownRocket");
             AddOneShot(sm, idleState, shootSmallState, "ShootSmall");
             AddOneShot(sm, idleState, shootBigState, "ShootBig");
             AddOneShot(sm, idleState, hitRecieve1State, "HitRecieve1");

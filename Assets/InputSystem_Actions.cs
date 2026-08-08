@@ -165,9 +165,18 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""Sprint"",
+                    ""name"": ""Ability"",
                     ""type"": ""Button"",
                     ""id"": ""641cd816-40e6-41b4-8c3d-04687c349290"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Attack2"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1b2c3d4-5e6f-4789-9abc-def012345678"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
@@ -186,6 +195,15 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""name"": ""EmoteWheel"",
                     ""type"": ""Button"",
                     ""id"": ""2a8e6c4b-9d1f-4e7a-b3c5-6d8f9a0b1c2d"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Reload"",
+                    ""type"": ""Button"",
+                    ""id"": ""3b9f7d5c-1a2e-4f8b-9c6d-7e8f0a1b2c3d"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
@@ -437,6 +455,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
+                    ""id"": ""b2c3d4e5-6f78-4890-abcd-ef0123456789"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Attack2"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c3d4e5f6-7890-4abc-bdef-012345678901"",
+                    ""path"": ""<Gamepad>/rightTrigger"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Attack2"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
                     ""id"": ""e15ca19d-e649-4852-97d5-7fe8ccc44e94"",
                     ""path"": ""<Gamepad>/dpad/right"",
                     ""interactions"": """",
@@ -453,7 +493,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Sprint"",
+                    ""action"": ""Ability"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -464,7 +504,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""Sprint"",
+                    ""action"": ""Ability"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -475,7 +515,7 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""XR"",
-                    ""action"": ""Sprint"",
+                    ""action"": ""Ability"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -586,6 +626,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Melee"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""4c0f8e6d-2b3f-5e7a-1b0c-2d3e4f506173"",
+                    ""path"": ""<Keyboard>/r"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Reload"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""5d1a9f7e-3c4a-6f8b-2c1d-3e4f50617284"",
+                    ""path"": ""<Gamepad>/buttonWest"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""Reload"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1214,9 +1276,11 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Player_Jump = m_Player.FindAction("Jump", throwIfNotFound: true);
         m_Player_Previous = m_Player.FindAction("Previous", throwIfNotFound: true);
         m_Player_Next = m_Player.FindAction("Next", throwIfNotFound: true);
-        m_Player_Sprint = m_Player.FindAction("Sprint", throwIfNotFound: true);
+        m_Player_Ability = m_Player.FindAction("Ability", throwIfNotFound: true);
+        m_Player_Attack2 = m_Player.FindAction("Attack2", throwIfNotFound: true);
         m_Player_Melee = m_Player.FindAction("Melee", throwIfNotFound: true);
         m_Player_EmoteWheel = m_Player.FindAction("EmoteWheel", throwIfNotFound: true);
+        m_Player_Reload = m_Player.FindAction("Reload", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1318,9 +1382,11 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Jump;
     private readonly InputAction m_Player_Previous;
     private readonly InputAction m_Player_Next;
-    private readonly InputAction m_Player_Sprint;
+    private readonly InputAction m_Player_Ability;
+    private readonly InputAction m_Player_Attack2;
     private readonly InputAction m_Player_Melee;
     private readonly InputAction m_Player_EmoteWheel;
+    private readonly InputAction m_Player_Reload;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1365,9 +1431,13 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Next => m_Wrapper.m_Player_Next;
         /// <summary>
-        /// Provides access to the underlying input action "Player/Sprint".
+        /// Provides access to the underlying input action "Player/Ability".
         /// </summary>
-        public InputAction @Sprint => m_Wrapper.m_Player_Sprint;
+        public InputAction @Ability => m_Wrapper.m_Player_Ability;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Attack2".
+        /// </summary>
+        public InputAction @Attack2 => m_Wrapper.m_Player_Attack2;
         /// <summary>
         /// Provides access to the underlying input action "Player/Melee".
         /// </summary>
@@ -1376,6 +1446,10 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/EmoteWheel".
         /// </summary>
         public InputAction @EmoteWheel => m_Wrapper.m_Player_EmoteWheel;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Reload".
+        /// </summary>
+        public InputAction @Reload => m_Wrapper.m_Player_Reload;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1426,15 +1500,21 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Next.started += instance.OnNext;
             @Next.performed += instance.OnNext;
             @Next.canceled += instance.OnNext;
-            @Sprint.started += instance.OnSprint;
-            @Sprint.performed += instance.OnSprint;
-            @Sprint.canceled += instance.OnSprint;
+            @Ability.started += instance.OnAbility;
+            @Ability.performed += instance.OnAbility;
+            @Ability.canceled += instance.OnAbility;
+            @Attack2.started += instance.OnAttack2;
+            @Attack2.performed += instance.OnAttack2;
+            @Attack2.canceled += instance.OnAttack2;
             @Melee.started += instance.OnMelee;
             @Melee.performed += instance.OnMelee;
             @Melee.canceled += instance.OnMelee;
             @EmoteWheel.started += instance.OnEmoteWheel;
             @EmoteWheel.performed += instance.OnEmoteWheel;
             @EmoteWheel.canceled += instance.OnEmoteWheel;
+            @Reload.started += instance.OnReload;
+            @Reload.performed += instance.OnReload;
+            @Reload.canceled += instance.OnReload;
         }
 
         /// <summary>
@@ -1470,15 +1550,21 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @Next.started -= instance.OnNext;
             @Next.performed -= instance.OnNext;
             @Next.canceled -= instance.OnNext;
-            @Sprint.started -= instance.OnSprint;
-            @Sprint.performed -= instance.OnSprint;
-            @Sprint.canceled -= instance.OnSprint;
+            @Ability.started -= instance.OnAbility;
+            @Ability.performed -= instance.OnAbility;
+            @Ability.canceled -= instance.OnAbility;
+            @Attack2.started -= instance.OnAttack2;
+            @Attack2.performed -= instance.OnAttack2;
+            @Attack2.canceled -= instance.OnAttack2;
             @Melee.started -= instance.OnMelee;
             @Melee.performed -= instance.OnMelee;
             @Melee.canceled -= instance.OnMelee;
             @EmoteWheel.started -= instance.OnEmoteWheel;
             @EmoteWheel.performed -= instance.OnEmoteWheel;
             @EmoteWheel.canceled -= instance.OnEmoteWheel;
+            @Reload.started -= instance.OnReload;
+            @Reload.performed -= instance.OnReload;
+            @Reload.canceled -= instance.OnReload;
         }
 
         /// <summary>
@@ -1836,12 +1922,19 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnNext(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Sprint" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "Ability" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnSprint(InputAction.CallbackContext context);
+        void OnAbility(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Attack2" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnAttack2(InputAction.CallbackContext context);
         /// <summary>
         /// Method invoked when associated input action "Melee" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
@@ -1856,6 +1949,13 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnEmoteWheel(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Reload" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnReload(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

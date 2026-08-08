@@ -23,6 +23,14 @@ namespace Player
             }
         }
 
+        // Called by PlayerUltimate when swapping the active visual (astronaut <-> mech) - both
+        // models' AnimatorControllers share the same Speed/Grounded/Jump parameter names, so
+        // driving whichever is currently active needs nothing else changed here.
+        public void SetAnimator(Animator target)
+        {
+            animator = target;
+        }
+
         private void Update()
         {
             if (animator == null) return;

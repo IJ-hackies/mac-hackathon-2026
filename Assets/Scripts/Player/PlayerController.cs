@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
+using Vfx;
 
 namespace Player
 {
@@ -10,10 +11,22 @@ namespace Player
     public class PlayerController : MonoBehaviour
     {
         [Header("Movement")]
-        [SerializeField] private float walkSpeed = 3.5f;
-        [SerializeField] private float sprintSpeed = 6.5f;
+        [Tooltip("Single ground speed - the walk/sprint split was removed (\"the character " +
+                 "doesn't even walk\"), so this is the old sprint speed and Shift no longer " +
+                 "does anything for locomotion itself; it's now the Dash/Shield ability button.")]
+        [FormerlySerializedAs("sprintSpeed")]
+        [SerializeField] private float moveSpeed = 6.5f;
         [SerializeField] private float acceleration = 18f;
         [SerializeField] private float rotationDegreesPerSecond = 540f;
+
+        [Header("Dash")]
+        [Tooltip("Set by PlayerDash.Dash(); FixedUpdate blends this in as a straight velocity " +
+                 "override for dashDuration, independent of facing/camera and bypassing the " +
+                 "normal acceleration ramp.")]
+        private Vector3 _dashDirection;
+        private float _dashSpeed;
+        private float _dashUntil = -1f;
+        public bool IsDashing => Time.time < _dashUntil;
 
         [Header("Planet")]
         [Tooltip("Center used for radial gravity and orientation. Falls back to a scene object named " +
@@ -28,7 +41,10 @@ namespace Player
         [SerializeField, Min(0f)] private float radialAlignmentDegreesPerSecond = 360f;
 
         [Header("Jump / Gravity")]
-        [SerializeField] private float jumpHeight = 1.4f;
+        // 3x the original 1.4 - PlayerController's physics are shared between the astronaut and
+        // the Mech (see Player.PlayerUltimate - only the visual model/animator swap), so this
+        // single field covers both forms.
+        [SerializeField] private float jumpHeight = 4.2f;
         [Tooltip("Positive acceleration toward the authored planet surface.")]
         [FormerlySerializedAs("gravity")]
         [SerializeField, Min(0.01f)] private float gravityAcceleration = 6.5f;
@@ -60,6 +76,18 @@ namespace Player
 
         [Header("Stagger")]
         [SerializeField] private Animator animator;
+        [Tooltip("Anchor above the head used to place the imported Stun VFX (e.g. Lana Studio's " +
+                 "States/Stun) for the duration of a stagger's Duck animation. Not a humanoid " +
+                 "bone lookup - the rig is Generic - see PlayerSceneSetup's hand-authored offset.")]
+        [SerializeField] private Transform headAnchor;
+        [SerializeField] private GameObject stunVfxPrefab;
+        [Tooltip("Local scale applied to the Stun VFX under headAnchor - when headAnchor is the " +
+                 "Mech's own (a child of the already-scaled MechVisual hierarchy), the VFX " +
+                 "inherits that scale automatically through the transform hierarchy on top of " +
+                 "this, so this value doesn't need to change between forms.")]
+        [SerializeField] private float stunVfxScale = 0.6f;
+
+        private Transform _defaultHeadAnchor;
 
         private static readonly int StaggerParam = Animator.StringToHash("Stagger");
         private const float DirectionEpsilon = 0.0001f;
@@ -87,10 +115,12 @@ namespace Player
         public Vector3 GroundNormal { get; private set; } = Vector3.up;
         public float GroundClearance { get; private set; }
         public bool IsStaggered => Time.time < _staggerLockedUntil;
+        // Exposed so callers (e.g. BossMechAI's landing stagger) can match a one-off VFX's
+        // lifetime to the guaranteed-to-play-out Duck clip length instead of guessing a duration.
+        public float DuckClipLength => _duckClipLength;
         public float CurrentHorizontalSpeed => _currentSpeed;
         public float MovementSpeedMultiplier { get; private set; } = 1f;
-        public float EffectiveWalkSpeed => Mathf.Max(0f, walkSpeed) * MovementSpeedMultiplier;
-        public float EffectiveSprintSpeed => Mathf.Max(0f, sprintSpeed) * MovementSpeedMultiplier;
+        public float EffectiveMoveSpeed => Mathf.Max(0f, moveSpeed) * MovementSpeedMultiplier;
 
         private void Awake()
         {
@@ -99,19 +129,45 @@ namespace Player
             _motor = GetComponent<RadialCapsuleMotor>();
             _actions = new InputSystem_Actions();
             if (animator == null) animator = GetComponentInChildren<Animator>();
+            _defaultHeadAnchor = headAnchor;
+            RecomputeDuckClipLength();
+        }
 
-            // Looked up once so Stagger() can guarantee the lock covers the whole clip
-            // ("the entire duck animation must play") regardless of whatever duration a caller
-            // (e.g. BossMechAI's ground-slam) happens to pass in.
-            if (animator != null && animator.runtimeAnimatorController != null)
+        // Called by PlayerUltimate on activate/end - the astronaut's headAnchor is authored for
+        // its own height/scale, so the Mech gets its own (a child of MechVisual, scaling with it).
+        public void SetHeadAnchor(Transform target)
+        {
+            headAnchor = target;
+        }
+
+        public void RestoreDefaultHeadAnchor()
+        {
+            headAnchor = _defaultHeadAnchor;
+        }
+
+        // Called by Player.PlayerUltimate on activate/end - the mech doesn't have its own "Duck"
+        // clip, so DuckClipLength falls back to -1 (Stagger() already handles that: it just uses
+        // the caller's raw duration instead of extending to match a clip that doesn't exist).
+        public void SetAnimator(Animator target)
+        {
+            animator = target;
+            RecomputeDuckClipLength();
+        }
+
+        // Looked up once (per active animator) so Stagger() can guarantee the lock covers the
+        // whole clip ("the entire duck animation must play") regardless of whatever duration a
+        // caller (e.g. BossMechAI's ground-slam) happens to pass in.
+        private void RecomputeDuckClipLength()
+        {
+            _duckClipLength = -1f;
+            if (animator == null || animator.runtimeAnimatorController == null) return;
+
+            foreach (var clip in animator.runtimeAnimatorController.animationClips)
             {
-                foreach (var clip in animator.runtimeAnimatorController.animationClips)
+                if (clip != null && clip.name.IndexOf("Duck", System.StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    if (clip != null && clip.name.IndexOf("Duck", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        _duckClipLength = clip.length;
-                        break;
-                    }
+                    _duckClipLength = clip.length;
+                    break;
                 }
             }
         }
@@ -226,6 +282,42 @@ namespace Player
             _staggerLockedUntil = Time.time + lockedDuration;
             _jumpQueued = false;
             if (animator != null) animator.SetTrigger(StaggerParam);
+            SpawnStunVfx(lockedDuration);
+        }
+
+        // Called by PlayerDash.TryDash(). direction is a world-space tangent direction (already
+        // projected/normalized by the caller); does not touch bodyRotation, so the character's
+        // facing (camera-locked, see GetCameraFacingRotation) is completely unaffected by dash
+        // direction, per spec ("the character does not need to face towards that direction").
+        // Exposes the same camera-relative/tangent-projected direction math FixedUpdate uses for
+        // moveDirection, so PlayerDash can turn held Move input into a world dash direction
+        // without duplicating the projection logic. Falls back to current facing when input is
+        // zero (idle dash), same as the caller is expected to handle.
+        public Vector3 GetCameraRelativeTangentDirection(Vector2 input)
+        {
+            Vector3 localUp = transform.up;
+            Vector3 direction = Vector3.ProjectOnPlane(CameraRelativeDirection(input, localUp), _surfaceUp);
+            return direction.sqrMagnitude >= DirectionEpsilon ? direction.normalized : Vector3.zero;
+        }
+
+        public void Dash(Vector3 direction, float speed, float duration)
+        {
+            _dashDirection = direction;
+            _dashSpeed = speed;
+            _dashUntil = Time.time + Mathf.Max(0f, duration);
+        }
+
+        private void SpawnStunVfx(float duration)
+        {
+            if (stunVfxPrefab == null || headAnchor == null) return;
+
+            var vfx = Instantiate(stunVfxPrefab, headAnchor);
+            vfx.transform.localPosition = Vector3.zero;
+            vfx.transform.localRotation = Quaternion.identity;
+            vfx.transform.localScale = Vector3.one * stunVfxScale;
+            ImportedVfxUtility.FixUrpMaterials(vfx);
+            ImportedVfxUtility.ForceHierarchyParticleScaling(vfx);
+            Destroy(vfx, duration);
         }
 
         private void FixedUpdate()
@@ -269,7 +361,6 @@ namespace Player
 
             bool staggered = IsStaggered;
             Vector2 moveInput = staggered ? Vector2.zero : _actions.Player.Move.ReadValue<Vector2>();
-            bool sprinting = !staggered && _actions.Player.Sprint.IsPressed();
             if (staggered) _jumpQueued = false;
 
             if (cameraReference == null && Camera.main != null)
@@ -289,16 +380,24 @@ namespace Player
                 moveDirection.Normalize();
             }
 
-            float maxSpeed = sprinting ? EffectiveSprintSpeed : EffectiveWalkSpeed;
-            float targetHorizontalSpeed = maxSpeed * Mathf.Clamp01(moveInput.magnitude);
+            float targetHorizontalSpeed = EffectiveMoveSpeed * Mathf.Clamp01(moveInput.magnitude);
             _currentSpeed = Mathf.MoveTowards(
                 _currentSpeed,
                 targetHorizontalSpeed,
                 acceleration * Time.fixedDeltaTime);
 
             Vector3 tangentMotion = moveDirection * _currentSpeed;
+
+            // Dash overrides tangent motion with a straight burst along its own direction,
+            // independent of facing/camera - the character doesn't need to face the dash
+            // direction, it just gets propelled. Bypasses the acceleration ramp entirely.
+            if (IsDashing)
+            {
+                tangentMotion = _dashDirection * _dashSpeed;
+            }
+
             NormalizedSpeed = Mathf.Clamp01(
-                _currentSpeed / Mathf.Max(0.01f, EffectiveSprintSpeed));
+                (IsDashing ? _dashSpeed : _currentSpeed) / Mathf.Max(0.01f, EffectiveMoveSpeed));
 
             ApplyGravityAndJump();
             if (!IsGrounded && _radialSpeed <= 0f)

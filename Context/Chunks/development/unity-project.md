@@ -5,7 +5,7 @@ owns:
   - ".vsconfig"
   - "Packages/**"
   - "ProjectSettings/**"
-  - "Assets/InputSystem_Actions.inputactions*"
+  - "Assets/InputSystem_Actions.*"
   - "Assets/Readme.asset*"
   - "Assets/Scenes.meta"
   - "Assets/Scenes/*.unity*"
