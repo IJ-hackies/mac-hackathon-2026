@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Combat
@@ -41,10 +42,20 @@ namespace Combat
         // animation, reading as "the enemy can't attack at all." Hit still fires either way -
         // this only gates the automatic Animator trigger below.
         public bool SuppressHitReact { get; set; }
-        // Multiplies incoming damage before anything else runs - 0 means "fully mitigated" (e.g.
-        // PlayerShield holding Shift in ultimate mode). Simpler than every attacker needing to
-        // ask a target whether it's shielded; the target just controls its own multiplier.
-        public float IncomingDamageMultiplier { get; set; } = 1f;
+        // Incoming mitigation is composable. The Ultimate shield and purchased defense must not
+        // overwrite one another: a shield can still reduce the final result to zero while the
+        // defense upgrade remains in effect before/after it ends.
+        private static readonly object LegacyIncomingDamageSource = new object();
+        private readonly Dictionary<object, float> _incomingDamageModifiers =
+            new Dictionary<object, float>();
+
+        public float IncomingDamageMultiplier
+        {
+            get => EffectiveIncomingDamageMultiplier;
+            set => SetIncomingDamageModifier(LegacyIncomingDamageSource, value);
+        }
+
+        public float EffectiveIncomingDamageMultiplier { get; private set; } = 1f;
 
         public event Action<float, float> HealthChanged;
         public event Action Died;
@@ -74,7 +85,7 @@ namespace Combat
         {
             if (IsDead || amount <= 0f) return;
 
-            amount *= Mathf.Max(0f, IncomingDamageMultiplier);
+            amount *= EffectiveIncomingDamageMultiplier;
             if (amount <= 0f) return;
 
             if (_currentHealth < 0f) _currentHealth = maxHealth;
@@ -111,6 +122,61 @@ namespace Combat
         public void FullyHeal()
         {
             Heal(maxHealth);
+        }
+
+        /// <summary>
+        /// Updates the health ceiling. When <paramref name="addToCurrentHealth"/> is true the
+        /// exact increase is granted immediately, which makes a Max HP purchase useful at once.
+        /// </summary>
+        public void SetMaxHealth(float value, bool addToCurrentHealth = false)
+        {
+            value = Mathf.Max(0f, value);
+            if (_currentHealth < 0f) _currentHealth = maxHealth;
+
+            float previous = maxHealth;
+            maxHealth = value;
+            if (addToCurrentHealth && value > previous)
+            {
+                _currentHealth = Mathf.Min(maxHealth, _currentHealth + (value - previous));
+            }
+            else
+            {
+                _currentHealth = Mathf.Min(_currentHealth, maxHealth);
+            }
+
+            HealthChanged?.Invoke(_currentHealth, maxHealth);
+        }
+
+        public void SetIncomingDamageModifier(object source, float multiplier)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier < 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier,
+                    "Incoming damage multipliers must be finite and non-negative.");
+            }
+
+            _incomingDamageModifiers[source] = multiplier;
+            RecalculateIncomingDamageMultiplier();
+        }
+
+        public void RemoveIncomingDamageModifier(object source)
+        {
+            if (source != null && _incomingDamageModifiers.Remove(source))
+            {
+                RecalculateIncomingDamageMultiplier();
+            }
+        }
+
+        private void RecalculateIncomingDamageMultiplier()
+        {
+            float result = 1f;
+            foreach (float modifier in _incomingDamageModifiers.Values)
+            {
+                result *= modifier;
+            }
+
+            EffectiveIncomingDamageMultiplier = result;
         }
     }
 }

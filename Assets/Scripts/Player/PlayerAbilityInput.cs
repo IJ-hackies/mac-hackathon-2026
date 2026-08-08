@@ -18,7 +18,7 @@ namespace Player
 
         private void Awake()
         {
-            _actions = new InputSystem_Actions();
+            _actions = PlayerInputBindings.CreateActions();
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
             if (playerDash == null) playerDash = GetComponent<PlayerDash>();
             if (playerShield == null) playerShield = GetComponent<PlayerShield>();
@@ -37,6 +37,12 @@ namespace Player
             _actions.Player.Ability.canceled -= OnAbilityCanceled;
             _actions.Player.Disable();
             playerShield?.SetHeld(false);
+        }
+
+        private void OnDestroy()
+        {
+            PlayerInputBindings.ReleaseActions(_actions);
+            _actions = null;
         }
 
         private void OnAbilityStarted(InputAction.CallbackContext context)

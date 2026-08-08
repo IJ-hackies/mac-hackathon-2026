@@ -7,8 +7,8 @@ owns:
   - "Assets/Scripts/Player/Projectile.cs*"
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
-related: [player-controller, enemies, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -57,34 +57,16 @@ locomotion.
     radial `transform.up`, and damages whatever `IDamageable` it finds
     (skipping the player's own root), then calls `SpawnMeleeHitEffect` at the
     same `hit.ClosestPoint` used for damage.
-  - **Fire is held, not click-per-shot**: `Attack.started` fires `FireStart`
-    (a one-shot trigger, once per firing *bout*, not once per shot) and sets
-    `Firing` true; `Attack.canceled` schedules `Firing` false after
-    `armsStopGrace` (0.3s) rather than instantly — spam-clicking Fire would
-    otherwise re-trigger `FireStart` (restarting the loop from frame 0) on
-    every click, since each click is its own started/canceled pair;
-    `_armsActive` plus the grace window lets a click landing inside the
-    window keep the same loop running instead. The Arms-layer Shoot clips
-    themselves loop continuously for the whole hold (`Idle_Shoot`/
-    `Arms_Shoot_Walk`/`Arms_Shoot_Run`/`Arms_Jump_Shoot`, branched on
-    `Grounded`/`Speed` the same way `Jump` is) rather than retriggering per
-    shot, so sustained fire reads as one smooth cycle.
-  - **`CheckShootBeat` (Update, while firing)** fires the hitscan/muzzle
-    flash once per loop by watching `Animator.GetCurrentAnimatorStateInfo`
-    for the `Arms` layer cross `shootBeatFraction` (0.5, or
-    `shootBeatFractionWalk` 0.2 for `Arms_Shoot_Walk`, which plays the same
-    clip as `Arms_Shoot_Run` but slowed). Driven off the Animator's own
-    `normalizedTime`, not a wall-clock timer - a timer re-armed every shot as
-    `now + cooldown` drifts over a sustained hold, since each frame's
-    rounding compounds shot over shot; reading Animator playback position has
-    no such drift. Baseline resets on any Arms-layer state change (not just
-    from `Arms_Idle`), since each state's timeline restarts fresh on entry.
-    `FireProjectile` raycasts from the camera through the screen-center
-    crosshair for an aim direction only, then spawns the real
-    `BossProjectile`; `SpawnTracer` remains the no-imported-prefab fallback.
-  - Walking fires slower than running purely because `Arms_Shoot_Walk` plays
-    at `WalkShootAnimSpeed` (0.6, see [player-controller](player-controller.md))
-    - not a separately tuned rate, just clip length/playback speed.
+  - **Fire is click-per-shot by default**: `Attack.started` immediately tries
+    one round and raises the masked Arms pose. Quick clicks share the existing
+    `armsStopGrace` pose window instead of restarting the animation every time.
+    Buying Hold to Fire makes the ordinary pistol continue on a wall-clock
+    cadence while Attack remains held. Its progression fire-rate multiplier
+    shortens only that pistol interval; it does not change Ultimate fire rate.
+  - Ultimate always supports continuous electric primary fire independently of
+    the purchase, including when Ultimate activates while Attack is held.
+    `FireProjectile` still aims from the camera/crosshair and spawns the real
+    `BossProjectile`; `SpawnTracer` is the no-imported-prefab fallback.
   - Muzzle transform is built in `PlayerSceneSetup.BuildCombatAndEmotes`,
     positioned forward of the body so the flash doesn't render inside the mesh.
   Exposes `IsAttacking` (`_isFiring || Time.time < _attackingUntil`, covering
@@ -103,7 +85,7 @@ locomotion.
 TryConsumeRound()` before calling `FireProjectile`/`SpawnMuzzleFlash` -
 running dry (with storage left) auto-starts a reload, and a reload in
 progress silently withholds the shot without touching the Shoot animation
-loop. A `Reload` action (keyboard `R`, gamepad West) calls
+loop. A `Reload` action (`R`) calls
 `PlayerAmmo.StartReload()` directly - see [items](items.md) for
 `PlayerAmmo`/`AmmoHudUI` and the `AmmoPickup` that refills them.
 
@@ -116,6 +98,10 @@ beam normally, N-nearest lightning circles with falloff damage in Ultimate)
 via `Vfx.TopDownGroundEffect.Play`. `Combat.Health` also gained
 `IncomingDamageMultiplier` (used by `PlayerShield` to fully mitigate damage
 while held). Full detail in [ultimate](ultimate.md).
+
+Progression applies keyed ranged/melee/fire-rate multipliers. Health likewise
+composes keyed incoming-damage multipliers so Defense and Shield do not
+overwrite one another; see [progression](progression.md).
 
 ## Invariants
 
@@ -139,6 +125,5 @@ while held). Full detail in [ultimate](ultimate.md).
 ## How to extend
 
 `PlayerCombat.IsAttacking` and `Combat.IDamageable` are the hook points for
-further combat work rather than rebuilding the trigger plumbing. Any new
-sustained/looping Animator action should sync off `AnimatorStateInfo.
-normalizedTime` (see `CheckShootBeat`), not a wall-clock timer.
+further combat work rather than rebuilding the trigger plumbing. Keep gameplay
+cadence independent from the cosmetic Arms loop when adding fire-rate tuning.

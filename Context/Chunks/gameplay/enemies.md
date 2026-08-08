@@ -9,8 +9,8 @@ owns:
   - "Assets/Editor/Enemies.meta"
   - "Assets/Editor/Enemies/**"
   - "Assets/Editor/ModelAnimationUtility.cs*"
-related: [player-controller, player-combat, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [player-controller, player-combat, progression, runtime-art, state, boss-fight, items, ultimate]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -19,8 +19,8 @@ lastVerified: 2026-08-09
 Three fightable basic enemy types, all built from the Ultimate Space Kit's `Enemy_*` FBX files, dropped into
 `Assets/Scenes/Player.unity` alongside the player. Combat (both player and enemy sides) runs on a shared
 `Combat.Health`/`Combat.IDamageable` pair so melee, projectile, boss, and enemy attacks all resolve damage the same way. `Health.cs` also gained
-`Heal(float)`/`FullyHeal()` (mirrors `ApplyDamage`'s clamp/`HealthChanged`
-shape, no-ops once `IsDead`) for [items](items.md)'s `HealthPickup`.
+`Heal(float)`/`FullyHeal()` and safe runtime max-health changes for items and
+[progression](progression.md).
 
 `EnemySceneSetup.AddEnemiesToScene` also builds the two-stage Barbara-the-Bee
 boss fight via `BossSceneSetup`, then `SetActive(false)`s all three basic
@@ -34,9 +34,9 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   (`Generic`/`Melee`/`Ranged`, default `Generic`) so a source can tag itself -
   `PlayerCombat` tags `Melee`/`Ranged` so [boss-fight](boss-fight.md)'s mech
   can pick `HitRecieve_1`/`_2`. Reduces `CurrentHealth`, fires
-  `HealthChanged` and `Hit(DamageType)` (amount first scaled by
-  `IncomingDamageMultiplier`, used by [ultimate](ultimate.md)'s
-  `PlayerShield` for full mitigation), then fires `HitReact`/`Death`
+  `HealthChanged` and `Hit(DamageType)` (amount first scaled by composed,
+  source-keyed incoming-damage modifiers used by progression Defense and
+  [ultimate](ultimate.md)'s Shield), then fires `HitReact`/`Death`
   Animator triggers **fire-and-forget** - never blocks its own caller; `Died`
   is the hook other scripts use to stop something (`EnemyBase.HandleDeath`,
   `PlayerDeathHandler`). `SuppressHitReact` skips `HitReact` while still

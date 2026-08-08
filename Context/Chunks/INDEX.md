@@ -6,6 +6,6 @@ needed for the current task.
 
 ## Topics
 
-- [gameplay/](gameplay/INDEX.md) - shared-body control and the wave-survival loop
+- [gameplay/](gameplay/INDEX.md) - single-player control, progression, and the wave-survival loop
 - [assets/](assets/INDEX.md) - imported source packs, formats, and licensing
 - [development/](development/INDEX.md) - Unity setup, planet authoring, and two-person Git workflow

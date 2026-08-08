@@ -5,11 +5,13 @@ owns:
   - "Assets/Scenes/MainMenu.unity*"
   - "Assets/Scripts/UI/GameSettings.cs*"
   - "Assets/Scripts/UI/MainMenuController.cs*"
+  - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
+  - "Assets/Scripts/UI/PcUiInputBinding.cs*"
   - "Assets/Editor/MainMenu.meta"
   - "Assets/Editor/MainMenu/**"
   - "ProjectSettings/EditorBuildSettings.asset"
 related: [system, unity-project, player-controller, runtime-art, control-model]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -26,8 +28,9 @@ a curated presentation pass, not a copy of SampleScene's 17,100-object scatter.
 The home page exposes Singleplayer, disabled Multiplayer, and Settings.
 Singleplayer saves settings and replaces the menu with `SampleScene` in Single
 mode, preserving that scene's opening cinematic. Multiplayer is deliberately
-non-interactable until the cooperative topology is decided. Settings contains
-master volume, look sensitivity, and the current single-player control map.
+non-interactable because it is out of hackathon scope. Settings contains
+master volume, look sensitivity, and the same live, persisted 12-binding PC
+control map exposed by the in-game pause console.
 
 ## Key files
 
@@ -35,6 +38,11 @@ master volume, look sensitivity, and the current single-player control map.
   cursor/time reset, Escape behavior, and slow menu-planet rotation.
 - `GameSettings.cs` - shared PlayerPrefs keys, clamping, application, and saves
   used by both startup and gameplay settings menus.
+- `ControlsRebindingUI.cs`/`PlayerInputBindings.cs` - shared two-column binding
+  UI and live/persisted Input System override registry; the latter is owned by
+  [player-controller](../gameplay/player-controller.md).
+- `PcUiInputBinding.cs` - replaces Unity's cross-platform default UI actions
+  with the project's keyboard/mouse-only UI action map.
 - `MainMenuSceneSetup.cs` - revisioned/idempotent scene generation, runtime icon
   copies, sprite imports, deterministic planet dressing, build order, and
   contract validation.
@@ -47,7 +55,10 @@ master volume, look sensitivity, and the current single-player control map.
 - Multiplayer has no listener and remains non-interactable until its product
   and authority model are confirmed.
 - The menu and gameplay console share `settings.masterVolume` and
-  `settings.mouseSensitivity` through `GameSettings`; do not fork their keys.
+  `settings.mouseSensitivity` through `GameSettings`, plus one versioned
+  binding-override JSON through `PlayerInputBindings`; do not fork their keys.
+- Controls exposes 12 keyboard/mouse bindings. Movement, pointer look, Escape
+  settings, and Escape/Space cinematic skip are fixed and never editable.
 - Menu entry restores time scale 1 and an unlocked visible cursor. Settings
   never instantiates or depends on a player rig.
 - The menu planet has collision and spherical prop instancing disabled; it is

@@ -1,7 +1,9 @@
 {
   "name": "Player.Movement.Tests",
   "rootNamespace": "Player.Tests",
-  "references": [],
+  "references": [
+    "Unity.InputSystem"
+  ],
   "includePlatforms": [
     "Editor"
   ],

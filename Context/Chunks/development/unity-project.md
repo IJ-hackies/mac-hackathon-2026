@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, gameplay-areas, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [system, control-model, core-loop, gameplay-areas, progression, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -53,8 +53,8 @@ The scene-only `OpeningCutscene` begins with a six-second radial orbit-and-dolly
 from the terminator to the wide NAUT reveal, then proceeds through the NAUT zoom,
 playerward pan, astronaut Wave, and shoulder-camera arc. Its frame follows the
 actual N-to-T art axis rather than the BaseCenter pose.
-It suspends gameplay/emote input and the HUD, supports Escape/Space/gamepad-Start
-skip, and collision-resolves the final pose. Separate angular, dolly, aim, and
+It suspends gameplay/emote input and the HUD, supports Escape/Space skip, and
+collision-resolves the final pose. Separate angular, dolly, aim, and
 per-beat `AnimationCurve` fields are the intended tuning points.
 
 The PC URP asset uses a 500-unit shadow distance so Scene-view shadows remain useful
@@ -84,8 +84,8 @@ The scene's top-level `LandingBase` authoring hierarchy dresses the landing
 crater with layout, structures, and a perimeter. Its runtime art comes from the
 curated landing-base imports, while the perimeter combines `Column_Hollow`
 poles with a generated curved-wall mesh and an intentional opening. These are
-static collidable scene assets; no base interaction, economy, or construction
-logic is attached.
+static collidable scene assets. Progression attaches interaction only to three
+specific structure markers; there is still no construction logic.
 
 `LandingBase/Generated NAUT Rock Art` contains 59 deterministic, terrain-fitted
 `Rock_1` instances arranged as 5x7 lettering around `Layout/BaseCenter`. The
@@ -102,7 +102,8 @@ shared base or importer materials.
 `LandingBase`, `Arena1`, and `Arena2` each own a `GameplayArea` derived from
 their direct perimeter poles. `PlayerRig.prefab` carries the one shared-body
 tracker plus a separate consumer that doubles player movement while inside
-LandingBase. Arena effects remain open; no trigger colliders are used.
+LandingBase. Arena effects remain open; perimeter membership uses no triggers.
+The three progression consoles use separate local markers; see [progression].
 
 The scene also contains one top-level `Generated Planet Vegetation` hierarchy
 with 16,000 static, non-colliding prefab instances sampled across the full
@@ -131,13 +132,12 @@ Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
 root `.gitignore`.
 
-`Assets/InputSystem_Actions.inputactions` has C# class generation enabled
-(`InputSystem_Actions` wrapper) for the current prototype; see
-[player-controller](../gameplay/player-controller.md).
+`Assets/InputSystem_Actions.inputactions` generates `InputSystem_Actions`; all maps and its sole scheme are PC-only.
+`PcInputActionsSetup` enforces the asset while `PcUiInputBinding` replaces Unity's cross-platform default UI actions.
+Runtime copies and overrides are coordinated by [player-controller](../gameplay/player-controller.md).
 
 ## Remaining bootstrap choices
 
-- Cooperative versus single-player input/authority; the radial controller is single-player.
 - The intentional package baseline, assembly layout, and repeatable WebGL
   build, browser test, and deployment workflows.
 - Whether to retain or remove the template readme and tutorial content, and

@@ -2,8 +2,8 @@
 chunk: core-loop
 title: Crash-site wave survival and planetary scavenging
 owns: []
-related: [system, state, control-model, gameplay-areas, player-controller, unity-project]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [system, state, control-model, gameplay-areas, progression, player-controller, unity-project]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -21,8 +21,9 @@ upgrading, and crafting, and enemies begin appearing across the planet.
 - Enemies can spawn around the whole planet rather than only at the base.
 - Players may leave the base and travel around the spherical world to scavenge
   loot while managing the risk created by the active wave.
-- Enemy kills award gold and can drop items. Gold and items feed buying,
-  upgrades, and crafting at the base.
+- Enemy rewards remain future work because there is no wave/spawn director.
+  The implemented run economy starts with 10,000 test gold so station purchases
+  can be exercised now; see [progression](progression.md).
 - Score comes from enemy kills and increases through a wave multiplier, so
   surviving and killing in later waves is more valuable.
 
@@ -49,11 +50,12 @@ is communicated remain open rather than fixed tuning rules.
 The three walled areas use their authored perimeter poles as runtime membership
 boundaries. The landing base currently doubles player movement speed through a
 separate membership consumer. Arena effects and all area-specific visual/audio
-treatments remain open.
+treatments remain open. Three existing LandingBase structures now host the
+supply, skill-upgrade, and special-skill consoles.
 
 ## Undecided details
 
 Wave duration and scaling, breaks between waves, residual-enemy behavior,
-enemy types and spawn rules, player/base failure states, loot tables, prices,
-recipes, upgrade categories, score formula, progression persistence, and the
-final session/endgame structure are not yet selected.
+enemy types and spawn rules, player/base failure states, loot tables, recipes,
+score formula, and the final session/endgame structure remain open. V1 station
+prices/categories and run-only persistence are fixed in [progression].

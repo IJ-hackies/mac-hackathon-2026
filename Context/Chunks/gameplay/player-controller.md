@@ -6,19 +6,21 @@ owns:
   - "Assets/Scripts/Player/LandingBaseMovementSpeedEffect.cs*"
   - "Assets/Scripts/Player/PlayerAnimatorRelay.cs*"
   - "Assets/Scripts/Player/PlayerEmoteController.cs*"
+  - "Assets/Scripts/Player/PlayerInputBindings.cs*"
   - "Assets/Scripts/Player/OpeningCutsceneController.cs*"
   - "Assets/Scripts/Player/PlayerVisualGroundConformer.cs*"
   - "Assets/Scripts/Player/RadialCapsuleMotor.cs*"
   - "Assets/Scripts/Player/ThirdPersonCameraController.cs*"
   - "Assets/Scripts/UI/CrosshairUI.cs*"
   - "Assets/Scripts/UI/EmoteWheelUI.cs*"
+  - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/SettingsMenuController.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
-related: [control-model, core-loop, gameplay-areas, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [control-model, core-loop, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
@@ -75,12 +77,23 @@ always restores the captured gameplay value (Mobile is 50).
   animators through `SetAnimator` on relay/controller/health; see [ultimate].
 - `SettingsMenuController.cs` owns the rig's Escape settings console: it toggles
   pause, input/cursor/look and crosshair ownership, persists `GameSettings`
-  master volume and `MouseSensitivity`, and opens a placeholder Controls page.
-  Closing restores the main page and only state it acquired.
+  master volume and `MouseSensitivity`, and opens the live Controls page.
+  `ControlsRebindingUI` drives its 12 two-column binding rows, Escape-cancel,
+  duplicate rejection, and Reset Defaults. Closing restores the main page and
+  only state it acquired, including `PlayerAbilityInput` enablement.
+- `PlayerInputBindings.cs` is the factory/registry for every independent
+  `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
+  accepted rebind out to live copies while preserving map enablement, and
+  releases each copy at owner destruction. Stable binding GUIDs identify rows.
 - `PlayerRig.prefab` contains nested radial `Player.prefab`, area tracker,
-  LandingBase effect, camera pivot, UI, and health HUD. `Repair Player Rig
-  Prefab` safely rewires/validates it; destructive `Build Test Scene` recreates
-  sandbox artifacts including ammo/ability/ultimate HUDs (see [items]/[ultimate]).
+  LandingBase effect, camera pivot, and UI. Health and ammo are matching sliced
+  bars in the top-right stack; `Refresh Health HUD` and `Refresh Ammo HUD`
+  replace only their own rig children. `Repair Player Rig Prefab` safely
+  rewires/validates the rig; destructive `Build Test Scene` recreates sandbox
+  artifacts including ammo/ability/ultimate HUDs (see [items]/[ultimate]).
+- The rig also owns the always-active progression UI/controller host. Station
+  menus suspend movement/combat/abilities/camera and restore only captured
+  state; the Tab overview is non-pausing and leaves movement/look active.
 
 ## Invariants
 
@@ -99,11 +112,13 @@ always restores the captured gameplay value (Mobile is 50).
   Rigidbody is kinematic, gravity off, interpolation on, Continuous Speculative.
   Rig/nested Player transforms stay identity; the sandbox uses a zero root
   override. The rig camera is the sole active runtime camera/audio listener.
-- Input map is `Player`: `Attack` shoots; `Melee`, `EmoteWheel`, `Reload`,
-  `Ability`, and `Attack2` are distinct; `Crouch` is reserved. Exclude Player
-  layer from camera collision/aim masks; root motion stays off. Removing a keyed
-  speed modifier immediately downscales speed. Emotes use `PlayEmote` +
-  `EmoteIndex`; `Emoting` only interrupts.
+- The `Player` map is keyboard/mouse-only. Move (WASD/arrows), pointer Look,
+  Escape settings, and Escape/Space cutscene skip stay fixed. Jump, Ability,
+  two Attack bindings, Attack2, Melee, Reload, EmoteWheel, and reserved
+  Interact/Crouch/Previous/Next are configurable; Escape and duplicates are
+  rejected. Exclude Player layer from camera collision/aim masks; root motion
+  stays off. Removing a keyed speed modifier immediately downscales speed.
+  Emotes use `PlayEmote` + `EmoteIndex`; `Emoting` only interrupts.
 
 ## Gotchas
 
@@ -119,6 +134,6 @@ always restores the captured gameplay value (Mobile is 50).
 
 ## How to extend
 
-Split cooperative locomotion, camera, and tool authority at system boundaries;
-do not add player-index branches to this controller. Extend combat via
+Keep input ownership local and PC-only for the hackathon release; do not add
+player-index or multiplayer authority branches without reopening scope. Extend combat via
 [player-combat](player-combat.md), not the locomotion component.

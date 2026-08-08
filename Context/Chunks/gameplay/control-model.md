@@ -1,40 +1,27 @@
 ---
 chunk: control-model
-title: Shared-body cooperative and single-player control model
+title: PC-only single-player control model
 owns: []
 related: [system, state, core-loop]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-The central interaction concept: two cooperative players control different
-responsibilities of one astronaut body. In single-player, one player controls
-the complete body and can perform everything required to play.
+The hackathon release is single-player: one keyboard-and-mouse player controls
+the complete astronaut body and every required action. Cooperative play has
+been removed from scope because of the remaining schedule.
 
 ## Invariants
 
-- Both cooperative players act through one shared astronaut state and avatar.
-- Cooperative responsibility should create coordination rather than two
-  independent characters occupying the same model.
-- Single-player must expose the full functional capability of the shared body.
-- The game must not require a second human for actions that single-player
-  cannot perform.
-
-## Undecided design
-
-The exact split is open. Possible responsibility areas include locomotion,
-balance or body orientation, arms or tools, equipment, interaction, aiming,
-and camera control. These are examples, not approved mappings.
-
-Local versus online cooperative play, input devices, drop-in behavior,
-accessibility assists, and the way single-player switches or combines control
-responsibilities are also undecided.
+- There is one astronaut state and one locally controlled avatar.
+- Every gameplay, station, menu, and progression action is reachable by one
+  player without controller/gamepad fallbacks.
+- The product is PC-only and its gameplay input baseline is keyboard and mouse.
 
 ## How to extend
 
-Once the control design is approved, record the responsibility matrix, shared
-state transitions, conflict-resolution rules, single-player mapping, and input
-abstraction here. Add concrete implementation paths to `owns` only after those
-files exist.
+Do not add multiplayer authority or shared-input abstractions unless product
+scope is explicitly reopened. Concrete PC bindings and rebinding ownership live
+in [player-controller](player-controller.md).
