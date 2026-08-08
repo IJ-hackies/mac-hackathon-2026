@@ -65,6 +65,7 @@ namespace Player.UI
 
             if (menuRoot != null) menuRoot.SetActive(false);
             ApplySavedSettings();
+            UiSfxWirer.WireAll(gameObject);
         }
 
         private void Update()
@@ -134,9 +135,13 @@ namespace Player.UI
             ResolveReferences();
             CacheGameplayState();
 
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiOpen);
             _isOpen = true;
             ShowMainPage();
             menuRoot.SetActive(true);
+            // Ensure the pause menu always draws above sibling HUD elements (e.g. the "E -
+            // INTERACT" prompt), which otherwise share this Canvas and can render on top.
+            menuRoot.transform.SetAsLastSibling();
 
             if (emoteController != null) emoteController.SetInputSuspended(true);
             if (abilityInput != null) abilityInput.enabled = false;
@@ -162,6 +167,7 @@ namespace Player.UI
                 return;
             }
 
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
             PersistSettings();
             if (menuRoot != null) menuRoot.SetActive(false);
             RestoreGameplayState();

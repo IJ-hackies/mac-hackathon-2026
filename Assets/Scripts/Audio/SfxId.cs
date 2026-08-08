@@ -39,6 +39,13 @@ namespace Audio
         ItemHealthPickup,
         ItemAmmoPickup,
         ItemMechUpgradePickup,
-        ItemSpawn
+        ItemSpawn,
+        PlayerReload,
+        PlayerDryFire,
+        UiOpen,
+        UiClick,
+        UiClose,
+        UiToggle,
+        UiError
     }
 }

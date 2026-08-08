@@ -46,7 +46,7 @@ namespace AudioEditor
         {
             var rows = new List<Row>
             {
-                new Row(SfxId.PlayerShootPrimary, $"{SfxRoot}/Weapons/laserSmall_000.ogg", AudioCategory.Weapons, 0.6f, 0.95f, 1.05f, 6),
+                new Row(SfxId.PlayerShootPrimary, $"{SfxRoot}/Weapons/laserSmall_000.ogg", AudioCategory.Weapons, 0.459f, 0.95f, 1.05f, 6),
                 new Row(SfxId.PlayerShootSecondary, $"{SfxRoot}/Weapons/laserLarge_002.ogg", AudioCategory.Weapons, 0.7f, 0.97f, 1.03f, 4),
                 new Row(SfxId.PlayerMelee, $"{SfxRoot}/Weapons/kick.wav", AudioCategory.Weapons, 0.85f, 0.95f, 1.05f, 3),
                 new Row(SfxId.PlayerHitReact, $"{SfxRoot}/Impacts/footstep_carpet_001.ogg", AudioCategory.Impacts, 0.55f, 0.9f, 1.1f, 3),
@@ -87,6 +87,15 @@ namespace AudioEditor
                 new Row(SfxId.ItemAmmoPickup, $"{SfxRoot}/UI/impactPlank_medium_003.ogg", AudioCategory.UI, 0.4f, 0.95f, 1.05f, 3),
                 new Row(SfxId.ItemMechUpgradePickup, $"{SfxRoot}/UI/impactMining_001.ogg", AudioCategory.UI, 0.55f, 1f, 1f, 2),
                 new Row(SfxId.ItemSpawn, $"{SfxRoot}/UI/impactGlass_heavy_000.ogg", AudioCategory.UI, 0.4f, 1f, 1f, 2),
+                new Row(SfxId.PlayerReload, $"{SfxRoot}/Weapons/gun-reload-sci-fi-09.mp3", AudioCategory.Weapons, 0.64f, 1f, 1f, 1),
+                // Pitched well down from the UI click it's copied from so it reads as a heavy
+                // trigger/hammer clack rather than a menu blip.
+                new Row(SfxId.PlayerDryFire, $"{SfxRoot}/Weapons/click_003.ogg", AudioCategory.Weapons, 0.78f, 0.55f, 0.65f, 2),
+                new Row(SfxId.UiOpen, $"{SfxRoot}/UI/open_003.ogg", AudioCategory.UI, 0.4f, 1f, 1f, 2),
+                new Row(SfxId.UiClick, $"{SfxRoot}/UI/click_001.ogg", AudioCategory.UI, 0.55f, 0.98f, 1.02f, 4),
+                new Row(SfxId.UiClose, $"{SfxRoot}/UI/close_002.ogg", AudioCategory.UI, 0.5f, 1f, 1f, 2),
+                new Row(SfxId.UiToggle, $"{SfxRoot}/UI/switch_003.ogg", AudioCategory.UI, 0.45f, 1f, 1f, 2),
+                new Row(SfxId.UiError, $"{SfxRoot}/UI/error_003.ogg", AudioCategory.UI, 0.5f, 1f, 1f, 2),
             };
 
             var library = AssetDatabase.LoadAssetAtPath<SfxLibrary>(AssetPath);

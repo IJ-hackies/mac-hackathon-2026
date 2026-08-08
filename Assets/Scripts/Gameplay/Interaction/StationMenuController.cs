@@ -60,6 +60,7 @@ namespace Gameplay.Interaction
             SetRoot(skillTreeRoot, false);
             SetRoot(specialShopRoot, false);
             if (closeButton != null) closeButton.onClick.AddListener(Close);
+            Player.UI.UiSfxWirer.WireAll(gameObject);
         }
 
         private void OnDestroy()
@@ -86,6 +87,7 @@ namespace Gameplay.Interaction
             // A nearby trigger can remain occupied while Settings is open. Do not steal its
             // cursor/suspension ownership; the player must close Settings first.
             if (settingsMenu != null && settingsMenu.IsOpen) return;
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiOpen);
             CacheGameplay();
             _isOpen = true;
             _openedFrame = Time.frameCount;
@@ -93,6 +95,8 @@ namespace Gameplay.Interaction
             if (settingsMenu != null) settingsMenu.enabled = false;
             SuspendGameplay();
             SetRoot(shellRoot, true);
+            // Same-Canvas sibling as the interaction prompt/HUD - force this on top.
+            if (shellRoot != null) shellRoot.transform.SetAsLastSibling();
             SetRoot(supplyRoot, station.Kind == StationKind.Supply);
             SetRoot(skillTreeRoot, station.Kind == StationKind.SkillTree);
             SetRoot(specialShopRoot, station.Kind == StationKind.SpecialShop);
@@ -103,6 +107,7 @@ namespace Gameplay.Interaction
         public void Close()
         {
             if (!_isOpen) return;
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
             _isOpen = false;
             SetRoot(shellRoot, false);
             SetRoot(supplyRoot, false);

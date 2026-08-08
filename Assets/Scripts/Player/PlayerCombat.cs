@@ -223,6 +223,17 @@ namespace Player
             if (playerController == null) playerController = GetComponent<PlayerController>();
             if (playerAmmo == null) playerAmmo = GetComponent<PlayerAmmo>();
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
+
+            if (playerAmmo != null)
+            {
+                playerAmmo.ReloadStarted += OnReloadStarted;
+                UI.ReloadIndicatorUI.EnsureFor(playerAmmo);
+            }
+        }
+
+        private void OnReloadStarted()
+        {
+            AudioManager.Instance.PlaySfx(SfxId.PlayerReload, muzzle != null ? muzzle.position : transform.position);
         }
 
         private void OnEnable()
@@ -257,6 +268,7 @@ namespace Player
 
         private void OnDestroy()
         {
+            if (playerAmmo != null) playerAmmo.ReloadStarted -= OnReloadStarted;
             PlayerInputBindings.ReleaseActions(_actions);
             _actions = null;
         }
@@ -443,7 +455,19 @@ namespace Player
 
         private bool TryFireShot()
         {
-            if (playerAmmo != null && !playerAmmo.TryConsumeRound()) return false;
+            if (playerAmmo != null && !playerAmmo.TryConsumeRound())
+            {
+                // Every failed trigger pull with an empty magazine gets the dry-click, even the
+                // one that simultaneously auto-starts a reload (TryConsumeRound already flips
+                // IsReloading true before returning here) - that first click is exactly the
+                // "pulled the trigger, nothing happened" moment the sound is for.
+                if (playerAmmo.CurrentMagazine <= 0)
+                {
+                    AudioManager.Instance.PlaySfx(SfxId.PlayerDryFire, muzzle != null ? muzzle.position : transform.position);
+                }
+                return false;
+            }
+
             FireProjectile();
             SpawnMuzzleFlash();
             return true;

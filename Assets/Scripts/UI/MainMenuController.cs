@@ -33,7 +33,7 @@ namespace Player.UI
         [Header("Presentation")]
         [SerializeField] private Transform menuPlanet;
         [SerializeField] private Vector3 planetRotationAxis = new Vector3(0.12f, 1f, -0.08f);
-        [SerializeField, Min(0f)] private float planetRotationSpeed = 0.35f;
+        [SerializeField, Min(0f)] private float planetRotationSpeed = 0.55f;
 
         private enum Page
         {
@@ -59,6 +59,7 @@ namespace Player.UI
             EnsurePcUiInput();
             ConfigureSettings();
             RegisterListeners();
+            UiSfxWirer.WireAll(gameObject);
 
             var musicManager = MusicManager.Instance;
             if (musicManager != null) musicManager.PlayMusic(musicManager.menuMusic);
@@ -103,10 +104,12 @@ namespace Player.UI
 
             if (_currentPage == Page.Controls)
             {
+                Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
                 ShowPage(Page.Settings);
             }
             else if (_currentPage == Page.Settings)
             {
+                Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
                 SaveSettings();
                 ShowPage(Page.Home);
             }
