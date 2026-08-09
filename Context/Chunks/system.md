@@ -48,6 +48,8 @@ fog, warm/cool twinkling stars, a layered HDR sun whose world direction matches
 the directional light, and rare pooled shooting-star streaks.
 Play opens with one continuous, skippable radial planet shot, followed by the
 overhead landing base/NAUT artwork, astronaut Wave, and gameplay shoulder camera.
+After that handoff, a three-page skippable field guide introduces the three base
+stations, regular-wave start/rewards, and mandatory fifth-wave arena contracts.
 The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
 curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base

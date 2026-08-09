@@ -47,7 +47,7 @@ namespace Player
         [SerializeField] private float jumpHeight = 4.2f;
         [Tooltip("Positive acceleration toward the authored planet surface.")]
         [FormerlySerializedAs("gravity")]
-        [SerializeField, Min(0.01f)] private float gravityAcceleration = 6.5f;
+        [SerializeField, Min(0.01f)] private float gravityAcceleration = 7.5f;
         [SerializeField, Min(0.01f)] private float terminalFallSpeed = 30f;
         [Tooltip("Positive speed toward the surface used to maintain contact with uneven ground.")]
         [FormerlySerializedAs("groundedStickForce")]
