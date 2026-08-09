@@ -21,7 +21,7 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
-related: [control-model, core-loop, wave-system, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
+related: [control-model, core-loop, wave-system, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, promo-video, state, ultimate]
 verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
@@ -71,9 +71,9 @@ normal 112.5-unit prop distance.
   `SphereCast` collision, smoothing, mouse look, boss shake, and cutscene
   follow pose. Its clamped `MouseSensitivity` API is the settings hook;
   `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
-- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT framing,
-  async-load retry, shared skip prompt, temporary shadow/prop visibility, and safe handoff; it belongs to
-  `SampleScene`, not `PlayerRig.prefab`.
+- `OpeningCutsceneController.cs` - radial/Bezier paths, NAUT framing, async-load retry,
+  shared skip prompt, rendering overrides, and safe handoff in `SampleScene`.
+  Its completion state and fixed capture step support [promo-video](../development/promo-video.md) without changing playback.
 - `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
   and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
   jump, or attack interrupts it. `Configure(labels)` rebuilds for three labels,
@@ -139,12 +139,12 @@ normal 112.5-unit prop distance.
   the rig. For planet-scale changes, move top-level scene `PlayerRig` by the same
   center-relative factor with radial-snap (alignment off, heading preserved), and
   keep its short outward startup cast clear of roofs/other `groundMask` art.
-- The cutscene wide path is spherical around `Planet Ground`; its top shot uses art-bounds
-  radial up and true N-to-T screen-right, not `BaseCenter`. Missing contracts must skip
-  safely and every exit must restore gameplay, presentation, shadow, and prop visibility.
+- The cutscene wide path is spherical around `Planet Ground`; its top shot uses
+  art-bounds radial up and true N-to-T screen-right, not `BaseCenter`. Every exit
+  must restore gameplay and presentation. Offline capture must set its fixed-step
+  override before `Start`; `Time.captureFramerate` alone cannot fix unscaled time.
 
 ## How to extend
 
-Keep input ownership local and PC-only for the hackathon release; do not add
-player-index or multiplayer authority branches without reopening scope. Extend combat via
-[player-combat](player-combat.md), not the locomotion component.
+Keep input ownership local and PC-only; do not add player-index or multiplayer
+authority branches without reopening scope. Extend combat via [player-combat](player-combat.md).

@@ -45,7 +45,7 @@ namespace Progression.Tests
                 { "MaxHealth", 460f },
                 { "MovementSpeed", 1.99f },
                 { "FireRate", 2.17f },
-                { "ShootingDamage", 87f },
+                { "ShootingDamage", 92f },
                 { "MeleeDamage", 155f },
                 { "Defense", .54f },
                 { "MaxAmmo", 69f },
@@ -68,7 +68,7 @@ namespace Progression.Tests
             Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(59750));
             Assert.That(ReadFloat(fixture.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1.99f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "FireRateMultiplier"), Is.EqualTo(2.17f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(87f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(92f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "EffectiveSecondaryDamage"), Is.EqualTo(97f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "EffectiveElectricDamage"), Is.EqualTo(82f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "EffectiveUltimateSecondaryDamage"), Is.EqualTo(102f).Within(.001f));
@@ -109,10 +109,10 @@ namespace Progression.Tests
             Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", maxHealth, 3)), Is.EqualTo(145f));
             Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", maxHealth, 10)), Is.EqualTo(460f));
 
-            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 1)), Is.EqualTo(15f));
-            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 2)), Is.EqualTo(19f));
-            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 3)), Is.EqualTo(24f));
-            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 10)), Is.EqualTo(87f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 1)), Is.EqualTo(20f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 2)), Is.EqualTo(24f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 3)), Is.EqualTo(29f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", shootingDamage, 10)), Is.EqualTo(92f));
         }
 
         [Test]
@@ -202,7 +202,7 @@ namespace Progression.Tests
             Assert.That(ReadStringProperty(fixture.Progression, "LastPurchaseResult"), Is.EqualTo("AlreadyOwned"));
 
             Invoke(fixture.Progression, "BeginNewRun");
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(100));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(300));
             Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", holdToFire), Is.False);
             Assert.That(ReadBoolProperty(fixture.Combat, "HoldToFireUnlocked"), Is.False);
         }
@@ -229,7 +229,7 @@ namespace Progression.Tests
             Assert.That(ReadFloat(fixture.Health, "MaxHealth"), Is.EqualTo(360f).Within(.001f));
             Assert.That(ReadFloat(fixture.Controller, "MovementSpeedMultiplier"), Is.EqualTo(3.09f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "FireRateMultiplier"), Is.EqualTo(3.15f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(57f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(72f).Within(.001f));
             Assert.That(ReadFloat(fixture.Combat, "EffectiveMeleeDamage"), Is.EqualTo(69f).Within(.001f));
             Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.94f).Within(.001f));
             Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(51));
@@ -240,7 +240,7 @@ namespace Progression.Tests
             Assert.That(ReadFloat(Invoke(fixture.Progression, "GetPurchasedValue", fixture.Stat("FireRate"))),
                 Is.EqualTo(6.3f).Within(.001f));
             Assert.That(ReadFloat(Invoke(fixture.Progression, "GetPurchasedValue", fixture.Stat("ShootingDamage"))),
-                Is.EqualTo(1f).Within(.001f));
+                Is.EqualTo(12f).Within(.001f));
             Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(141));
             Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(975));
 
@@ -264,7 +264,7 @@ namespace Progression.Tests
 
             Invoke(fixture.Progression, "BeginNewRun");
 
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(100));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(300));
             foreach (object stat in Enum.GetValues(fixture.StatType))
                 Assert.That(ReadInt(Invoke(fixture.Progression, "GetLevel", stat)), Is.EqualTo(1), stat.ToString());
             Assert.That(ReadFloat(fixture.Health, "MaxHealth"), Is.EqualTo(100f));

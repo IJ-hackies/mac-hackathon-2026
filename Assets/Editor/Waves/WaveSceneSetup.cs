@@ -59,8 +59,8 @@ namespace Waves.Editor
             ValidateScene(errors);
             int progressionStartingGold = PlayerProgression.StartingGold;
             int waveStartingGold = WaveRules.StartingGold;
-            if (progressionStartingGold != waveStartingGold || progressionStartingGold != 100)
-                errors.Add("PlayerProgression and WaveRules must both start a run at 100g.");
+            if (progressionStartingGold != waveStartingGold || progressionStartingGold != 300)
+                errors.Add("PlayerProgression and WaveRules must both start a run at 300g.");
 
             if (errors.Count > 0)
                 throw new InvalidOperationException("Wave loop validation failed:\n- " + string.Join("\n- ", errors));

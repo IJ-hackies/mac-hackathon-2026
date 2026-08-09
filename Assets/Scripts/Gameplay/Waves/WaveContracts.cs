@@ -54,7 +54,7 @@ namespace Gameplay.Waves
         public const float MidRegularDuration = 25f;
         public const float LateRegularDuration = 20f;
         public const float ArenaSealDuration = 3f;
-        public const int StartingGold = 100;
+        public const int StartingGold = 300;
         public const float FortuneGoldMultiplier = 1.15f;
         public const int MedKitPickupsPerRegularWave = 15;
         public const int AmmoKitPickupsPerRegularWave = 10;
@@ -81,7 +81,7 @@ namespace Gameplay.Waves
         public static float HealthMultiplier(int wave)
         {
             int n = Mathf.Max(0, wave - 1);
-            return .10f * n + Mathf.Pow(1.05f, n);
+            return .10f * n + Mathf.Pow(1.03f, n);
         }
         public static float BarbaraHealthMultiplier(int wave) => 1f + .15f * Mathf.Max(0, wave - 1);
         public static float DamageMultiplier(int wave)

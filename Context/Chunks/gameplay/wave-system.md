@@ -35,7 +35,7 @@ and base-recall pose when re-enabled after an Editor assembly reload.
 
 ## Contracts
 
-- A run starts with 100g and no active wave. Intermission is indefinite.
+- A run starts with 300g and no active wave. Intermission is indefinite.
   StartWave defaults to F and works only while the player is outside all three
   protected areas.
 - The in-game settings console may recall the astronaut to the authored run-start
@@ -77,7 +77,7 @@ and base-recall pose when re-enabled after an Editor assembly reload.
   170-to-165-degree antipodal hysteresis band, and refreshes after the gameplay
   camera.
 - With `n = max(0, wave - 1)`, regular-enemy health uses
-  `.10n + 1.05^n` and damage uses `.075n + 1.03^n`; both are uncapped.
+  `.10n + 1.03^n` and damage uses `.075n + 1.03^n`; both are uncapped.
   Barbara retains her separate uncapped `1 + .15n` health curve. Movement
   remains `1 + .015n` capped at 2x; attack rate and projectile speed remain
   `1 + .02n` capped at 2x.

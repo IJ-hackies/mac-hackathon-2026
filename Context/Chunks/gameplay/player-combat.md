@@ -104,7 +104,7 @@ via `Vfx.TopDownGroundEffect.Play`. `Combat.Health` also gained
 while held). Full detail in [ultimate](ultimate.md).
 
 Progression applies keyed fire-rate modifiers plus raw shooting/melee bonuses.
-The shooting bonus is added to pistol, normal secondary, Ultimate bolt, and
+The pistol starts at 20 base damage. The shooting bonus is added to pistol, normal secondary, Ultimate bolt, and
 Ultimate lightning base damage before other multipliers/falloff. Health
 composes keyed incoming-damage modifiers so Defense and Shield do not overwrite
 one another; see [progression](progression.md).

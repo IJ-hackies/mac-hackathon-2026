@@ -31,7 +31,7 @@ namespace Player
         [Tooltip("The Attack action is already bound to left click in " +
                  "InputSystem_Actions; reused here for firing rather than adding a new action. " +
                  "Each click fires one shot until the Hold to Fire upgrade is purchased.")]
-        [SerializeField] private float fireDamage = 15f;
+        [SerializeField] private float fireDamage = 20f;
         [SerializeField] private float maxAimDistance = 100f;
         [SerializeField] private LayerMask aimMask = ~0;
         [Tooltip("Viewport Y the aim raycast/crosshair use, in place of dead-center (0.5) - a " +

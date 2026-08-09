@@ -15,13 +15,13 @@ namespace Progression.Tests
         {
             using (var fixture = new ProgressionFixture())
             {
-                Assert.That(ReadInt(fixture.Type, "StartingGold"), Is.EqualTo(100));
+                Assert.That(ReadInt(fixture.Type, "StartingGold"), Is.EqualTo(300));
                 Assert.That(ReadInt(fixture.Type, "FirstStatUpgradeCost"), Is.EqualTo(50));
                 Assert.That(ReadInt(fixture.Type, "SupplyHealthCost"), Is.EqualTo(50));
                 Assert.That(ReadInt(fixture.Type, "SupplyLargeHealthCost"), Is.EqualTo(100));
                 Assert.That(ReadInt(fixture.Type, "SupplyAmmoCost"), Is.EqualTo(100));
                 Assert.That(ReadInt(fixture.Type, "HoldToFireCost"), Is.EqualTo(50));
-                Assert.That(ReadProperty<int>(fixture.Component, "Gold"), Is.EqualTo(100));
+                Assert.That(ReadProperty<int>(fixture.Component, "Gold"), Is.EqualTo(300));
                 Assert.That(ReadProperty<int>(fixture.Component, "MaxLevel"), Is.EqualTo(10));
             }
         }
@@ -76,7 +76,7 @@ namespace Progression.Tests
                 "ExplosiveBullets:750:bom bom bakudan!",
                 "Headshot:800:FOUR!",
                 "Minigun:4000:pew pew haha",
-                "Secret:10000:how'd you get here?",
+                "Secret:15000:how'd you get here?",
             };
             Assert.That(actual, Is.EqualTo(expected));
             Assert.That(secretDefinition, Is.Not.Null);

@@ -247,7 +247,7 @@ MonoBehaviour:
   meleeRange: 1.4
   meleeRadius: 0.9
   meleeHitDelay: 0.25
-  fireDamage: 15
+  fireDamage: 20
   shootBeatFraction: 0.5
   shootBeatFractionWalk: 0.2
   maxAimDistance: 100

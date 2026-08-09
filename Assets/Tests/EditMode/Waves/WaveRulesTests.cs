@@ -122,9 +122,9 @@ namespace Gameplay.Waves.Tests
         {
             Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 1)), Is.EqualTo(1f));
             Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 1)), Is.EqualTo(1f));
-            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 11)), Is.EqualTo(2.6288946f).Within(.00001f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 11)), Is.EqualTo(2.3439164f).Within(.00001f));
             Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 5)), Is.EqualTo(1.4255089f).Within(.00001f));
-            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 100)), Is.GreaterThan(100f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 100)), Is.EqualTo(28.558866f).Within(.0001f));
             Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 100)), Is.GreaterThan(20f));
         }
 
@@ -288,7 +288,7 @@ namespace Gameplay.Waves.Tests
             AssertPrefabFloat(prefabPath, "Enemies.BossMechAI", "bulletDamage", 3f);
             AssertPrefabFloat(prefabPath, "Enemies.BossMechAI", "bulletBurstCount", 80f);
 
-            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 10)), Is.EqualTo(2.4513283f).Within(.00001f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 10)), Is.EqualTo(2.2047732f).Within(.00001f));
             Assert.That(Convert.ToSingle(Invoke("BarbaraHealthMultiplier", 10)), Is.EqualTo(2.35f).Within(.0001f));
             Assert.That(300f * Convert.ToSingle(Invoke("BarbaraHealthMultiplier", 10)), Is.EqualTo(705f));
             // Wave 10 applies the regular-enemy hybrid damage curve to the full Shoot Small burst.

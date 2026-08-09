@@ -5,3 +5,4 @@
 - [git-collaboration](git-collaboration.md) - two-person branch, worktree, and integration model
 - [world-authoring](world-authoring.md) - radial planet-surface placement and curated environment-import tooling
 - [world-runtime](world-runtime.md) - WebGL2 spherical prop instancing, distance, frustum, and horizon culling
+- [promo-video](promo-video.md) - deterministic 1080p opening and promo-only character capture tooling
