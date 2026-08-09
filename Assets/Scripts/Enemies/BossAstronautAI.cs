@@ -84,7 +84,7 @@ namespace Enemies
         private static readonly int StaggerParam = Animator.StringToHash("Stagger");
 
         private CharacterController _controller;
-        private Vector3 _verticalVelocity;
+        private float _verticalVelocity;
         private float _orbitAngle;
         private float _lastAttackTime = -999f;
         private float _attackFreeUntil;
@@ -92,6 +92,8 @@ namespace Enemies
         private AttackKind? _lastAttack;
         private int _armsLayerIndex = -1;
         private readonly HashSet<int> _crossedThresholds = new();
+
+        protected override bool StartsAggroed => true;
 
         protected override void Awake()
         {
@@ -141,6 +143,7 @@ namespace Enemies
             health.SuppressHitReact = false;
 
             isDead = true;
+            ReportKilled();
             StopAllCoroutines();
             StartCoroutine(DestroyAfterDeathAnimation());
         }
@@ -173,21 +176,25 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead) return;
+            if (IsAiLifecycleSuspended) return;
 
-            FacePlayer();
-            ApplyGravity();
+            if (!CanRunAi())
+            {
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
+                return;
+            }
 
             if (_isAttacking)
             {
-                _controller.Move(_verticalVelocity * Time.deltaTime);
+                FacePlayer();
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
                 return;
             }
 
             float distance = DistanceToPlayer();
             Orbit(distance);
 
-            if (Time.time >= _lastAttackTime + attackCooldown && Time.time >= _attackFreeUntil)
+            if (Time.time >= _lastAttackTime + AttackInterval(attackCooldown) && Time.time >= _attackFreeUntil)
             {
                 AttackKind? chosen = ChooseAttack(distance);
                 if (chosen.HasValue)
@@ -200,42 +207,51 @@ namespace Enemies
         private void Orbit(float distance)
         {
             _orbitAngle += orbitDegreesPerSecond * Time.deltaTime;
-            Vector3 offset = Quaternion.Euler(0f, _orbitAngle, 0f) * Vector3.forward * preferredRange;
-            Vector3 targetPoint = player.position + offset;
-
-            Vector3 toTarget = targetPoint - transform.position;
-            toTarget.y = 0f;
-
-            float distanceToTarget = toTarget.magnitude;
+            float effectivePreferredRange = WorldDistance(preferredRange);
+            Vector3 direction;
+            float distanceToTarget;
+            if (!IsPlanetSurfaceRuntime)
+            {
+                Vector3 offset = Quaternion.Euler(0f, _orbitAngle, 0f) * Vector3.forward * effectivePreferredRange;
+                Vector3 toTarget = player.position + offset - transform.position;
+                toTarget.y = 0f;
+                direction = toTarget.sqrMagnitude > 0.0001f ? toTarget.normalized : Vector3.zero;
+                distanceToTarget = toTarget.magnitude;
+            }
+            else
+            {
+                Vector3 up = SurfaceUp(transform.position);
+                Vector3 toPlayer = TangentTowardsPlayer();
+                Vector3 orbit = Quaternion.AngleAxis(_orbitAngle, up) * toPlayer;
+                direction = (orbit + toPlayer * Mathf.Clamp(
+                    (distance - effectivePreferredRange) / Mathf.Max(effectivePreferredRange, 0.01f), -1f, 1f)).normalized;
+                distanceToTarget = Mathf.Abs(distance - effectivePreferredRange);
+            }
             float normalizedSpeed = 0f;
 
             if (distanceToTarget > 0.5f)
             {
-                bool sprint = distanceToTarget > preferredRange * 0.75f || distance > preferredRange * 1.5f;
+                bool sprint = distanceToTarget > effectivePreferredRange * 0.75f ||
+                              distance > effectivePreferredRange * 1.5f;
                 float speed = sprint ? runSpeed : walkSpeed;
-                normalizedSpeed = speed / runSpeed;
 
-                Vector3 direction = toTarget.normalized;
-                _controller.Move((direction * speed + _verticalVelocity) * Time.deltaTime);
+                Vector3 movementDirection = MoveGrounded(
+                    _controller, direction * speed,
+                    ref _verticalVelocity, gravity, groundedStickForce);
+                if (movementDirection.sqrMagnitude > 0.0001f)
+                {
+                    normalizedSpeed = speed / runSpeed;
+                    FaceMovement(movementDirection);
+                }
+                else FacePlayer();
             }
             else
             {
-                _controller.Move(_verticalVelocity * Time.deltaTime);
+                FacePlayer();
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
             }
 
             animator.SetFloat(SpeedParam, Mathf.Clamp01(normalizedSpeed), 0.1f, Time.deltaTime);
-        }
-
-        private void ApplyGravity()
-        {
-            if (_controller.isGrounded && _verticalVelocity.y < 0f)
-            {
-                _verticalVelocity.y = groundedStickForce;
-            }
-            else
-            {
-                _verticalVelocity.y += gravity * Time.deltaTime;
-            }
         }
 
         // Weighted random with no-immediate-repeat: melee only enters the pool once in range, so
@@ -246,12 +262,12 @@ namespace Enemies
         {
             var candidates = new List<(AttackKind kind, float weight)>();
 
-            if (distance <= rangedMaxRange)
+            if (distance <= WorldDistance(rangedMaxRange))
             {
                 candidates.Add((AttackKind.Ranged, 0.5f));
             }
 
-            if (distance <= meleeRange)
+            if (distance <= WorldDistance(meleeRange))
             {
                 candidates.Add((AttackKind.Punch, 0.3f));
                 candidates.Add((AttackKind.Weapon, 0.2f));
@@ -319,8 +335,9 @@ namespace Enemies
                     SpawnBolt();
                 }
 
-                yield return new WaitForSeconds(rangedTickInterval);
-                elapsed += rangedTickInterval;
+                float interval = AttackInterval(rangedTickInterval);
+                yield return new WaitForSeconds(interval);
+                elapsed += interval;
             }
 
             animator.SetBool(FiringParam, false);
@@ -332,7 +349,7 @@ namespace Enemies
             AudioManager.Instance.PlaySfx(SfxId.Boss1Shoot, muzzle.position);
 
             Vector3 origin = muzzle.position;
-            Vector3 direction = (player.position + Vector3.up - origin).normalized;
+            Vector3 direction = (player.position + SurfaceUp(player.position) - origin).normalized;
 
             int playerLayer = LayerMask.NameToLayer("Player");
             int mask = playerLayer >= 0 ? 1 << playerLayer : ~0;
@@ -346,7 +363,7 @@ namespace Enemies
                 ImpactEffectScale = rangedImpactEffectScale,
             };
 
-            BossProjectile.Create(origin, direction, player, rangedProjectileSpeed, rangedDamagePerTick,
+            BossProjectile.Create(origin, direction, player, rangedProjectileSpeed * ProjectileSpeedMultiplier, rangedDamagePerTick * DamageMultiplier,
                 false, rangedProjectileLifetime, mask, rangedProjectileColor, 0.15f, ProjectileVisualStyle.Bolt,
                 visuals: visuals);
         }
@@ -357,12 +374,13 @@ namespace Enemies
         private IEnumerator MeleeSwing(int triggerParam, float hitDelay, float recovery, float damage, bool tauntOnHit)
         {
             animator.SetTrigger(triggerParam);
-            yield return new WaitForSeconds(hitDelay);
+            yield return new WaitForSeconds(AttackInterval(hitDelay));
 
             bool connected = false;
-            if (DistanceToPlayer() <= meleeRange + 0.5f && playerHealth != null && !playerHealth.IsDead)
+            if (DistanceToPlayer() <= WorldDistance(meleeRange + 0.5f) &&
+                playerHealth != null && !playerHealth.IsDead)
             {
-                playerHealth.ApplyDamage(damage, player.position, gameObject, Combat.DamageType.Melee);
+                playerHealth.ApplyDamage(damage * DamageMultiplier, player.position, gameObject, Combat.DamageType.Melee);
                 connected = true;
             }
 
@@ -371,7 +389,7 @@ namespace Enemies
                 animator.SetTrigger(TauntParam);
             }
 
-            yield return new WaitForSeconds(recovery);
+            yield return new WaitForSeconds(AttackInterval(recovery));
         }
     }
 }

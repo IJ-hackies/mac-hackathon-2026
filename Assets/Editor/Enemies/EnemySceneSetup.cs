@@ -19,6 +19,14 @@ namespace EnemiesEditor
     /// from an empty scene and would otherwise wipe these out.
     public static class EnemySceneSetup
     {
+        private const float SmallMaxHealth = 100f;
+        private const float FlyingMaxHealth = 120f;
+        private const float LargeMaxHealth = 150f;
+        private const float FlyingWanderSpeed = 1.5f;
+        private const float FlyingApproachSpeed = 2.25f;
+        private const float SmallApproachSpeed = 4f;
+        private const float LargeWalkSpeed = 2f;
+        private const float LargeRunSpeed = 4.5f;
         private const string ScenePath = "Assets/Scenes/Player.unity";
         private const string ModelFolder = "Assets/Art/Models/Characters/";
         private const string AnimationFolder = "Assets/Art/Animations/";
@@ -106,6 +114,11 @@ namespace EnemiesEditor
             firePoint.localPosition = new Vector3(0f, 1.971f, 0.563f); // hand-tuned in Editor
 
             var flyingSo = new SerializedObject(flyingAi);
+            var healthSo = new SerializedObject(health);
+            healthSo.FindProperty("maxHealth").floatValue = FlyingMaxHealth;
+            healthSo.ApplyModifiedProperties();
+            flyingSo.FindProperty("wanderSpeed").floatValue = FlyingWanderSpeed;
+            flyingSo.FindProperty("approachSpeed").floatValue = FlyingApproachSpeed;
             flyingSo.FindProperty("firePoint").objectReferenceValue = firePoint;
             flyingSo.FindProperty("shurikenVisualPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>(ShurikenProjectilePath);
@@ -117,7 +130,6 @@ namespace EnemiesEditor
             // see BossAstronautAI's rangedProjectileRotationOffset wiring for the full explanation.
             flyingSo.FindProperty("shurikenRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
             flyingSo.ApplyModifiedProperties();
-            AddHealthBar(instance, bounds, health);
         }
 
         private static void BuildSmallEnemy(Transform parent, Vector3 position, int enemyLayer)
@@ -141,14 +153,17 @@ namespace EnemiesEditor
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
             var ai = instance.AddComponent<EnemySmallAI>();
+            var healthSo = new SerializedObject(health);
+            healthSo.FindProperty("maxHealth").floatValue = SmallMaxHealth;
+            healthSo.ApplyModifiedProperties();
             var aiSo = new SerializedObject(ai);
+            aiSo.FindProperty("approachSpeed").floatValue = SmallApproachSpeed;
             aiSo.FindProperty("attackRange").floatValue = radius + MeleeReachMargin;
             aiSo.FindProperty("meleeHitVfxPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>(SlashStoneOncePath);
             aiSo.FindProperty("slowVfxPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>(FogElectricPath);
             aiSo.ApplyModifiedProperties();
-            AddHealthBar(instance, bounds, health);
         }
 
         private static void BuildLargeEnemy(Transform parent, Vector3 position, int enemyLayer)
@@ -172,14 +187,18 @@ namespace EnemiesEditor
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
             var ai = instance.AddComponent<EnemyLargeAI>();
+            var healthSo = new SerializedObject(health);
+            healthSo.FindProperty("maxHealth").floatValue = LargeMaxHealth;
+            healthSo.ApplyModifiedProperties();
             var aiSo = new SerializedObject(ai);
+            aiSo.FindProperty("walkSpeed").floatValue = LargeWalkSpeed;
+            aiSo.FindProperty("runSpeed").floatValue = LargeRunSpeed;
             aiSo.FindProperty("attackRange").floatValue = radius + MeleeReachMargin;
             aiSo.FindProperty("meleeHitVfxPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>(SlashStoneOncePath);
             aiSo.FindProperty("slowVfxPrefab").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<GameObject>(FogElectricPath);
             aiSo.ApplyModifiedProperties();
-            AddHealthBar(instance, bounds, health);
         }
 
         private static GameObject LoadModel(string fileName)

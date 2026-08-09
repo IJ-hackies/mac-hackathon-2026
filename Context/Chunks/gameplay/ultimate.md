@@ -10,7 +10,7 @@ owns:
   - "Assets/Scripts/UI/UltimateHudUI.cs*"
   - "Assets/Scripts/Vfx/TopDownGroundEffect.cs*"
 related: [player-controller, player-combat, progression, enemies, boss-fight, items, state]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -47,8 +47,10 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
 
 - `PlayerAbilityInput` owns `Ability`: `started` dashes once outside Ultimate;
   it holds Shield during Ultimate; `canceled` releases Shield. Keep ability
-  components input-agnostic apart from this routing.
-- `PlayerDash.TryDash()` has a 3-second cooldown and uses held `Move` through
+  components input-agnostic apart from this routing. Ability and Dash recreate
+  their private action copies on enable after an Editor assembly reload and
+  tolerate disable before initialization.
+- `PlayerDash.TryDash()` has a 2-second cooldown and uses held `Move` through
   `GetCameraRelativeTangentDirection`, falling back to tangent-projected facing.
   It calls `PlayerController.Dash(direction, speed, duration)` and emits
   `Burst/Poof_electric`. Its private actions map must be enabled in `OnEnable`:
@@ -61,6 +63,8 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
   (fired whenever an incoming-damage modifier reduces a real hit to zero) - this
   is game-wide feedback, not tutorial-specific. It uses a keyed Health modifier, so progression Defense
   remains present after shield release. Its `Shields/Shield_electric` VFX is parented to Mech.
+  Shield audio is runtime-only so EditMode contracts do not lazily create a
+  persistent audio manager.
 - `PlayerCombat.SetUltimateActive(true)` makes primary fire launch electric
   bolts from both Mech muzzles each beat; each hit calls `EnemyBase.ApplySlow`.
   Ultimate hold-fire works without the purchased pistol Hold-to-Fire skill, and
@@ -85,9 +89,9 @@ nonzero dodge window.
 - Generated `AbilityHudUI` (bottom-left) shows Dash cooldown or Shield energy
   in slot A, and secondary cooldown in B; it relabels B as Beam/Lightning.
   `UltimateHudUI` (top-left) is hidden out of Ultimate and shows fill plus
-  `ULTIMATE Ns`. Every filled `Image` needs a solid sprite
-  (`GetOrCreateSolidSprite` wrapping `Texture2D.whiteTexture`): null sprites
-  ignore `fillAmount` and look permanently full.
+  `ULTIMATE Ns`. Both HUDs use sliced Space Expansion track/fill sprites and
+  resize the fill through its `RectTransform.anchorMax`; do not switch the
+  sliced fill to `Image.fillAmount`.
 - Ultimate components may interact with `PlayerController` only through
   `Dash`, `GetCameraRelativeTangentDirection`, and `SetMovementSpeedModifier`;
   use `IncomingDamageMultiplier`, never attacker-side invulnerability checks.

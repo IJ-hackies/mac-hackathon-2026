@@ -17,7 +17,6 @@ namespace Player.UI
         [SerializeField] private GameObject settingsPage;
         [SerializeField] private GameObject controlsPage;
         [SerializeField] private Button singleplayerButton;
-        [SerializeField] private Button multiplayerButton;
         [SerializeField] private Button settingsButton;
         [SerializeField] private Button settingsBackButton;
         [SerializeField] private Button controlsButton;
@@ -63,11 +62,6 @@ namespace Player.UI
 
             var musicManager = MusicManager.Instance;
             if (musicManager != null) musicManager.PlayMusic(musicManager.menuMusic);
-
-            if (multiplayerButton != null)
-            {
-                multiplayerButton.interactable = false;
-            }
 
             ShowPage(Page.Home);
         }

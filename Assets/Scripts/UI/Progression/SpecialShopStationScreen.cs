@@ -1,51 +1,84 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Player.UI.Progression
 {
+    /// <summary>Drives the data-defined, independent one-time special-skill catalog.</summary>
     [DisallowMultipleComponent]
     public sealed class SpecialShopStationScreen : MonoBehaviour
     {
         [SerializeField] private ProgressionDataAdapter progression;
-        [SerializeField] private ProgressionPurchaseButton holdToFireButton;
+        [SerializeField] private ProgressionPurchaseButton[] skillButtons;
         [SerializeField] private Text goldText;
-        [SerializeField] private int holdToFireCost = 500;
 
         private void Awake()
         {
-            if (holdToFireButton != null && holdToFireButton.Button != null)
-                holdToFireButton.Button.onClick.AddListener(PurchaseHoldToFire);
+            if (skillButtons == null) return;
+            ProgressionSpecialSkillDefinition[] definitions = CopyDefinitions();
+            for (int index = 0; index < skillButtons.Length && index < definitions.Length; index++)
+            {
+                ProgressionPurchaseButton purchaseButton = skillButtons[index];
+                if (purchaseButton == null || purchaseButton.Button == null) continue;
+                ProgressionSpecialSkill skill = definitions[index].Skill;
+                purchaseButton.Button.onClick.AddListener(() => Purchase(skill));
+            }
         }
+
         private void OnEnable()
         {
             if (progression == null) progression = GetComponentInParent<ProgressionDataAdapter>();
             if (progression != null) progression.Refreshed += Refresh;
             Refresh();
         }
+
         private void OnDisable()
         {
             if (progression != null) progression.Refreshed -= Refresh;
         }
+
         public void Bind(MonoBehaviour source)
         {
             if (progression == null) progression = GetComponentInParent<ProgressionDataAdapter>();
             if (progression != null) progression.Bind(source);
         }
-        public void PurchaseHoldToFire()
+
+        public void Purchase(ProgressionSpecialSkill skill)
         {
-            progression?.TryPurchaseSpecial(ProgressionSpecialSkill.HoldToFire);
+            progression?.TryPurchaseSpecial(skill);
             progression?.RefreshNow();
         }
+
         public void Refresh()
         {
             int gold = progression != null ? progression.Gold : 0;
             if (goldText != null) goldText.text = "G " + gold;
-            if (holdToFireButton == null) return;
-            bool owned = progression != null && progression.OwnsSpecial(ProgressionSpecialSkill.HoldToFire);
-            bool canBuy = progression != null && progression.CanPurchaseSpecial(ProgressionSpecialSkill.HoldToFire);
-            bool insufficient = !owned && gold < holdToFireCost;
-            holdToFireButton.SetState(owned ? "OWNED" : "UNLOCK", owned ? string.Empty : holdToFireCost + " G",
-                !owned && canBuy && progression != null && progression.HasSource, insufficient);
+            if (skillButtons == null) return;
+
+            ProgressionSpecialSkillDefinition[] definitions = CopyDefinitions();
+            for (int index = 0; index < skillButtons.Length && index < definitions.Length; index++)
+            {
+                ProgressionPurchaseButton purchaseButton = skillButtons[index];
+                if (purchaseButton == null) continue;
+
+                ProgressionSpecialSkillDefinition definition = definitions[index];
+                bool owned = progression != null && progression.OwnsSpecial(definition.Skill);
+                bool canBuy = progression != null && progression.CanPurchaseSpecial(definition.Skill);
+                bool insufficient = !owned && gold < definition.Cost;
+                purchaseButton.SetState(owned ? "OWNED" : "UNLOCK",
+                    owned ? string.Empty : definition.Cost + " G",
+                    !owned && canBuy && progression != null && progression.HasSource, insufficient);
+            }
+        }
+
+        // IReadOnlyList is intentionally not serialized. The small copy avoids exposing mutable
+        // catalog state and lets this MonoBehaviour stay friendly to older Unity C# profiles.
+        private static ProgressionSpecialSkillDefinition[] CopyDefinitions()
+        {
+            var source = ProgressionSpecialSkillCatalog.All;
+            var result = new ProgressionSpecialSkillDefinition[source.Count];
+            for (int index = 0; index < source.Count; index++) result[index] = source[index];
+            return result;
         }
     }
 }

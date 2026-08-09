@@ -7,11 +7,14 @@ owns:
   - "Assets/Scripts/UI/MainMenuController.cs*"
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/PcUiInputBinding.cs*"
+  - "Assets/Scripts/UI/ButtonHoverEffect.cs*"
+  - "Assets/Scripts/UI/MenuButtonSfx.cs*"
+  - "Assets/Scripts/UI/UiSfxWirer.cs*"
   - "Assets/Editor/MainMenu.meta"
   - "Assets/Editor/MainMenu/**"
   - "ProjectSettings/EditorBuildSettings.asset"
 related: [system, unity-project, player-controller, runtime-art, control-model]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -25,12 +28,12 @@ a menu-only, deterministic crash-site vignette: three outpost structures,
 16 rocks, and 42 vegetation props surface-fit to its exact crater mesh. This is
 a curated presentation pass, not a copy of SampleScene's 17,100-object scatter.
 
-The home page exposes Singleplayer, disabled Multiplayer, and Settings.
-Singleplayer saves settings and replaces the menu with `SampleScene` in Single
-mode, preserving that scene's opening cinematic. Multiplayer is deliberately
-non-interactable because it is out of hackathon scope. Settings contains
-master volume, look sensitivity, and the same live, persisted 12-binding PC
-control map exposed by the in-game pause console.
+The home page exposes only Singleplayer and Settings. Singleplayer saves
+settings and replaces the menu with `SampleScene` in Single mode, preserving
+that scene's opening cinematic. Multiplayer has no menu row or runtime wiring
+because it is out of hackathon scope. Settings contains master volume, look
+sensitivity, and the same live, persisted 13-binding PC control map exposed by
+the in-game pause console.
 
 ## Key files
 
@@ -43,21 +46,20 @@ control map exposed by the in-game pause console.
   [player-controller](../gameplay/player-controller.md).
 - `PcUiInputBinding.cs` - replaces Unity's cross-platform default UI actions
   with the project's keyboard/mouse-only UI action map.
-- `MainMenuSceneSetup.cs` - revisioned/idempotent scene generation, runtime icon
-  copies, sprite imports, deterministic planet dressing, build order, and
-  contract validation.
+- `ButtonHoverEffect.cs`, `MenuButtonSfx.cs`, and `UiSfxWirer.cs` provide the
+  shared menu hover/click feedback without scene-specific audio wiring.
 - `MainMenuPreviewCapture.cs` - optional isolated 1920x1080 preview render.
 
 ## Invariants
 
 - MainMenu and SampleScene stay enabled at build indexes 0 and 1 respectively.
 - Singleplayer loads `SampleScene` directly with `LoadSceneMode.Single`.
-- Multiplayer has no listener and remains non-interactable until its product
-  and authority model are confirmed.
+- Multiplayer stays absent from the menu and controller while the release is
+  single-player only.
 - The menu and gameplay console share `settings.masterVolume` and
   `settings.mouseSensitivity` through `GameSettings`, plus one versioned
   binding-override JSON through `PlayerInputBindings`; do not fork their keys.
-- Controls exposes 12 keyboard/mouse bindings. Movement, pointer look, Escape
+- Controls exposes 13 keyboard/mouse bindings. Movement, pointer look, Escape
   settings, and Escape/Space cinematic skip are fixed and never editable.
 - Menu entry restores time scale 1 and an unlocked visible cursor. Settings
   never instantiates or depends on a player rig.
@@ -67,13 +69,14 @@ control map exposed by the in-game pause console.
   local-X environment-model correction as world authoring, and remains a small
   deterministic subset concentrated on the camera-facing hemisphere.
 - The left title, console, full-width instrument header, action rows, and footer
-  share one alignment grid. Background separation uses low-alpha stepped shade
-  bands; do not restore the overlapping yellow rail or a single hard shade seam.
+  share one alignment grid. The title and console sit directly over the space
+  background; do not restore a full-screen veil or stepped shade bands.
 
 ## Gotchas
 
-`Rebuild Main Menu Scene` replaces the generated scene. Make layout changes in
-the setup tool or preserve them there before rebuilding. Runtime copies belong
+`MainMenu.unity` is authoritative; the former broad scene generator was removed
+because it could overwrite hand-authored work. Preserve its Singleplayer-only
+layout and use targeted tools such as preview capture. Runtime copies belong
 under `Assets/Art/`; never reference `asset packs/` from the scene. Do not call
-the gameplay vegetation/rock generators for this scene: they require gameplay
-roots and would destroy the menu's lightweight budget.
+the gameplay vegetation/rock generators here: they require gameplay roots and
+would destroy the menu's lightweight budget.

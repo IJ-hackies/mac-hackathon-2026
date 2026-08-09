@@ -13,8 +13,8 @@ owns:
   - "Assets/Settings/**"
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
-related: [system, control-model, core-loop, gameplay-areas, progression, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [system, control-model, core-loop, wave-system, gameplay-areas, progression, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -104,6 +104,9 @@ their direct perimeter poles. `PlayerRig.prefab` carries the one shared-body
 tracker plus a separate consumer that doubles player movement while inside
 LandingBase. Arena effects remain open; perimeter membership uses no triggers.
 The three progression consoles use separate local markers; see [progression].
+SampleScene also owns the configured `Wave System` director/controller and one
+generated barrier per area; PlayerRig owns its wave HUD and StartWave input
+consumer. See [wave-system](../gameplay/wave-system.md).
 
 The scene also contains one top-level `Generated Planet Vegetation` hierarchy
 with 16,000 static, non-colliding prefab instances sampled across the full
@@ -133,18 +136,11 @@ assets; generated caches and local IDE files are excluded by the repository
 root `.gitignore`.
 
 `Assets/InputSystem_Actions.inputactions` generates `InputSystem_Actions`; all maps and its sole scheme are PC-only.
+The Player map includes rebindable StartWave (default F).
 `PcInputActionsSetup` enforces the asset while `PcUiInputBinding` replaces Unity's cross-platform default UI actions.
 Runtime copies and overrides are coordinated by [player-controller](../gameplay/player-controller.md).
 
 ## Remaining bootstrap choices
 
-- The intentional package baseline, assembly layout, and repeatable WebGL
-  build, browser test, and deployment workflows.
-- Whether to retain or remove the template readme and tutorial content, and
-  when to rename or replace the prototype sample scene.
-
-## How to extend
-
-Record verified editor, build, and test commands when established. Move new
-gameplay scenes, scripts, prefabs, and runtime assets into focused owning chunks
-rather than expanding this chunk to own the entire Unity tree.
+Establish repeatable WebGL build/browser/deployment workflows and decide when
+to remove template tutorial content or rename the prototype sample scene.

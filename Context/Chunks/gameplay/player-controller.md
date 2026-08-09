@@ -16,11 +16,12 @@ owns:
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/SettingsMenuController.cs*"
   - "Assets/Editor/Player/**"
+  - "Assets/Art/Models/Characters/Player.prefab*"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
-related: [control-model, core-loop, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [control-model, core-loop, wave-system, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -52,9 +53,10 @@ always restores the captured gameplay value (Mobile is 50).
 
 ## Key files
 
-- `PlayerController.cs` - one `moveSpeed` (walk/sprint removed; `Sprint` was
-  repurposed as `Ability`), acceleration-smoothed tangent movement, composable
-  keyed speed modifiers, ground probing, jump/gravity, body alignment, boss
+- `PlayerController.cs` - one `9.75` base `moveSpeed` (walk/sprint removed;
+  `Sprint` was repurposed as `Ability`), acceleration-smoothed tangent movement, composable
+  keyed speed modifiers, ground probing, jump/gravity, body alignment, safe
+  surface relocation, boss
   stagger gate, and one-time surface snap. `Dash(direction, speed, duration)`
   bypasses acceleration for `PlayerDash`; `GetCameraRelativeTangentDirection`
   shares its `FixedUpdate` camera-relative math. `Stagger()` parents imported
@@ -77,25 +79,24 @@ always restores the captured gameplay value (Mobile is 50).
   animators through `SetAnimator` on relay/controller/health; see [ultimate].
 - `SettingsMenuController.cs` owns the rig's Escape settings console: it toggles
   pause, input/cursor/look and crosshair ownership, persists `GameSettings`
-  master volume and `MouseSensitivity`, and opens the live Controls page.
-  `ControlsRebindingUI` drives its 12 two-column binding rows, Escape-cancel,
-  duplicate rejection, and Reset Defaults. Closing restores the main page and
-  only state it acquired, including `PlayerAbilityInput` enablement. Its main
-  page also has a `ReturnToMainMenu()` button (`mainMenuButton`) that resets
-  time scale/cursor itself and loads `MainMenu` directly, since a scene load is
-  about to discard whatever gameplay state `RestoreGameplayState` would
-  otherwise restore anyway - added via `Tools/Player Prototype/Add Return To
-  Main Menu Button`, which clones the existing Close button so it matches
-  automatically. Since `SampleScene` and `Tutorial.unity` both instantiate this
-  same `PlayerRig.prefab`, this one button covers both scenes' pause menus.
+  master volume and `MouseSensitivity`, opens the live Controls page, and offers
+  intermission-only Teleport to Base through [wave-system]. It raises itself to
+  the top UI sibling, wires menu SFX, and restores only state it acquired.
+  `ControlsRebindingUI` drives 13 two-column rows with Escape-cancel, duplicate
+  rejection, and Reset Defaults. `ReturnToMainMenu()` resets time/cursor and
+  loads `MainMenu`; the targeted `Add Return To Main Menu Button` tool clones
+  Close so both `SampleScene` and `Tutorial.unity` inherit the same control.
 - `PlayerInputBindings.cs` is the factory/registry for every independent
   `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
   accepted rebind out to live copies while preserving map enablement, and
   releases each copy at owner destruction. Stable binding GUIDs identify rows.
+  Input-owning player components recreate their nonserialized action copies in
+  `OnEnable`, so an Editor assembly reload cannot leave restored scene objects
+  with null input state.
 - `PlayerRig.prefab` contains nested radial `Player.prefab`, area tracker,
-  LandingBase effect, camera pivot, and UI. Health and ammo are matching sliced
-  bars in the top-right stack; `Refresh Health HUD` and `Refresh Ammo HUD`
-  replace only their own rig children. `Repair Player Rig Prefab` safely
+  LandingBase effect, camera pivot, and UI. Its sliced bars place Health at
+  bottom-center and Ammo at bottom-right; the targeted refresh commands replace
+  only their own rig children. `Repair Player Rig Prefab` safely
   rewires/validates the rig; destructive `Build Test Scene` recreates sandbox
   artifacts including ammo/ability/ultimate HUDs (see [items]/[ultimate]).
 - The rig also owns the always-active progression UI/controller host. Station
@@ -121,11 +122,14 @@ always restores the captured gameplay value (Mobile is 50).
   override. The rig camera is the sole active runtime camera/audio listener.
 - The `Player` map is keyboard/mouse-only. Move (WASD/arrows), pointer Look,
   Escape settings, and Escape/Space cutscene skip stay fixed. Jump, Ability,
-  two Attack bindings, Attack2, Melee, Reload, EmoteWheel, and reserved
+  two Attack bindings, Attack2, Melee, Reload, StartWave, EmoteWheel, and reserved
   Interact/Crouch/Previous/Next are configurable; Escape and duplicates are
   rejected. Exclude Player layer from camera collision/aim masks; root motion
   stays off. Removing a keyed speed modifier immediately downscales speed.
   Emotes use `PlayEmote` + `EmoteIndex`; `Emoting` only interrupts.
+- Teleporting through a paused menu must update the kinematic Rigidbody and
+  Transform together, clear locomotion/dash state, restore radial grounding,
+  snap the follow camera, and immediately re-evaluate gameplay-area membership.
 
 ## Gotchas
 

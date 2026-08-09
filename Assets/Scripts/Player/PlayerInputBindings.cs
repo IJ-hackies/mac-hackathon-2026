@@ -37,6 +37,7 @@ namespace Player
             new BindingDefinition("Attack2", "SECONDARY FIRE", "b2c3d4e5-6f78-4890-abcd-ef0123456789"),
             new BindingDefinition("Melee", "MELEE", "7e1d4f2a-3b5c-4d6e-9f8a-0b1c2d3e4f51"),
             new BindingDefinition("Reload", "RELOAD", "4c0f8e6d-2b3f-5e7a-1b0c-2d3e4f506173"),
+            new BindingDefinition("StartWave", "START WAVE", "6f49b436-c34e-47ba-9f10-79cc36e28d8b"),
             new BindingDefinition("EmoteWheel", "EMOTE WHEEL", "9a3f6b4c-5d7e-6f80-1b0c-2d3e4f506173"),
             new BindingDefinition("Interact", "INTERACT", "1c04ea5f-b012-41d1-a6f7-02e963b52893"),
             new BindingDefinition("Crouch", "CROUCH", "36e52cba-0905-478e-a818-f4bfcb9f3b9a"),
@@ -66,6 +67,13 @@ namespace Player
             }
 
             LiveActionSets.Remove(actions);
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEngine.Object.DestroyImmediate(actions.asset);
+                return;
+            }
+#endif
             actions.Dispose();
         }
 

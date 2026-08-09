@@ -60,7 +60,7 @@ namespace Player.Tests
         }
 
         [Test]
-        public void RebindableControls_ContainsTwelvePcRowsAndNoFixedActions()
+        public void RebindableControls_ContainsThirteenPcRowsAndNoFixedActions()
         {
             PropertyInfo property = _serviceType.GetProperty("RebindableControls");
             Assert.That(property, Is.Not.Null);
@@ -71,7 +71,8 @@ namespace Player.Tests
                 actionNames.Add((string)definition.GetType().GetProperty("ActionName")?.GetValue(definition));
             }
 
-            Assert.That(actionNames, Has.Count.EqualTo(12));
+            Assert.That(actionNames, Has.Count.EqualTo(13));
+            Assert.That(actionNames, Does.Contain("StartWave"));
             Assert.That(actionNames, Does.Contain("Interact"));
             Assert.That(actionNames, Does.Contain("Crouch"));
             Assert.That(actionNames, Does.Contain("Previous"));

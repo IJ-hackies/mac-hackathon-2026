@@ -6,8 +6,15 @@ owns:
   - "Assets/Art/**"
   - "Assets/Scripts/Presentation.meta"
   - "Assets/Scripts/Presentation/**"
+  - "Assets/Audio.meta"
+  - "Assets/Audio/**"
+  - "Assets/Resources/SfxLibrary.asset*"
+  - "Assets/Scripts/Audio.meta"
+  - "Assets/Scripts/Audio/**"
+  - "Assets/Editor/Audio.meta"
+  - "Assets/Editor/Audio/**"
 related: [asset-library, unity-project, main-menu, progression, player-controller, world-authoring, world-runtime, items, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -17,6 +24,8 @@ lastVerified: 2026-08-09
 preserved vendor packs under `asset packs/`, organized by type and gameplay role
 rather than vendor. Main menu uses the same planet/runtime-art system as gameplay
 for its menu-only vignette; see [main-menu].
+Project-owned UI and weapon clips are catalogued by `SfxLibrary` and played
+through the runtime audio service, keeping callers on stable `SfxId` values.
 
 ## Key files
 
@@ -44,7 +53,9 @@ for its menu-only vignette; see [main-menu].
 - `S_ProceduralSpaceSkybox.shader`/`M_ProceduralSpaceSkybox.mat` - SampleScene
   starfield: galactic band, HDR sun at fixed world direction, triplanar
   `T_CosmicFog`, and tinted/twinkling stars. Shooting-star shader/material plus
-  `SpaceShootingStarController.cs` self-bootstrap one pooled billboard.
+  `SpaceShootingStarController.cs` self-bootstrap one pooled billboard and
+  idempotently recover its runtime mesh, renderer, and property block after an
+  Editor assembly reload.
 - `Models/Environment/LandingBase/` - 19 Ultimate Space Kit models (including
   `Ramp`) plus MegaKit `Column_Hollow`, animation off with non-convex colliders.
   Shared remaps use selective Trim01 emission: base teal, Arena1 amber, Arena2
@@ -53,8 +64,8 @@ for its menu-only vignette; see [main-menu].
   `Generated/LandingBaseWalls/` keeps persistent unique-path curved-sheet meshes.
 - `Models/Characters/Astronaut_FinnTheFrog.fbx` includes baked Idle/Walk/Run/
   Jump takes. `Player.prefab` has feet-origin capsule (height `2.55`, radius
-  `0.55`, center.y `1.275`), kinematic Rigidbody, radial motor, and direct
-  `VisualRoot`; `PlayerRig.prefab` nests it. `M_Astronaut` samples the palette
+  `0.55`, center.y `1.275`), kinematic Rigidbody, radial motor, `9.75` base
+  movement speed, and direct `VisualRoot`; `PlayerRig.prefab` nests it. `M_Astronaut` samples the palette
   via authored UVs. See [player-controller].
 - `Fonts/UI/` and `Textures/UI/{Settings,Health,MainMenu,Progression}/` contain ready Kenney
   fonts/sprites. Settings and main menu mix Cartoon + Space Expansion; health
@@ -73,6 +84,12 @@ for its menu-only vignette; see [main-menu].
 - `S_EnemyDissolve.shader` is a low-risk hand-written URP unlit `Custom/
   EnemyDissolve`: per-instance runtime material clones noise-clip against
   `_DissolveAmount` with a glowing edge; never assign it to `M_Enemy*.mat`.
+- `Resources/S_WaveEnergyBarrier.shader` is the WebGL-safe transparent lock
+  field used by `WaveAreaBarrier`. Its explicit blend/depth state and direct
+  Resources reference avoid the opaque runtime-URP setup and shader stripping.
+- `Resources/SfxLibrary.asset`, `Scripts/Audio/`, and `Editor/Audio/` provide
+  the centralized SFX catalog/runtime and its targeted library builder. Source
+  clips live under `Assets/Audio/SFX/`.
 
 ## Invariants
 

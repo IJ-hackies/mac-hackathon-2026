@@ -62,7 +62,12 @@ namespace Player
 
         private void Awake()
         {
-            _actions = PlayerInputBindings.CreateActions();
+            EnsureRuntimeState();
+        }
+
+        private void EnsureRuntimeState()
+        {
+            if (_actions == null) _actions = PlayerInputBindings.CreateActions();
             if (animator == null) animator = GetComponentInChildren<Animator>();
             if (playerController == null) playerController = GetComponent<PlayerController>();
             if (playerCombat == null) playerCombat = GetComponent<PlayerCombat>();
@@ -87,6 +92,7 @@ namespace Player
 
         private void OnEnable()
         {
+            EnsureRuntimeState();
             _actions.Player.Enable();
             _actions.Player.EmoteWheel.started += OnWheelStarted;
             _actions.Player.EmoteWheel.canceled += OnWheelCanceled;
@@ -94,6 +100,11 @@ namespace Player
 
         private void OnDisable()
         {
+            if (_actions == null)
+            {
+                return;
+            }
+
             _actions.Player.EmoteWheel.started -= OnWheelStarted;
             _actions.Player.EmoteWheel.canceled -= OnWheelCanceled;
             _actions.Player.Disable();

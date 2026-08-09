@@ -10,8 +10,8 @@ namespace Enemies
     public class EnemyLargeAI : EnemyBase
     {
         [Header("Movement")]
-        [SerializeField] private float walkSpeed = 1.6f;
-        [SerializeField] private float runSpeed = 3.6f;
+        [SerializeField] private float walkSpeed = 2f;
+        [SerializeField] private float runSpeed = 4.5f;
         [SerializeField] private float runDistanceThreshold = 6f;
         [SerializeField] private float gravity = -18f;
         [SerializeField] private float groundedStickForce = -2f;
@@ -31,7 +31,7 @@ namespace Enemies
         private static readonly int SpeedParam = Animator.StringToHash("Speed");
 
         private CharacterController _controller;
-        private Vector3 _verticalVelocity;
+        private float _verticalVelocity;
         private float _lastAttackTime = -999f;
         private bool _isAttacking;
         private int _attackStep;
@@ -57,32 +57,40 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead || isFrozen) return;
+            if (IsAiLifecycleSuspended) return;
 
-            FacePlayer();
-            ApplyGravity();
+            if (!CanRunAi())
+            {
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
+                animator.SetFloat(SpeedParam, 0f, 0.1f, Time.deltaTime);
+                return;
+            }
 
             float distance = DistanceToPlayer();
+            float effectiveAttackRange = WorldDistance(attackRange);
             float normalizedSpeed = 0f;
 
             if (!_isAttacking)
             {
-                if (distance > attackRange)
+                if (distance > effectiveAttackRange)
                 {
                     float speed = distance <= runDistanceThreshold ? runSpeed : walkSpeed;
-                    normalizedSpeed = speed / runSpeed;
 
-                    Vector3 flat = player.position - transform.position;
-                    flat.y = 0f;
-                    Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.zero;
-                    Vector3 horizontal = direction * speed * SpeedMultiplier;
-
-                    _controller.Move((horizontal + _verticalVelocity) * Time.deltaTime);
+                    Vector3 movementDirection = MoveGrounded(
+                        _controller, TangentTowardsPlayer() * speed,
+                        ref _verticalVelocity, gravity, groundedStickForce);
+                    if (movementDirection.sqrMagnitude > 0.0001f)
+                    {
+                        normalizedSpeed = speed / runSpeed;
+                        FaceMovement(movementDirection);
+                    }
+                    else FacePlayer();
                 }
                 else
                 {
-                    _controller.Move(_verticalVelocity * Time.deltaTime);
-                    if (Time.time - _lastAttackTime >= attackCooldown)
+                    FacePlayer();
+                    MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
+                    if (Time.time - _lastAttackTime >= AttackInterval(attackCooldown))
                     {
                         StartCoroutine(AttackRoutine());
                     }
@@ -90,7 +98,8 @@ namespace Enemies
             }
             else
             {
-                _controller.Move(_verticalVelocity * Time.deltaTime);
+                FacePlayer();
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
             }
 
             animator.SetFloat(SpeedParam, Mathf.Clamp01(normalizedSpeed), 0.1f, Time.deltaTime);
@@ -102,36 +111,24 @@ namespace Enemies
             _isAttacking = false;
         }
 
-        private void ApplyGravity()
-        {
-            if (_controller.isGrounded && _verticalVelocity.y < 0f)
-            {
-                _verticalVelocity.y = groundedStickForce;
-            }
-            else
-            {
-                _verticalVelocity.y += gravity * Time.deltaTime;
-            }
-        }
-
         private IEnumerator AttackRoutine()
         {
             _isAttacking = true;
             bool useWeapon = _attackStep >= 2;
             animator.SetTrigger(useWeapon ? WeaponParam : PunchParam);
 
-            yield return new WaitForSeconds(useWeapon ? weaponHitDelay : punchHitDelay);
+            yield return new WaitForSeconds(AttackInterval(useWeapon ? weaponHitDelay : punchHitDelay));
 
-            if (DistanceToPlayer() <= attackRange && playerHealth != null)
+            if (DistanceToPlayer() <= WorldDistance(attackRange) && playerHealth != null)
             {
-                playerHealth.ApplyDamage(useWeapon ? weaponDamage : punchDamage, player.position, gameObject);
-                SpawnMeleeHitVfx(player.position + Vector3.up);
+                playerHealth.ApplyDamage((useWeapon ? weaponDamage : punchDamage) * DamageMultiplier, player.position, gameObject);
+                SpawnMeleeHitVfx(player.position + SurfaceUp(player.position));
                 // Same melee-impact cue the player's own melee used to play (now removed from the
                 // player's swing per request) - fires here on the enemy's hit connecting.
                 Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.PlayerMelee, player.position);
             }
 
-            yield return new WaitForSeconds(useWeapon ? weaponRecovery : punchRecovery);
+            yield return new WaitForSeconds(AttackInterval(useWeapon ? weaponRecovery : punchRecovery));
 
             _attackStep = useWeapon ? 0 : _attackStep + 1;
             _isAttacking = false;

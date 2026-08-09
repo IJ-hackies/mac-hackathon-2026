@@ -48,38 +48,31 @@ namespace Presentation
 
         private void Awake()
         {
-            properties = new MaterialPropertyBlock();
+            if (EnsureRuntimeResources()) ScheduleNextSpawn(4f, 9f);
+        }
 
-            Material shootingStarMaterial = Resources.Load<Material>(MaterialResourcePath);
-            if (shootingStarMaterial == null)
+        private void OnEnable()
+        {
+            if (!EnsureRuntimeResources())
             {
-                Debug.LogWarning(
-                    $"Shooting-star material was not found at Resources/{MaterialResourcePath}.",
-                    this);
                 enabled = false;
                 return;
             }
 
-            shootingStarMesh = BuildQuadMesh();
-
-            MeshFilter meshFilter = gameObject.AddComponent<MeshFilter>();
-            meshFilter.sharedMesh = shootingStarMesh;
-
-            shootingStarRenderer = gameObject.AddComponent<MeshRenderer>();
-            shootingStarRenderer.sharedMaterial = shootingStarMaterial;
-            shootingStarRenderer.shadowCastingMode = ShadowCastingMode.Off;
-            shootingStarRenderer.receiveShadows = false;
-            shootingStarRenderer.lightProbeUsage = LightProbeUsage.Off;
-            shootingStarRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            shootingStarRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-            shootingStarRenderer.allowOcclusionWhenDynamic = false;
-            shootingStarRenderer.enabled = false;
-
-            ScheduleNextSpawn(4f, 9f);
+            if (nextSpawnTime <= Time.unscaledTime)
+            {
+                ScheduleNextSpawn(4f, 9f);
+            }
         }
 
         private void Update()
         {
+            if (!EnsureRuntimeResources())
+            {
+                enabled = false;
+                return;
+            }
+
             if (!starActive)
             {
                 if (Time.unscaledTime >= nextSpawnTime)
@@ -131,6 +124,12 @@ namespace Presentation
 
         private void TrySpawnStar()
         {
+            if (!EnsureRuntimeResources())
+            {
+                enabled = false;
+                return;
+            }
+
             activeCamera = Camera.main;
             if (activeCamera == null)
             {
@@ -178,6 +177,50 @@ namespace Presentation
             shootingStarRenderer.SetPropertyBlock(properties);
             shootingStarRenderer.enabled = true;
             starActive = true;
+        }
+
+        private bool EnsureRuntimeResources()
+        {
+            if (properties != null && shootingStarMesh != null && shootingStarRenderer != null)
+            {
+                return true;
+            }
+
+            if (properties == null) properties = new MaterialPropertyBlock();
+
+            Material shootingStarMaterial = Resources.Load<Material>(MaterialResourcePath);
+            if (shootingStarMaterial == null)
+            {
+                Debug.LogWarning(
+                    $"Shooting-star material was not found at Resources/{MaterialResourcePath}.",
+                    this);
+                return false;
+            }
+
+            MeshFilter meshFilter = GetComponent<MeshFilter>();
+            if (meshFilter == null) meshFilter = gameObject.AddComponent<MeshFilter>();
+            shootingStarMesh = meshFilter.sharedMesh;
+            if (shootingStarMesh == null)
+            {
+                shootingStarMesh = BuildQuadMesh();
+                meshFilter.sharedMesh = shootingStarMesh;
+            }
+
+            shootingStarRenderer = GetComponent<MeshRenderer>();
+            if (shootingStarRenderer == null) shootingStarRenderer = gameObject.AddComponent<MeshRenderer>();
+            shootingStarRenderer.sharedMaterial = shootingStarMaterial;
+            shootingStarRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            shootingStarRenderer.receiveShadows = false;
+            shootingStarRenderer.lightProbeUsage = LightProbeUsage.Off;
+            shootingStarRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            shootingStarRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+            shootingStarRenderer.allowOcclusionWhenDynamic = false;
+
+            shootingStarRenderer.enabled = false;
+            starActive = false;
+            activeCamera = null;
+
+            return true;
         }
 
         private void FinishStar()
