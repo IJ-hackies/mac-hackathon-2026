@@ -6,15 +6,17 @@ using UnityEngine.UI;
 
 namespace MainMenuEditor
 {
-    /// One-shot setup that re-skins the former Multiplayer button as the Tutorial button and adds
-    /// a Quit button to the MainMenu home page. Idempotent: does nothing to a piece already done.
-    /// Run via Tools/Main Menu/Convert Multiplayer To Tutorial And Add Quit, or headless with
-    /// -executeMethod MainMenuEditor.MainMenuTutorialAndQuitSetup.Run.
+    /// One-shot setup that adds a Tutorial button and a Quit button to the MainMenu home page,
+    /// each cloned from the existing Settings button (same sprite/colors/font/Icon+Label+Detail
+    /// layout as every other home button) and stacked below it. The old Multiplayer button this
+    /// used to restyle no longer exists upstream, so both buttons are now built from scratch
+    /// rather than repurposing an existing one. Idempotent: does nothing to a button already
+    /// wired. Run via Tools/Main Menu/Build Tutorial And Quit Buttons.
     public static class MainMenuTutorialAndQuitSetup
     {
         private const string ScenePath = "Assets/Scenes/MainMenu.unity";
 
-        [MenuItem("Tools/Main Menu/Convert Multiplayer To Tutorial And Add Quit")]
+        [MenuItem("Tools/Main Menu/Build Tutorial And Quit Buttons")]
         public static void Run()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -28,29 +30,48 @@ namespace MainMenuEditor
 
             var so = new SerializedObject(controller);
             var tutorialButtonProp = so.FindProperty("tutorialButton");
-            var singleplayerButtonProp = so.FindProperty("singleplayerButton");
             var quitButtonProp = so.FindProperty("quitButton");
+            var singleplayerButtonProp = so.FindProperty("singleplayerButton");
+            var settingsButtonProp = so.FindProperty("settingsButton");
 
-            var tutorialButton = tutorialButtonProp.objectReferenceValue as Button;
-            if (tutorialButton == null)
+            var singleplayerButton = singleplayerButtonProp.objectReferenceValue as Button;
+            var settingsButton = settingsButtonProp.objectReferenceValue as Button;
+            if (settingsButton == null)
             {
-                Debug.LogError("MainMenuTutorialAndQuitSetup: tutorialButton reference is missing - " +
-                    "expected FormerlySerializedAs to carry over the old Multiplayer button reference.");
+                Debug.LogError("MainMenuTutorialAndQuitSetup: no settingsButton reference to clone from.");
                 return;
             }
 
-            RestyleAsTutorialButton(tutorialButton);
+            // Derive the vertical gap between home-page rows from the two buttons we know exist,
+            // instead of a hardcoded constant, so this keeps working if the layout is retuned.
+            float rowSpacing = -120f;
+            if (singleplayerButton != null)
+            {
+                var singleplayerRect = singleplayerButton.GetComponent<RectTransform>();
+                var settingsRect = settingsButton.GetComponent<RectTransform>();
+                rowSpacing = settingsRect.anchoredPosition.y - singleplayerRect.anchoredPosition.y;
+            }
+
+            float nextRowY = settingsButton.GetComponent<RectTransform>().anchoredPosition.y + rowSpacing;
+
+            if (tutorialButtonProp.objectReferenceValue == null)
+            {
+                Button tutorialButton = BuildHomeButton(
+                    settingsButton, "Tutorial", "TUTORIAL", "LEARN HOW TO PLAY THE GAME", nextRowY);
+                tutorialButtonProp.objectReferenceValue = tutorialButton;
+                nextRowY += rowSpacing;
+            }
+            else
+            {
+                Debug.Log("MainMenuTutorialAndQuitSetup: Tutorial button is already wired - nothing to do.");
+                nextRowY = ((Button)tutorialButtonProp.objectReferenceValue).GetComponent<RectTransform>()
+                    .anchoredPosition.y + rowSpacing;
+            }
 
             if (quitButtonProp.objectReferenceValue == null)
             {
-                var singleplayerButton = singleplayerButtonProp.objectReferenceValue as Button;
-                if (singleplayerButton == null)
-                {
-                    Debug.LogError("MainMenuTutorialAndQuitSetup: no singleplayerButton reference to clone from.");
-                    return;
-                }
-
-                Button quitButton = BuildQuitButton(singleplayerButton, tutorialButton);
+                Button quitButton = BuildHomeButton(
+                    settingsButton, "Quit", "QUIT", "EXIT TO DESKTOP", nextRowY);
                 quitButtonProp.objectReferenceValue = quitButton;
             }
             else
@@ -65,68 +86,46 @@ namespace MainMenuEditor
             Debug.Log("MainMenuTutorialAndQuitSetup: done.");
         }
 
-        private static void RestyleAsTutorialButton(Button tutorialButton)
+        private static Button BuildHomeButton(
+            Button template, string objectName, string label, string detail, float anchoredY)
         {
-            tutorialButton.gameObject.name = "Tutorial";
-            tutorialButton.interactable = true;
+            var go = Object.Instantiate(template.gameObject, template.transform.parent);
+            go.name = objectName;
 
-            var image = tutorialButton.GetComponent<Image>();
-            if (image != null) image.color = new Color(1f, 1f, 1f, 1f);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(0f, anchoredY);
 
-            var label = tutorialButton.transform.Find("Label")?.GetComponent<Text>();
-            if (label != null)
-            {
-                label.text = "TUTORIAL";
-                label.color = new Color(0.9529412f, 0.9843137f, 1f, 1f);
-            }
-
-            var detail = tutorialButton.transform.Find("Detail")?.GetComponent<Text>();
-            if (detail != null)
-            {
-                detail.text = "LEARN HOW TO PLAY THE GAME";
-                detail.color = new Color(0.52156866f, 0.84705883f, 1f, 1f);
-            }
-
-            var badge = tutorialButton.transform.Find("Offline Badge");
-            if (badge != null) badge.gameObject.SetActive(false);
-        }
-
-        private static Button BuildQuitButton(Button template, Button tutorialButton)
-        {
-            var quitGo = Object.Instantiate(template.gameObject, template.transform.parent);
-            quitGo.name = "Quit";
-
-            var tutorialRect = tutorialButton.GetComponent<RectTransform>();
-            var quitRect = quitGo.GetComponent<RectTransform>();
-            quitRect.anchoredPosition = new Vector2(tutorialRect.anchoredPosition.x, -287f);
-
-            var icon = quitGo.transform.Find("Icon");
+            // No dedicated icon art for these - drop the Icon slot and recenter Label/Detail the
+            // same way the (now-removed) icon-less Multiplayer/Tutorial button used to.
+            var icon = go.transform.Find("Icon");
             if (icon != null) Object.DestroyImmediate(icon.gameObject);
 
-            var label = quitGo.transform.Find("Label")?.GetComponent<Text>();
-            if (label != null)
+            var labelText = go.transform.Find("Label")?.GetComponent<Text>();
+            if (labelText != null)
             {
-                label.text = "QUIT";
-                var labelRect = label.GetComponent<RectTransform>();
-                labelRect.anchoredPosition = new Vector2(-8f, 15f);
+                labelText.text = label;
+                var labelRect = labelText.GetComponent<RectTransform>();
+                labelRect.anchoredPosition = new Vector2(-8f, labelRect.anchoredPosition.y);
             }
 
-            var detail = quitGo.transform.Find("Detail")?.GetComponent<Text>();
-            if (detail != null)
+            var detailText = go.transform.Find("Detail")?.GetComponent<Text>();
+            if (detailText != null)
             {
-                detail.text = "EXIT TO DESKTOP";
-                var detailRect = detail.GetComponent<RectTransform>();
-                detailRect.anchoredPosition = new Vector2(-8f, -21f);
+                detailText.text = detail;
+                var detailRect = detailText.GetComponent<RectTransform>();
+                detailRect.anchoredPosition = new Vector2(-8f, detailRect.anchoredPosition.y);
             }
 
-            var badge = quitGo.transform.Find("Offline Badge");
+            var badge = go.transform.Find("Offline Badge");
             if (badge != null) Object.DestroyImmediate(badge.gameObject);
 
-            var quitButton = quitGo.GetComponent<Button>();
-            quitButton.onClick = new Button.ButtonClickedEvent();
-            quitButton.interactable = true;
+            var button = go.GetComponent<Button>();
+            // No persistent calls carried over from the template - MainMenuController wires
+            // LoadTutorial/QuitGame itself at runtime via RegisterListeners.
+            button.onClick = new Button.ButtonClickedEvent();
+            button.interactable = true;
 
-            return quitButton;
+            return button;
         }
     }
 }

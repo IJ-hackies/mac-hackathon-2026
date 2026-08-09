@@ -100,13 +100,35 @@ namespace Player
             return -1;
         }
 
+        // Unity's default binding display strings for these keys ("Left Control", "Right
+        // Control", ...) run long enough to overflow the fixed-width Controls menu row - shorten
+        // to the common abbreviation instead of shrinking the font/row.
+        private static readonly (string From, string To)[] DisplayAbbreviations =
+        {
+            ("LEFT CONTROL", "LEFT CTRL"),
+            ("RIGHT CONTROL", "RIGHT CTRL"),
+            ("LEFT ALT", "L ALT"),
+            ("RIGHT ALT", "R ALT"),
+            ("LEFT SHIFT", "L SHIFT"),
+            ("RIGHT SHIFT", "R SHIFT"),
+            ("BACKSPACE", "BKSP"),
+            ("PAGE UP", "PG UP"),
+            ("PAGE DOWN", "PG DN"),
+        };
+
         public static string GetBindingDisplayName(InputSystem_Actions actions, BindingDefinition definition)
         {
             InputAction action = GetAction(actions, definition);
             int bindingIndex = GetBindingIndex(action, definition);
-            return bindingIndex >= 0
-                ? action.GetBindingDisplayString(bindingIndex).ToUpperInvariant()
-                : "MISSING";
+            if (bindingIndex < 0) return "MISSING";
+
+            string display = action.GetBindingDisplayString(bindingIndex).ToUpperInvariant();
+            foreach ((string from, string to) in DisplayAbbreviations)
+            {
+                if (display == from) return to;
+            }
+
+            return display;
         }
 
         public static bool IsSupportedPcButton(string path)
