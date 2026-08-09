@@ -11,7 +11,7 @@ namespace Enemies
         [SerializeField] private float hoverHeight = 1.4f;
         [SerializeField] private float bobAmplitude = 0.15f;
         [SerializeField] private float bobSpeed = 2f;
-        [SerializeField] private float approachSpeed = 3.2f;
+        [SerializeField] private float approachSpeed = 4f;
 
         [Header("Attack")]
         [SerializeField] private float attackRange = 1.6f;
@@ -35,27 +35,38 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead || isFrozen) return;
+            if (IsAiLifecycleSuspended) return;
 
-            FacePlayer();
-
-            float distance = DistanceToPlayer();
-
-            if (_isAttacking)
+            if (!CanRunAi())
             {
+                MaintainPassiveHover(hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude);
                 animator.SetFloat(SpeedParam, 0f, 0.1f, Time.deltaTime);
                 return;
             }
 
-            if (distance > attackRange)
+            float distance = DistanceToPlayer();
+            float effectiveAttackRange = WorldDistance(attackRange);
+
+            if (_isAttacking)
             {
-                MoveTowardPlayer();
-                animator.SetFloat(SpeedParam, 1f, 0.1f, Time.deltaTime);
+                FacePlayer();
+                animator.SetFloat(SpeedParam, 0f, 0.1f, Time.deltaTime);
+                return;
+            }
+
+            if (distance > effectiveAttackRange)
+            {
+                Vector3 movementDirection = MoveTowardPlayer();
+                if (movementDirection.sqrMagnitude > 0.0001f) FaceMovement(movementDirection);
+                else FacePlayer();
+                animator.SetFloat(SpeedParam, movementDirection.sqrMagnitude > 0.0001f ? 1f : 0f,
+                    0.1f, Time.deltaTime);
             }
             else
             {
+                FacePlayer();
                 animator.SetFloat(SpeedParam, 0f, 0.1f, Time.deltaTime);
-                if (Time.time - _lastAttackTime >= attackCooldown)
+                if (Time.time - _lastAttackTime >= AttackInterval(attackCooldown))
                 {
                     StartCoroutine(AttackRoutine());
                 }
@@ -68,15 +79,10 @@ namespace Enemies
             _isAttacking = false;
         }
 
-        private void MoveTowardPlayer()
+        private Vector3 MoveTowardPlayer()
         {
-            Vector3 flat = player.position - transform.position;
-            flat.y = 0f;
-            Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.zero;
-
-            Vector3 nextPosition = transform.position + direction * approachSpeed * SpeedMultiplier * Time.deltaTime;
-            nextPosition.y = hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude;
-            transform.position = nextPosition;
+            return MoveHover(TangentTowardsPlayer(), approachSpeed,
+                hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude);
         }
 
         private IEnumerator AttackRoutine()
@@ -84,19 +90,19 @@ namespace Enemies
             _isAttacking = true;
             animator.SetTrigger(AttackParam);
 
-            yield return new WaitForSeconds(hitDelay);
+            yield return new WaitForSeconds(AttackInterval(hitDelay));
 
-            if (DistanceToPlayer() <= attackRange && playerHealth != null)
+            if (DistanceToPlayer() <= WorldDistance(attackRange) && playerHealth != null)
             {
-                playerHealth.ApplyDamage(punchDamage, player.position, gameObject);
-                SpawnMeleeHitVfx(player.position + Vector3.up);
+                playerHealth.ApplyDamage(punchDamage * DamageMultiplier, player.position, gameObject);
+                SpawnMeleeHitVfx(player.position + SurfaceUp(player.position));
                 // Reuses the same melee-impact cue the player's own melee used to play (now
                 // removed from the player's swing per request - it fires here instead, on the
                 // enemy's hit actually connecting).
                 Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.PlayerMelee, player.position);
             }
 
-            yield return new WaitForSeconds(recoveryAfterHit);
+            yield return new WaitForSeconds(AttackInterval(recoveryAfterHit));
 
             _isAttacking = false;
             _lastAttackTime = Time.time;

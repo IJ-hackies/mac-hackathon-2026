@@ -9,7 +9,7 @@ namespace Player.Editor
 {
     public static class SettingsMenuPrefabSetup
     {
-        private const string AutoConfigureSessionKey = "Player.SettingsMenu.AutoConfigureScheduled.V4";
+        private const string AutoConfigureSessionKey = "Player.SettingsMenu.AutoConfigureScheduled.V5";
         private const string PlayerRigPrefabPath = "Assets/Prefabs/PlayerRig.prefab";
         private const string FontPath = "Assets/Art/Fonts/UI/KenneyFuture.ttf";
         private const string NarrowFontPath = "Assets/Art/Fonts/UI/KenneyFutureNarrow.ttf";
@@ -47,7 +47,8 @@ namespace Player.Editor
                     : null;
                 bool alreadyConfigured = prefab != null &&
                                          prefab.GetComponent<SettingsMenuController>() != null &&
-                                         HasCompleteControlRows(controlsUi);
+                                         HasCompleteControlRows(controlsUi) &&
+                                         HasTeleportToBaseButton(prefab.GetComponent<SettingsMenuController>());
                 if (alreadyConfigured)
                 {
                     return;
@@ -223,14 +224,28 @@ namespace Player.Editor
                     new Vector2(0f, -36f),
                     out Text sensitivityValue);
 
+                Button teleportToBaseButton = CreateButton(
+                    "Teleport To Base",
+                    mainPage,
+                    "TELEPORT TO BASE",
+                    displayFont,
+                    17,
+                    new Vector2(300f, 78f),
+                    new Vector2(-160f, -165f),
+                    buttonIdle,
+                    buttonHover,
+                    buttonPressed);
+                Text teleportToBaseLabel =
+                    teleportToBaseButton.transform.Find("Label").GetComponent<Text>();
+
                 Button controlsButton = CreateButton(
                     "Controls",
                     mainPage,
                     "CONTROLS",
                     displayFont,
                     24,
-                    new Vector2(620f, 78f),
-                    new Vector2(0f, -165f),
+                    new Vector2(300f, 78f),
+                    new Vector2(160f, -165f),
                     buttonIdle,
                     buttonHover,
                     buttonPressed);
@@ -243,7 +258,7 @@ namespace Player.Editor
                     Ice,
                     TextAnchor.MiddleCenter,
                     new Vector2(40f, 40f),
-                    new Vector2(270f, 0f));
+                    new Vector2(120f, 0f));
 
                 CreateText(
                     "Main Footer",
@@ -291,10 +306,10 @@ namespace Player.Editor
                     PlayerInputBindings.RebindableControls;
                 for (int i = 0; i < definitions.Count; i++)
                 {
-                    int column = i / 6;
-                    int row = i % 6;
+                    int column = i / 7;
+                    int row = i % 7;
                     float x = column == 0 ? -175f : 175f;
-                    float y = 125f - row * 46f;
+                    float y = 132f - row * 40f;
                     CreateControlRow(
                         controlsWell,
                         definitions[i],
@@ -362,9 +377,12 @@ namespace Player.Editor
                 Assign(serializedController, "sensitivitySlider", sensitivitySlider);
                 Assign(serializedController, "sensitivityValue", sensitivityValue);
                 Assign(serializedController, "controlsButton", controlsButton);
+                Assign(serializedController, "teleportToBaseButton", teleportToBaseButton);
+                Assign(serializedController, "teleportToBaseLabel", teleportToBaseLabel);
                 Assign(serializedController, "backButton", backButton);
                 Assign(serializedController, "closeButton", closeButton);
                 Assign(serializedController, "controlsRebindingUi", controlsRebindingUi);
+                Assign(serializedController, "waveGameController", rigRoot.GetComponent<global::Gameplay.Waves.WaveGameController>());
                 Assign(serializedController, "playerController", rigRoot.GetComponentInChildren<global::Player.PlayerController>(true));
                 Assign(serializedController, "playerCombat", rigRoot.GetComponentInChildren<global::Player.PlayerCombat>(true));
                 Assign(serializedController, "emoteController", rigRoot.GetComponentInChildren<global::Player.PlayerEmoteController>(true));
@@ -581,6 +599,20 @@ namespace Player.Editor
             SerializedObject serialized = new SerializedObject(controlsUi);
             SerializedProperty reset = serialized.FindProperty("resetButton");
             return reset != null && reset.objectReferenceValue != null;
+        }
+
+        private static bool HasTeleportToBaseButton(SettingsMenuController controller)
+        {
+            if (controller == null)
+            {
+                return false;
+            }
+
+            SerializedObject serialized = new SerializedObject(controller);
+            SerializedProperty button = serialized.FindProperty("teleportToBaseButton");
+            SerializedProperty label = serialized.FindProperty("teleportToBaseLabel");
+            return button != null && button.objectReferenceValue != null &&
+                   label != null && label.objectReferenceValue != null;
         }
 
         private static Text CreateText(

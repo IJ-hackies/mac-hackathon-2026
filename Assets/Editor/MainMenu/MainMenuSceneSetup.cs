@@ -18,8 +18,8 @@ namespace MainMenu.Editor
 {
     public static class MainMenuSceneSetup
     {
-        private const string AutoConfigureSessionKey = "MainMenu.AutoConfigureScheduled.V8";
-        private const string GeneratedRootName = "Main Menu [Generated v5]";
+        private const string AutoConfigureSessionKey = "MainMenu.AutoConfigureScheduled.V9";
+        private const string GeneratedRootName = "Main Menu [Generated v6]";
         private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
         private const string GameplayScenePath = "Assets/Scenes/SampleScene.unity";
         private const string PlanetPrefabPath = "Assets/Art/Prefabs/Planet.prefab";
@@ -229,7 +229,6 @@ namespace MainMenu.Editor
                 RequireReference(serialized, "settingsPage");
                 RequireReference(serialized, "controlsPage");
                 RequireReference(serialized, "singleplayerButton");
-                Button multiplayer = RequireReference(serialized, "multiplayerButton") as Button;
                 RequireReference(serialized, "settingsButton");
                 RequireReference(serialized, "volumeSlider");
                 RequireReference(serialized, "sensitivitySlider");
@@ -260,11 +259,6 @@ namespace MainMenu.Editor
                     }
                 }
 
-                if (multiplayer == null || multiplayer.interactable)
-                {
-                    throw new InvalidOperationException("Multiplayer must exist and remain unavailable.");
-                }
-
                 EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
                 if (buildScenes.Length < 2 ||
                     !buildScenes[0].enabled || buildScenes[0].path != MainMenuScenePath ||
@@ -282,7 +276,7 @@ namespace MainMenu.Editor
                 }
             }
 
-            Debug.Log("Main menu validation passed: navigation, settings, disabled multiplayer, and build order are wired.");
+            Debug.Log("Main menu validation passed: navigation, settings, and build order are wired.");
         }
 
         public static void ConfigureMainMenuBatch()
@@ -562,17 +556,6 @@ namespace MainMenu.Editor
             scaler.matchWidthOrHeight = 0.5f;
 
             RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
-            RectTransform veil = CreateRect("Deep Space Veil", canvasRect, Vector2.zero, Vector2.zero);
-            Stretch(veil);
-            Image veilImage = veil.gameObject.AddComponent<Image>();
-            veilImage.color = new Color(0.01f, 0.025f, 0.04f, 0.18f);
-            veilImage.raycastTarget = false;
-
-            CreateShadeBand(canvasRect, "Command Deck Shade", 0f, 0.41f, 0.76f);
-            CreateShadeBand(canvasRect, "Command Deck Feather 1", 0.41f, 0.47f, 0.52f);
-            CreateShadeBand(canvasRect, "Command Deck Feather 2", 0.47f, 0.53f, 0.29f);
-            CreateShadeBand(canvasRect, "Command Deck Feather 3", 0.53f, 0.59f, 0.11f);
-
             CreateText(
                 "System Eyebrow",
                 canvasRect,
@@ -608,11 +591,7 @@ namespace MainMenu.Editor
                 new Vector2(-472f, 292f));
 
             RectTransform homePage = CreatePage("Home Page", canvasRect);
-            Button singleplayer = BuildHomePage(
-                homePage,
-                assets,
-                out Button multiplayer,
-                out Button settings);
+            Button singleplayer = BuildHomePage(homePage, assets, out Button settings);
             RectTransform settingsPage = CreatePage("Settings Page", canvasRect);
             BuildSettingsPage(
                 settingsPage,
@@ -656,7 +635,6 @@ namespace MainMenu.Editor
             Assign(serialized, "settingsPage", settingsPage.gameObject);
             Assign(serialized, "controlsPage", controlsPage.gameObject);
             Assign(serialized, "singleplayerButton", singleplayer);
-            Assign(serialized, "multiplayerButton", multiplayer);
             Assign(serialized, "settingsButton", settings);
             Assign(serialized, "settingsBackButton", settingsBackButton);
             Assign(serialized, "controlsButton", controlsButton);
@@ -681,7 +659,6 @@ namespace MainMenu.Editor
         private static Button BuildHomePage(
             Transform page,
             MenuAssets assets,
-            out Button multiplayer,
             out Button settings)
         {
             RectTransform console = CreateConsole(page, assets.Popup, "Mission Console");
@@ -696,25 +673,6 @@ namespace MainMenu.Editor
                 assets.PlayIcon,
                 new Vector2(0f, 62f),
                 true);
-            multiplayer = CreateMenuButton(
-                "Multiplayer",
-                console,
-                "MULTIPLAYER",
-                "CREW UPLINK UNAVAILABLE",
-                assets,
-                null,
-                new Vector2(0f, -58f),
-                false);
-            CreateText(
-                "Offline Badge",
-                multiplayer.transform,
-                "OFFLINE",
-                assets.UtilityFont,
-                16,
-                Offline,
-                TextAnchor.MiddleRight,
-                new Vector2(100f, 28f),
-                new Vector2(216f, 0f));
             settings = CreateMenuButton(
                 "Settings",
                 console,
@@ -722,7 +680,7 @@ namespace MainMenu.Editor
                 "CALIBRATE SUIT SYSTEMS",
                 assets,
                 assets.SettingsIcon,
-                new Vector2(0f, -178f),
+                new Vector2(0f, -58f),
                 true);
 
             CreateText(
@@ -1249,23 +1207,6 @@ namespace MainMenu.Editor
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
             return rect;
-        }
-
-        private static void CreateShadeBand(
-            Transform parent,
-            string name,
-            float minimumX,
-            float maximumX,
-            float alpha)
-        {
-            RectTransform band = CreateRect(name, parent, Vector2.zero, Vector2.zero);
-            band.anchorMin = new Vector2(minimumX, 0f);
-            band.anchorMax = new Vector2(maximumX, 1f);
-            band.offsetMin = Vector2.zero;
-            band.offsetMax = Vector2.zero;
-            Image image = band.gameObject.AddComponent<Image>();
-            image.color = new Color(Void.r, Void.g, Void.b, alpha);
-            image.raycastTarget = false;
         }
 
         private static void Stretch(

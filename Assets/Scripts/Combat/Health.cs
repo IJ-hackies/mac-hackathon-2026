@@ -81,16 +81,25 @@ namespace Combat
             animator = target;
         }
 
-        public void ApplyDamage(float amount, Vector3 hitPoint, GameObject instigator, DamageType damageType = DamageType.Generic)
+        /// <summary>
+        /// Applies damage and returns the real amount of health removed. This is deliberately
+        /// separate from <see cref="IDamageable"/>'s void contract so existing callers remain
+        /// source-compatible, while effects such as lifesteal can use the post-mitigation,
+        /// post-overkill value rather than the requested hit amount.
+        /// </summary>
+        public float ApplyDamageAndGetApplied(float amount, Vector3 hitPoint, GameObject instigator,
+            DamageType damageType = DamageType.Generic)
         {
-            if (IsDead || amount <= 0f) return;
+            if (IsDead || amount <= 0f) return 0f;
 
             amount *= EffectiveIncomingDamageMultiplier;
-            if (amount <= 0f) return;
+            if (amount <= 0f) return 0f;
 
             if (_currentHealth < 0f) _currentHealth = maxHealth;
 
+            float previousHealth = _currentHealth;
             _currentHealth = Mathf.Max(0f, _currentHealth - amount);
+            float appliedDamage = previousHealth - _currentHealth;
             HealthChanged?.Invoke(_currentHealth, maxHealth);
 
             if (_currentHealth <= 0f)
@@ -106,7 +115,7 @@ namespace Combat
                 Audio.AudioManager.Instance.StopAllLoopsFor(gameObject);
 
                 Died?.Invoke();
-                return;
+                return appliedDamage;
             }
 
             if (Time.time - _lastHitReactTime >= hitReactCooldown)
@@ -115,6 +124,14 @@ namespace Combat
                 Hit?.Invoke(damageType);
                 if (animator != null && !SuppressHitReact) animator.SetTrigger(HitReactParam);
             }
+
+            return appliedDamage;
+        }
+
+        public void ApplyDamage(float amount, Vector3 hitPoint, GameObject instigator,
+            DamageType damageType = DamageType.Generic)
+        {
+            ApplyDamageAndGetApplied(amount, hitPoint, instigator, damageType);
         }
 
         /// Restores health (e.g. a pickup). No-ops once dead - death isn't reversible here.

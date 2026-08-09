@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 
 namespace Player.UI.Progression
 {
     public enum ProgressionSupply
     {
         HealthPack,
+        LargeHealthPack,
         AmmoPack
     }
 
@@ -21,7 +23,86 @@ namespace Player.UI.Progression
 
     public enum ProgressionSpecialSkill
     {
-        HoldToFire
+        HoldToFire,
+        BulletBounce,
+        Fortune,
+        FortuneII,
+        MedKit,
+        AmmoKit,
+        Ultimate,
+        Quickdraw,
+        Vampire,
+        ExplosiveBullets,
+        Headshot,
+        Minigun,
+        Secret,
+    }
+
+    /// <summary>Presentation and economy metadata for a one-time, run-only special skill.</summary>
+    public sealed class ProgressionSpecialSkillDefinition
+    {
+        public ProgressionSpecialSkillDefinition(ProgressionSpecialSkill skill, string title, int cost,
+            string flavor, string effect, bool hideEffect = false)
+        {
+            Skill = skill;
+            Title = title;
+            Cost = cost;
+            Flavor = flavor;
+            Effect = effect;
+            HideEffect = hideEffect;
+        }
+
+        public ProgressionSpecialSkill Skill { get; }
+        public string Title { get; }
+        public int Cost { get; }
+        public string Flavor { get; }
+        public string Effect { get; }
+        public bool HideEffect { get; }
+    }
+
+    /// <summary>Single authoritative catalog. Keep all specials here rather than scattering UI constants.</summary>
+    public static class ProgressionSpecialSkillCatalog
+    {
+        private static readonly ProgressionSpecialSkillDefinition[] Definitions =
+        {
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.HoldToFire, "HOLD TO FIRE", 50,
+                "hold to fire", "Fire the ordinary pistol continuously while Attack is held."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.BulletBounce, "bullet bounce", 750,
+                "skill issue", "Ordinary pistol rounds bounce to up to 3 enemies total."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Fortune, "fortune", 500,
+                "2007 bitcoin", "Regular enemies outside arenas award 15% more gold."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.FortuneII, "fortune II", 500,
+                "2012 dropshipping", "All arena-earned gold awards 15% more gold."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.MedKit, "med kit", 750,
+                "nursing school she said.", "Regular waves scatter about 15 healing pickups worldwide."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.AmmoKit, "ammo kit", 1000,
+                "its meta trust", "Regular waves scatter about 10 ammo pickups worldwide."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Ultimate, "ultimate!", 1500,
+                "the best feature in the game", "Arena fights spawn one Thunder pickup at the arena center."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Quickdraw, "quickdraw", 1200,
+                "it's hiiigghh noon", "Set reload time to 0.1 seconds."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Vampire, "vampire", 2000,
+                "sucky sucky", "Heal for 2% of actual damage dealt by player attacks."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.ExplosiveBullets, "explosive bullets", 750,
+                "bom bom bakudan!", "Ordinary pistol impacts deal 50% splash damage in a 3-unit radius."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Headshot, "headshot!", 800,
+                "FOUR!", "Every fourth ordinary pistol round deals double damage."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Minigun, "minigun", 4000,
+                "pew pew haha", "Pistol: +30 mag, +200 reserve, -20 damage, and 2x fire rate."),
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Secret, "???", 10000,
+                "how'd you get here?", string.Empty, true),
+        };
+
+        public static IReadOnlyList<ProgressionSpecialSkillDefinition> All => Definitions;
+
+        public static ProgressionSpecialSkillDefinition Get(ProgressionSpecialSkill skill)
+        {
+            foreach (ProgressionSpecialSkillDefinition definition in Definitions)
+            {
+                if (definition.Skill == skill) return definition;
+            }
+            return null;
+        }
     }
 
     /// <summary>
@@ -41,7 +122,10 @@ namespace Player.UI.Progression
         int MaxLevel { get; }
         bool CanUpgrade(ProgressionStat stat);
         bool TryUpgrade(ProgressionStat stat);
+        int GetUpgradeCost(ProgressionStat stat);
         float GetPurchasedValue(ProgressionStat stat);
+        float GetValueAtLevel(ProgressionStat stat, int level);
+        int GetReserveCapacityAtLevel(int level);
 
         bool OwnsSpecial(ProgressionSpecialSkill skill);
         bool CanPurchaseSpecial(ProgressionSpecialSkill skill);

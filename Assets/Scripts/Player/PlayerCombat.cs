@@ -48,8 +48,9 @@ namespace Player
                  "was fixed for. As long as the next click lands inside this window, the loop " +
                  "just keeps playing through the gap instead of resetting.")]
         [SerializeField] private float armsStopGrace = 0.3f;
-        [Tooltip("The base interval for Hold to Fire. Purchased fire-rate upgrades multiply this " +
-                 "cadence without changing the rest of the Animator's playback speed.")]
+        [Tooltip("The base interval between pistol shots, whether clicked or held. Purchased " +
+                  "fire-rate upgrades multiply this cadence without changing the rest of the " +
+                  "Animator's playback speed.")]
         [SerializeField, Min(0.01f)] private float holdFireInterval = 0.5f;
 
         [Header("Muzzle Flash")]
@@ -87,6 +88,13 @@ namespace Player
         [SerializeField] private Vector3 projectileVisualRotationOffsetEuler = new Vector3(0f, 90f, 0f);
         [SerializeField] private float projectileHitRadius = 0.25f;
         [SerializeField] private LayerMask enemyHitMask = ~0;
+
+        [Header("Special Skills")]
+        [SerializeField, Min(0f)] private float bulletBounceRange = 15f;
+        [SerializeField, Range(1, 3)] private int bulletBounceMaximumTargets = 3;
+        [SerializeField, Min(0f)] private float explosiveBulletRadius = 3f;
+        [SerializeField, Range(0f, 1f)] private float explosiveBulletDamageFraction = 0.5f;
+        [SerializeField, Range(0f, 1f)] private float vampireDamageFraction = 0.02f;
 
         [Header("Melee Hit VFX")]
         [Tooltip("Imported hit-spark (e.g. Lana Studio's Hit_stone) played on the enemy where a " +
@@ -155,12 +163,21 @@ namespace Player
         private bool _ultimateActive;
         private AudioHandle _mechFireLoopHandle;
         private bool _holdToFireUnlocked;
-        private float _nextHoldFireTime;
+        private bool _minigunEnabled;
+        private bool _bulletBounceEnabled;
+        private bool _explosiveBulletsEnabled;
+        private bool _headshotEnabled;
+        private bool _vampireEnabled;
+        private int _ordinaryPistolRoundsFired;
+        private float _nextPrimaryFireTime;
         private readonly Dictionary<object, float> _rangedDamageModifiers = new Dictionary<object, float>();
+        private readonly Dictionary<object, float> _rangedDamageBonuses = new Dictionary<object, float>();
         private readonly Dictionary<object, float> _meleeDamageModifiers = new Dictionary<object, float>();
+        private readonly Dictionary<object, float> _meleeDamageBonuses = new Dictionary<object, float>();
         private readonly Dictionary<object, float> _fireRateModifiers = new Dictionary<object, float>();
         private float _secondaryCooldownEndsAt = -999f;
         private readonly Dictionary<EnemyBase, int> _lightningOccurrences = new Dictionary<EnemyBase, int>();
+        private Health _playerHealth;
 
         // _isFiring covers the whole held-fire duration rather than only individual shot events,
         // so the emote wheel cannot be opened partway through an automatic burst.
@@ -170,12 +187,30 @@ namespace Player
         public float SecondaryCooldownRemaining => Mathf.Max(0f, _secondaryCooldownEndsAt - Time.time);
         public float BaseRangedDamage => fireDamage;
         public float BaseMeleeDamage => meleeDamage;
-        public float EffectiveRangedDamage => fireDamage * RangedDamageMultiplier;
-        public float EffectiveMeleeDamage => meleeDamage * MeleeDamageMultiplier;
+        public float EffectiveRangedDamage => (fireDamage + RangedDamageBonus) * RangedDamageMultiplier;
+        /// <summary>
+        /// The ordinary pistol's final hit damage. Minigun subtracts 20 raw damage before every
+        /// general ranged multiplier (including the secret skill), and never lets the result fall
+        /// below one damage.
+        /// </summary>
+        public float EffectivePistolDamage => Mathf.Max(1f,
+            (fireDamage + RangedDamageBonus - (_minigunEnabled ? 20f : 0f)) * RangedDamageMultiplier);
+        public float EffectiveMeleeDamage => (meleeDamage + MeleeDamageBonus) * MeleeDamageMultiplier;
+        public float EffectiveSecondaryDamage => (secondaryDamage + RangedDamageBonus) * RangedDamageMultiplier;
+        public float EffectiveElectricDamage => (electricDamage + RangedDamageBonus) * RangedDamageMultiplier;
+        public float EffectiveUltimateSecondaryDamage => (ultimateSecondaryDamage + RangedDamageBonus) * RangedDamageMultiplier;
         public float RangedDamageMultiplier { get; private set; } = 1f;
+        public float RangedDamageBonus { get; private set; }
         public float MeleeDamageMultiplier { get; private set; } = 1f;
+        public float MeleeDamageBonus { get; private set; }
         public float FireRateMultiplier { get; private set; } = 1f;
         public bool HoldToFireUnlocked => _holdToFireUnlocked;
+        public bool MinigunEnabled => _minigunEnabled;
+        public bool BulletBounceEnabled => _bulletBounceEnabled;
+        public bool ExplosiveBulletsEnabled => _explosiveBulletsEnabled;
+        public bool HeadshotEnabled => _headshotEnabled;
+        public bool VampireEnabled => _vampireEnabled;
+        public int OrdinaryPistolRoundsFired => _ordinaryPistolRoundsFired;
         public event System.Action SecondaryCooldownChanged;
 
         /// Called by PlayerUltimate on activate/end - swaps which attack profile FireProjectile/
@@ -191,7 +226,7 @@ namespace Player
                 // next Update happens after PlayerUltimate grants infinite ammo, so this starts
                 // the electric-gun hold without spending an ordinary magazine round.
                 _isFiring = true;
-                _nextHoldFireTime = Time.time;
+                _nextPrimaryFireTime = Time.time;
                 EnsureArmsFiringPose();
             }
             if (!active && !_holdToFireUnlocked && _isFiring)
@@ -216,17 +251,24 @@ namespace Player
 
         private void Awake()
         {
-            _actions = PlayerInputBindings.CreateActions();
+            EnsureRuntimeState();
+        }
+
+        private void EnsureRuntimeState()
+        {
+            if (_actions == null) _actions = PlayerInputBindings.CreateActions();
             if (animator == null) animator = GetComponentInChildren<Animator>();
             if (aimCamera == null) aimCamera = Camera.main;
             if (animator != null) _armsLayerIndex = animator.GetLayerIndex("Arms");
             if (playerController == null) playerController = GetComponent<PlayerController>();
             if (playerAmmo == null) playerAmmo = GetComponent<PlayerAmmo>();
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
+            if (_playerHealth == null) _playerHealth = GetComponent<Health>();
         }
 
         private void OnEnable()
         {
+            EnsureRuntimeState();
             _actions.Player.Enable();
             _actions.Player.Melee.performed += OnMeleePerformed;
             _actions.Player.Attack.started += OnFireStarted;
@@ -237,12 +279,15 @@ namespace Player
 
         private void OnDisable()
         {
-            _actions.Player.Melee.performed -= OnMeleePerformed;
-            _actions.Player.Attack.started -= OnFireStarted;
-            _actions.Player.Attack.canceled -= OnFireCanceled;
-            _actions.Player.Reload.performed -= OnReloadPerformed;
-            _actions.Player.Attack2.performed -= OnSecondaryPerformed;
-            _actions.Player.Disable();
+            if (_actions != null)
+            {
+                _actions.Player.Melee.performed -= OnMeleePerformed;
+                _actions.Player.Attack.started -= OnFireStarted;
+                _actions.Player.Attack.canceled -= OnFireCanceled;
+                _actions.Player.Reload.performed -= OnReloadPerformed;
+                _actions.Player.Attack2.performed -= OnSecondaryPerformed;
+                _actions.Player.Disable();
+            }
 
             _isFiring = false;
             // Otherwise a frozen Arms-layer shoot pose keeps overriding the base layer's arms
@@ -277,10 +322,9 @@ namespace Player
                 StopArmsImmediately();
             }
 
-            if (_isFiring && (_holdToFireUnlocked || _ultimateActive) && Time.time >= _nextHoldFireTime)
+            if (_isFiring && (_holdToFireUnlocked || _ultimateActive))
             {
-                TryFireShot();
-                _nextHoldFireTime = Time.time + EffectiveHoldFireInterval;
+                TryFirePrimaryAtCurrentCadence();
             }
         }
 
@@ -336,8 +380,8 @@ namespace Player
                 if (damageable == null || damageable.IsDead) continue;
 
                 Vector3 hitPoint = hit.ClosestPoint(end);
-                damageable.ApplyDamage(EffectiveMeleeDamage, hitPoint, gameObject, DamageType.Melee);
-                Combat.DamageNumberSpawner.Spawn(hitPoint, EffectiveMeleeDamage);
+                float appliedDamage = DealPlayerDamage(damageable, EffectiveMeleeDamage, hitPoint, DamageType.Melee);
+                if (appliedDamage > 0f) Combat.DamageNumberSpawner.Spawn(hitPoint, appliedDamage);
                 SpawnMeleeHitEffect(hitPoint);
             }
         }
@@ -354,8 +398,9 @@ namespace Player
         }
 
         // The Arms layer still provides the shooting pose for a click or a held burst. Gameplay
-        // shots themselves are input-driven: one immediate round per click by default, then a
-        // fire-rate-scaled timer only after Hold to Fire has been purchased.
+        // shots themselves are input-driven: each click requests one round, while Hold to Fire
+        // keeps requesting rounds automatically. Both paths share the same fire-rate-scaled gate,
+        // so repeated clicks cannot bypass the player's current attack speed.
         // The Arms layer (upper-body-masked, see PlayerSceneSetup.BuildArmsLayer) sits at weight
         // 0 the rest of the time so it doesn't fight Melee/Emotes/HitReact/Death's full-body base
         // layer poses; it's only switched on for the duration of firing.
@@ -374,8 +419,7 @@ namespace Player
             }
 
             _isFiring = _holdToFireUnlocked || _ultimateActive;
-            TryFireShot();
-            _nextHoldFireTime = Time.time + EffectiveHoldFireInterval;
+            TryFirePrimaryAtCurrentCadence();
             EnsureArmsFiringPose();
         }
 
@@ -400,11 +444,37 @@ namespace Player
             if (!unlocked && !_ultimateActive) _isFiring = false;
         }
 
+        /// <summary>Enables Minigun's pistol-only damage/cadence changes.</summary>
+        public void SetMinigunEnabled(bool enabled) => _minigunEnabled = enabled;
+
+        public void SetBulletBounceEnabled(bool enabled) => _bulletBounceEnabled = enabled;
+
+        public void SetExplosiveBulletsEnabled(bool enabled) => _explosiveBulletsEnabled = enabled;
+
+        public void SetHeadshotEnabled(bool enabled) => _headshotEnabled = enabled;
+
+        public void SetVampireEnabled(bool enabled) => _vampireEnabled = enabled;
+
+        /// <summary>Called when beginning a fresh run; cadence survives reloads and waves only.</summary>
+        public void ResetOrdinaryPistolRoundCount() => _ordinaryPistolRoundsFired = 0;
+
         public void SetRangedDamageModifier(object source, float multiplier) =>
             SetMultiplier(_rangedDamageModifiers, source, multiplier, value => RangedDamageMultiplier = value);
 
+        /// <summary>
+        /// Adds a raw ranged-damage amount to every player shooting attack: pistol, normal
+        /// secondary, Ultimate bolts, and Ultimate lightning. Kept separate from multipliers so
+        /// future temporary effects can still compose multiplicatively.
+        /// </summary>
+        public void SetRangedDamageBonus(object source, float amount) =>
+            SetAdditiveModifier(_rangedDamageBonuses, source, amount, value => RangedDamageBonus = value);
+
         public void SetMeleeDamageModifier(object source, float multiplier) =>
             SetMultiplier(_meleeDamageModifiers, source, multiplier, value => MeleeDamageMultiplier = value);
+
+        /// <summary>Adds raw melee damage without replacing independent multiplier effects.</summary>
+        public void SetMeleeDamageBonus(object source, float amount) =>
+            SetAdditiveModifier(_meleeDamageBonuses, source, amount, value => MeleeDamageBonus = value);
 
         public void SetFireRateModifier(object source, float multiplier) =>
             SetMultiplier(_fireRateModifiers, source, multiplier, value => FireRateMultiplier = value);
@@ -412,8 +482,14 @@ namespace Player
         public void RemoveRangedDamageModifier(object source) =>
             RemoveMultiplier(_rangedDamageModifiers, source, value => RangedDamageMultiplier = value);
 
+        public void RemoveRangedDamageBonus(object source) =>
+            RemoveAdditiveModifier(_rangedDamageBonuses, source, value => RangedDamageBonus = value);
+
         public void RemoveMeleeDamageModifier(object source) =>
             RemoveMultiplier(_meleeDamageModifiers, source, value => MeleeDamageMultiplier = value);
+
+        public void RemoveMeleeDamageBonus(object source) =>
+            RemoveAdditiveModifier(_meleeDamageBonuses, source, value => MeleeDamageBonus = value);
 
         public void RemoveFireRateModifier(object source) =>
             RemoveMultiplier(_fireRateModifiers, source, value => FireRateMultiplier = value);
@@ -441,18 +517,55 @@ namespace Player
             return result;
         }
 
+        private static void SetAdditiveModifier(Dictionary<object, float> modifiers, object source, float amount,
+            System.Action<float> apply)
+        {
+            if (source == null) throw new System.ArgumentNullException(nameof(source));
+            if (float.IsNaN(amount) || float.IsInfinity(amount))
+                throw new System.ArgumentOutOfRangeException(nameof(amount));
+            modifiers[source] = amount;
+            apply(ResolveAdditiveModifier(modifiers));
+        }
+
+        private static void RemoveAdditiveModifier(Dictionary<object, float> modifiers, object source,
+            System.Action<float> apply)
+        {
+            if (source != null && modifiers.Remove(source)) apply(ResolveAdditiveModifier(modifiers));
+        }
+
+        private static float ResolveAdditiveModifier(Dictionary<object, float> modifiers)
+        {
+            float result = 0f;
+            foreach (float modifier in modifiers.Values) result += modifier;
+            return result;
+        }
+
         private bool TryFireShot()
         {
             if (playerAmmo != null && !playerAmmo.TryConsumeRound()) return false;
-            FireProjectile();
+
+            // A Headshot round is determined only after a real ordinary pistol round is consumed.
+            // Ultimate beats consume no normal ammunition and therefore never advance this count.
+            bool headshot = !_ultimateActive && _headshotEnabled && ++_ordinaryPistolRoundsFired % 4 == 0;
+            if (!_ultimateActive && !_headshotEnabled) _ordinaryPistolRoundsFired++;
+
+            FireProjectile(headshot);
             SpawnMuzzleFlash();
             return true;
         }
 
+        private bool TryFirePrimaryAtCurrentCadence()
+        {
+            if (Time.time < _nextPrimaryFireTime) return false;
+
+            _nextPrimaryFireTime = Time.time + EffectivePrimaryFireInterval;
+            return TryFireShot();
+        }
+
         // Fire-rate upgrades apply to the ordinary pistol. Ultimate has its own fixed electric
         // machine-gun profile, and remains held-fire capable even before Hold to Fire is owned.
-        private float EffectiveHoldFireInterval => holdFireInterval /
-            Mathf.Max(0.01f, _ultimateActive ? 1f : FireRateMultiplier);
+        private float EffectivePrimaryFireInterval => holdFireInterval /
+            Mathf.Max(0.01f, _ultimateActive ? 1f : FireRateMultiplier * (_minigunEnabled ? 2f : 1f));
 
         private void EnsureArmsFiringPose()
         {
@@ -509,7 +622,7 @@ namespace Player
         // fired, unlike the old instant hitscan. Reuses Enemies.BossProjectile - the same
         // generic travelling-projectile component the bosses/flying enemy use - rather than a
         // player-specific duplicate.
-        private void FireProjectile()
+        private void FireProjectile(bool headshot)
         {
             if (_ultimateActive)
             {
@@ -524,43 +637,216 @@ namespace Player
             if (muzzle == null) return;
 
             Vector3 aimDirection = ComputeAimDirection(muzzle.position);
+            var shot = new PistolShotState(
+                EffectivePistolDamage * (headshot ? 2f : 1f),
+                _bulletBounceEnabled ? bulletBounceMaximumTargets : 1,
+                _explosiveBulletsEnabled,
+                headshot);
 
             if (projectileVisualPrefab != null)
             {
-                float lifetime = Mathf.Max(maxAimDistance / projectileVisualSpeed, 0.5f);
-                var visuals = new BossProjectileVisuals
-                {
-                    ImportedVisualPrefab = projectileVisualPrefab,
-                    ImportedVisualScale = projectileVisualScale,
-                    ExtraRotationOffset = Quaternion.Euler(projectileVisualRotationOffsetEuler),
-                    ImpactEffectPrefab = impactEffectPrefab,
-                    ImpactEffectScale = impactEffectScale,
-                };
-                BossProjectile.Create(muzzle.position, aimDirection, null, projectileVisualSpeed,
-                    EffectiveRangedDamage, false, lifetime, enemyHitMask, tracerColor, projectileHitRadius,
-                    ProjectileVisualStyle.Bolt, visuals: visuals,
-                    onHit: hitGameObject => Combat.DamageNumberSpawner.Spawn(hitGameObject.transform.position + Vector3.up, EffectiveRangedDamage));
+                SpawnPistolProjectile(muzzle.position, aimDirection, shot);
             }
             else
             {
-                // Fallback when no imported projectile prefab is assigned: keep the previous
-                // instant-hitscan-with-tracer behavior so ranged combat still works out of the box.
-                if (Physics.Raycast(muzzle.position, aimDirection, out RaycastHit fallbackHit, maxAimDistance, aimMask, QueryTriggerInteraction.Ignore))
-                {
-                    var damageable = fallbackHit.collider.GetComponentInParent<IDamageable>();
-                    if (damageable != null && !damageable.IsDead)
-                    {
-                        damageable.ApplyDamage(EffectiveRangedDamage, fallbackHit.point, gameObject, DamageType.Ranged);
-                        Combat.DamageNumberSpawner.Spawn(fallbackHit.point, EffectiveRangedDamage);
-                    }
-
-                    SpawnTracer(muzzle.position, fallbackHit.point);
-                }
-                else
-                {
-                    SpawnTracer(muzzle.position, muzzle.position + aimDirection * maxAimDistance);
-                }
+                FirePistolHitscan(muzzle.position, aimDirection, shot);
             }
+        }
+
+        private void SpawnPistolProjectile(Vector3 origin, Vector3 direction, PistolShotState shot)
+        {
+            float lifetime = Mathf.Max(maxAimDistance / projectileVisualSpeed, 0.5f);
+            var visuals = new BossProjectileVisuals
+            {
+                ImportedVisualPrefab = projectileVisualPrefab,
+                ImportedVisualScale = projectileVisualScale,
+                ExtraRotationOffset = Quaternion.Euler(projectileVisualRotationOffsetEuler),
+                ImpactEffectPrefab = impactEffectPrefab,
+                ImpactEffectScale = impactEffectScale,
+            };
+            BossProjectile.Create(origin, direction, null, projectileVisualSpeed,
+                shot.ImpactDamage, false, lifetime, enemyHitMask, tracerColor, projectileHitRadius,
+                ProjectileVisualStyle.Bolt, visuals: visuals,
+                onDamage: hit => HandlePistolProjectileImpact(hit, shot));
+        }
+
+        // The no-import fallback keeps all gameplay identical to projectiles: a chain still
+        // visits no more than three targets and each impact still resolves splash/lifesteal.
+        private void FirePistolHitscan(Vector3 origin, Vector3 direction, PistolShotState shot)
+        {
+            if (Physics.Raycast(origin, direction, out RaycastHit hit, maxAimDistance, aimMask,
+                    QueryTriggerInteraction.Ignore))
+            {
+                SpawnTracer(origin, hit.point);
+                var damageable = hit.collider.GetComponentInParent<IDamageable>();
+                if (damageable != null && !damageable.IsDead)
+                {
+                    ResolvePistolImpact(damageable, hit.point, shot);
+                }
+                return;
+            }
+
+            SpawnTracer(origin, origin + direction * maxAimDistance);
+        }
+
+        private void HandlePistolProjectileImpact(ProjectileHit hit, PistolShotState shot)
+        {
+            if (hit.Damageable == null) return;
+            HandlePistolImpact(hit.Damageable, hit.Point, hit.AppliedDamage, shot);
+        }
+
+        private void ResolvePistolImpact(IDamageable target, Vector3 point, PistolShotState shot)
+        {
+            if (target == null || target.IsDead || !shot.RegisterTarget(target)) return;
+            float appliedDamage = DealPlayerDamage(target, shot.ImpactDamage, point, DamageType.Ranged);
+            FinishPistolImpact(target, point, appliedDamage, shot);
+        }
+
+        private void HandlePistolImpact(IDamageable target, Vector3 point, float appliedDamage,
+            PistolShotState shot)
+        {
+            if (!shot.RegisterTarget(target)) return;
+            ApplyVampireHealing(appliedDamage);
+            FinishPistolImpact(target, point, appliedDamage, shot);
+        }
+
+        private void FinishPistolImpact(IDamageable directTarget, Vector3 point, float appliedDamage,
+            PistolShotState shot)
+        {
+            if (appliedDamage > 0f) Combat.DamageNumberSpawner.Spawn(point + Vector3.up, appliedDamage);
+
+            if (shot.Explosive)
+            {
+                ApplyPistolExplosion(point, directTarget, shot.ImpactDamage * explosiveBulletDamageFraction);
+            }
+
+            if (!shot.CanBounce) return;
+
+            EnemyBase nextTarget = FindNextBounceTarget(point, shot.VisitedTargets);
+            if (nextTarget == null) return;
+
+            IDamageable nextDamageable = nextTarget.GetComponent<IDamageable>();
+            if (nextDamageable == null) return;
+
+            Vector3 nextPoint = nextTarget.transform.position + Vector3.up;
+            Vector3 direction = nextPoint - point;
+            if (direction.sqrMagnitude <= 0.0001f) return;
+
+            if (projectileVisualPrefab != null)
+            {
+                // A small forward offset avoids re-hitting the just-struck target's collider.
+                SpawnPistolProjectile(point + direction.normalized * 0.08f, direction.normalized, shot);
+            }
+            else
+            {
+                SpawnTracer(point, nextPoint);
+                ResolvePistolImpact(nextDamageable, nextPoint, shot);
+            }
+        }
+
+        private void ApplyPistolExplosion(Vector3 point, IDamageable directTarget, float intendedDamage)
+        {
+            if (intendedDamage <= 0f) return;
+
+            var uniqueTargets = new HashSet<IDamageable>();
+            foreach (Collider collider in Physics.OverlapSphere(point, explosiveBulletRadius, enemyHitMask,
+                         QueryTriggerInteraction.Ignore))
+            {
+                if (collider.transform.root == transform.root) continue;
+                IDamageable target = collider.GetComponentInParent<IDamageable>();
+                if (target == null || target == directTarget || target.IsDead || !uniqueTargets.Add(target)) continue;
+
+                Vector3 hitPoint = collider.ClosestPoint(point);
+                float appliedDamage = DealPlayerDamage(target, intendedDamage, hitPoint, DamageType.Ranged);
+                if (appliedDamage > 0f) Combat.DamageNumberSpawner.Spawn(hitPoint + Vector3.up, appliedDamage);
+            }
+        }
+
+        private EnemyBase FindNextBounceTarget(Vector3 point, HashSet<IDamageable> visitedTargets)
+        {
+            return FindObjectsByType<EnemyBase>(FindObjectsSortMode.None)
+                .Where(enemy => enemy != null)
+                .Where(enemy =>
+                {
+                    IDamageable damageable = enemy.GetComponent<IDamageable>();
+                    return damageable != null && !damageable.IsDead && !visitedTargets.Contains(damageable);
+                })
+                .Where(enemy => Vector3.Distance(point, enemy.transform.position) <= bulletBounceRange)
+                .OrderBy(enemy => Vector3.Distance(point, enemy.transform.position))
+                .FirstOrDefault(enemy => HasClearBounceLineOfSight(point, enemy));
+        }
+
+        private bool HasClearBounceLineOfSight(Vector3 origin, EnemyBase target)
+        {
+            Vector3 targetPoint = target.transform.position + Vector3.up;
+            Vector3 offset = targetPoint - origin;
+            float distance = offset.magnitude;
+            if (distance <= 0.001f) return true;
+
+            Vector3 direction = offset / distance;
+            RaycastHit[] hits = Physics.RaycastAll(origin + direction * 0.08f, direction,
+                Mathf.Max(0f, distance - 0.08f), aimMask, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider.transform.root == transform.root) continue;
+                return hit.collider.GetComponentInParent<EnemyBase>() == target;
+            }
+
+            // The target may use a CharacterController rather than a raycastable collider. No
+            // intervening hit still constitutes clear line of sight in that case.
+            return true;
+        }
+
+        private float DealPlayerDamage(IDamageable target, float intendedDamage, Vector3 point,
+            DamageType damageType)
+        {
+            if (target == null || target.IsDead || intendedDamage <= 0f) return 0f;
+
+            float appliedDamage;
+            if (target is Health health)
+            {
+                appliedDamage = health.ApplyDamageAndGetApplied(intendedDamage, point, gameObject, damageType);
+            }
+            else
+            {
+                // Health is the shared enemy implementation. Retain compatibility with any
+                // future IDamageable implementation while treating its requested hit as the best
+                // available actual-damage value.
+                target.ApplyDamage(intendedDamage, point, gameObject, damageType);
+                appliedDamage = intendedDamage;
+            }
+
+            ApplyVampireHealing(appliedDamage);
+            return appliedDamage;
+        }
+
+        private void ApplyVampireHealing(float appliedDamage)
+        {
+            if (!_vampireEnabled || appliedDamage <= 0f) return;
+            if (_playerHealth == null) _playerHealth = GetComponent<Health>();
+            _playerHealth?.Heal(appliedDamage * vampireDamageFraction);
+        }
+
+        private sealed class PistolShotState
+        {
+            public readonly float ImpactDamage;
+            public readonly bool Explosive;
+            public readonly bool Headshot;
+            public readonly int MaximumTargets;
+            public readonly HashSet<IDamageable> VisitedTargets = new HashSet<IDamageable>();
+
+            public bool CanBounce => VisitedTargets.Count < MaximumTargets;
+
+            public PistolShotState(float impactDamage, int maximumTargets, bool explosive, bool headshot)
+            {
+                ImpactDamage = impactDamage;
+                MaximumTargets = Mathf.Clamp(maximumTargets, 1, 3);
+                Explosive = explosive;
+                Headshot = headshot;
+            }
+
+            public bool RegisterTarget(IDamageable target) => target != null && VisitedTargets.Add(target);
         }
 
         private Vector3 ComputeAimDirection(Vector3 origin)
@@ -601,13 +887,18 @@ namespace Player
 
             float slowMultiplier = 1f - Mathf.Clamp01(electricSlowPercent / 100f);
             BossProjectile.Create(fromMuzzle.position, aimDirection, null, electricProjectileSpeed,
-                electricDamage, false, lifetime, enemyHitMask, tracerColor, projectileHitRadius,
+                EffectiveElectricDamage, false, lifetime, enemyHitMask, tracerColor, projectileHitRadius,
                 ProjectileVisualStyle.Bolt, visuals: visuals,
                 onHit: hitGameObject =>
                 {
                     var enemy = hitGameObject.GetComponentInParent<EnemyBase>();
                     enemy?.ApplySlow(slowMultiplier, electricSlowDuration);
-                    Combat.DamageNumberSpawner.Spawn(hitGameObject.transform.position + Vector3.up, electricDamage);
+                },
+                onDamage: hit =>
+                {
+                    ApplyVampireHealing(hit.AppliedDamage);
+                    if (hit.AppliedDamage > 0f)
+                        Combat.DamageNumberSpawner.Spawn(hit.Point + Vector3.up, hit.AppliedDamage);
                 });
         }
 
@@ -643,7 +934,7 @@ namespace Player
             // purely visual placement fix.
             Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(point);
             StartCoroutine(TopDownGroundEffect.Play(topDownBeamDotPurplePrefab, vfxPoint,
-                secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, secondaryDamage, SfxId.PlayerShootSecondary),
+                secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, EffectiveSecondaryDamage, SfxId.PlayerShootSecondary),
                 skipFraction: 0.99f));
         }
 
@@ -665,7 +956,7 @@ namespace Player
                 int occurrence = _lightningOccurrences.TryGetValue(target, out int existing) ? existing : 0;
                 _lightningOccurrences[target] = occurrence + 1;
 
-                float damage = ultimateSecondaryDamage * Mathf.Max(0.2f, 1f - 0.2f * occurrence);
+                float damage = EffectiveUltimateSecondaryDamage * Mathf.Max(0.2f, 1f - 0.2f * occurrence);
                 Vector3 point = target.transform.position;
                 // skipFraction 0.5 - same particle-timeline seek as FireSingleTopDownBeam above,
                 // confirmed working well at the halfway point for this prefab. VFX grounded below
@@ -677,16 +968,16 @@ namespace Player
             }
         }
 
-        private static void DamageIfStillNear(EnemyBase target, Vector3 point, float radius, float damage, SfxId hitSfx)
+        private void DamageIfStillNear(EnemyBase target, Vector3 point, float radius, float damage, SfxId hitSfx)
         {
             if (target == null) return;
             var damageable = target.GetComponent<IDamageable>();
             if (damageable == null || damageable.IsDead) return;
             if (Vector3.Distance(target.transform.position, point) > radius) return;
 
-            damageable.ApplyDamage(damage, point, target.gameObject, DamageType.Ranged);
+            float appliedDamage = DealPlayerDamage(damageable, damage, point, DamageType.Ranged);
             AudioManager.Instance.PlaySfx(hitSfx, point);
-            Combat.DamageNumberSpawner.Spawn(point + Vector3.up, damage);
+            if (appliedDamage > 0f) Combat.DamageNumberSpawner.Spawn(point + Vector3.up, appliedDamage);
         }
 
         private static List<EnemyBase> FindNearestEnemies(Vector3 origin, int count)

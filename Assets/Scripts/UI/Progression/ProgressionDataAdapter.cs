@@ -60,6 +60,29 @@ namespace Player.UI.Progression
             return ReadFloatMethod("GetPurchasedValue", ToRuntimeName(stat), 0f);
         }
 
+        public int GetUpgradeCost(ProgressionStat stat)
+        {
+            if (_contractSource != null) return _contractSource.GetUpgradeCost(stat);
+            return ReadIntMethod("GetUpgradeCost", ToRuntimeName(stat), 0);
+        }
+
+        public float GetValueAtLevel(ProgressionStat stat, int level)
+        {
+            if (_contractSource != null) return _contractSource.GetValueAtLevel(stat, level);
+            object value = InvokeWithEnumAndInt("GetValueAtLevel", ToRuntimeName(stat), level);
+            return value == null ? 0f : Convert.ToSingle(value);
+        }
+
+        public int GetReserveCapacityAtLevel(int level)
+        {
+            if (_contractSource != null) return _contractSource.GetReserveCapacityAtLevel(level);
+            Resolve();
+            MethodInfo method = _sourceType?.GetMethod("GetReserveCapacityAtLevel",
+                BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(int) }, null);
+            object value = method?.Invoke(_resolved, new object[] { level });
+            return value == null ? 0 : Convert.ToInt32(value);
+        }
+
         public bool CanUpgrade(ProgressionStat stat)
         {
             if (_contractSource != null) return _contractSource.CanUpgrade(stat);
@@ -183,6 +206,29 @@ namespace Player.UI.Progression
                 {
                     object argument = Enum.Parse(parameters[0].ParameterType, runtimeArgument, true);
                     return method.Invoke(_resolved, new[] { argument });
+                }
+                catch (ArgumentException)
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        private object InvokeWithEnumAndInt(string name, string runtimeArgument, int value)
+        {
+            Resolve();
+            if (_sourceType == null) return null;
+            foreach (MethodInfo method in _sourceType.GetMethods(BindingFlags.Instance | BindingFlags.Public))
+            {
+                if (method.Name != name) continue;
+                ParameterInfo[] parameters = method.GetParameters();
+                if (parameters.Length != 2 || !parameters[0].ParameterType.IsEnum ||
+                    parameters[1].ParameterType != typeof(int)) continue;
+                try
+                {
+                    object argument = Enum.Parse(parameters[0].ParameterType, runtimeArgument, true);
+                    return method.Invoke(_resolved, new object[] { argument, value });
                 }
                 catch (ArgumentException)
                 {

@@ -19,7 +19,7 @@ namespace Player
         [Header("Dash")]
         [SerializeField] private float dashSpeed = 26f;
         [SerializeField] private float dashDuration = 0.3f;
-        [SerializeField] private float dashCooldown = 3f;
+        [SerializeField] private float dashCooldown = 2f;
 
         [Header("Visual")]
         [Tooltip("Imported dash burst (e.g. Lana Studio's Burst/Poof_electric).")]
@@ -39,8 +39,7 @@ namespace Player
 
         private void Awake()
         {
-            _actions = PlayerInputBindings.CreateActions();
-            if (playerController == null) playerController = GetComponent<PlayerController>();
+            EnsureRuntimeState();
         }
 
         // Without this, _actions.Player.Move.ReadValue<Vector2>() in TryDash always reads the
@@ -49,18 +48,25 @@ namespace Player
         // silently ignored WASD and only ever went wherever the camera/body happened to face.
         private void OnEnable()
         {
+            EnsureRuntimeState();
             _actions.Player.Enable();
         }
 
         private void OnDisable()
         {
-            _actions.Player.Disable();
+            _actions?.Player.Disable();
         }
 
         private void OnDestroy()
         {
             PlayerInputBindings.ReleaseActions(_actions);
             _actions = null;
+        }
+
+        private void EnsureRuntimeState()
+        {
+            if (_actions == null) _actions = PlayerInputBindings.CreateActions();
+            if (playerController == null) playerController = GetComponent<PlayerController>();
         }
 
         /// Called by PlayerAbilityInput while not in Ultimate mode. Direction comes from

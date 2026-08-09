@@ -168,7 +168,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7960814586797252827
 RectTransform:
   m_ObjectHideFlags: 0
@@ -638,7 +638,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45bf186f4f47e4dcc8b977fe5fbb25a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.Health
-  maxHealth: 100
+  maxHealth: 150
   animator: {fileID: 0}
   hitReactCooldown: 0.35
 --- !u!114 &2739282377683332897
@@ -662,8 +662,8 @@ MonoBehaviour:
   meleeHitVfxScale: 1
   slowVfxPrefab: {fileID: 7042460137364555477, guid: ecabc7a4007a8ad43be3e17217dd9057, type: 3}
   slowVfxScale: 1
-  walkSpeed: 1.6
-  runSpeed: 3.6
+  walkSpeed: 2
+  runSpeed: 4.5
   runDistanceThreshold: 6
   gravity: -18
   groundedStickForce: -2

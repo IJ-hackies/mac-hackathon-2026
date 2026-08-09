@@ -16,8 +16,8 @@ namespace Enemies
         [SerializeField] private float hoverHeight = 2f;
         [SerializeField] private float bobAmplitude = 0.25f;
         [SerializeField] private float bobSpeed = 1.5f;
-        [SerializeField] private float wanderSpeed = 1.2f;
-        [SerializeField] private float approachSpeed = 1.8f;
+        [SerializeField] private float wanderSpeed = 1.5f;
+        [SerializeField] private float approachSpeed = 2.25f;
         [SerializeField] private float maxDistanceFromPlayer = 14f;
         [SerializeField] private float wanderRadius = 4f;
         [SerializeField] private float wanderInterval = 3f;
@@ -63,7 +63,14 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead || isFrozen) return;
+            if (IsAiLifecycleSuspended) return;
+
+            if (!CanRunAi())
+            {
+                MaintainPassiveHover(hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude);
+                animator.SetFloat(SpeedParam, 0f, 0.1f, Time.deltaTime);
+                return;
+            }
 
             if (_isAttacking)
             {
@@ -75,7 +82,7 @@ namespace Enemies
             float speed = UpdateMovement();
             animator.SetFloat(SpeedParam, Mathf.Clamp01(speed), 0.1f, Time.deltaTime);
 
-            if (Time.time - _lastAttackTime >= attackCooldown && DistanceToPlayer() <= attackRange)
+            if (Time.time - _lastAttackTime >= AttackInterval(attackCooldown) && DistanceToPlayer() <= attackRange)
             {
                 StartCoroutine(AttackRoutine());
             }
@@ -95,30 +102,27 @@ namespace Enemies
             {
                 _nextWanderTime = Time.time + wanderInterval;
                 Vector2 randomCircle = Random.insideUnitCircle;
-                _wanderOffset = new Vector3(randomCircle.x, 0f, randomCircle.y) * wanderRadius;
+                _wanderOffset = BuildTangentDirection(SurfaceUp(transform.position), randomCircle) * wanderRadius;
             }
 
-            Vector3 flatToPlayer = player.position - transform.position;
-            flatToPlayer.y = 0f;
-            float distance = flatToPlayer.magnitude;
+            Vector3 toPlayer = TangentTowardsPlayer();
+            float distance = DistanceToPlayer();
 
             Vector3 desiredDirection;
             float speed;
             if (distance > maxDistanceFromPlayer)
             {
-                desiredDirection = flatToPlayer.normalized;
+                desiredDirection = toPlayer;
                 speed = approachSpeed;
             }
             else
             {
-                Vector3 blended = flatToPlayer.normalized * 0.3f + _wanderOffset.normalized * 0.7f;
+                Vector3 blended = toPlayer * 0.3f + _wanderOffset * 0.7f;
                 desiredDirection = blended.sqrMagnitude > 0.0001f ? blended.normalized : Vector3.zero;
                 speed = wanderSpeed;
             }
 
-            Vector3 nextPosition = transform.position + desiredDirection * speed * SpeedMultiplier * Time.deltaTime;
-            nextPosition.y = hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude;
-            transform.position = nextPosition;
+            MoveHover(desiredDirection, speed, hoverHeight + Mathf.Sin((Time.time + _bobSeed) * bobSpeed) * bobAmplitude);
 
             return speed / approachSpeed;
         }
@@ -128,7 +132,7 @@ namespace Enemies
             _isAttacking = true;
             animator.SetTrigger(AttackParam);
 
-            yield return new WaitForSeconds(chargeStartDelay);
+            yield return new WaitForSeconds(AttackInterval(chargeStartDelay));
 
             if (isDead || player == null)
             {
@@ -153,7 +157,7 @@ namespace Enemies
                 ImpactEffectScale = shurikenImpactEffectScale,
             };
 
-            BossProjectile.Create(origin, direction, player, shurikenSpeed, laserDamage,
+            BossProjectile.Create(origin, direction, player, shurikenSpeed * ProjectileSpeedMultiplier, laserDamage * DamageMultiplier,
                 false, shurikenLifetime, mask, Color.white, shurikenHitRadius, ProjectileVisualStyle.Bolt,
                 visuals: visuals);
 

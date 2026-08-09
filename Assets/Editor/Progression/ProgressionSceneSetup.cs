@@ -255,7 +255,8 @@ namespace Progression.Editor
             Component supplyScreen = GetComponentByTypeName(supply?.gameObject, "Player.UI.Progression.SupplyStationScreen");
             ValidateReference(errors, supplyScreen, "progression", adapter, "supply screen adapter");
             ValidateReference(errors, supplyScreen, "healthPackButton", PurchaseButtonAt(supply, 0), "health pack button");
-            ValidateReference(errors, supplyScreen, "ammoPackButton", PurchaseButtonAt(supply, 1), "ammo pack button");
+            ValidateReference(errors, supplyScreen, "largeHealthPackButton", PurchaseButtonAt(supply, 1), "large health pack button");
+            ValidateReference(errors, supplyScreen, "ammoPackButton", PurchaseButtonAt(supply, 2), "ammo pack button");
             ValidateReference(errors, supplyScreen, "goldText", FindText(supply, "GoldValue"), "supply gold text");
 
             Transform skillTree = ui.Find("StationConsole/SkillTree");
@@ -281,7 +282,19 @@ namespace Progression.Editor
             Transform special = ui.Find("StationConsole/SpecialShop");
             Component specialScreen = GetComponentByTypeName(special?.gameObject, "Player.UI.Progression.SpecialShopStationScreen");
             ValidateReference(errors, specialScreen, "progression", adapter, "special shop adapter");
-            ValidateReference(errors, specialScreen, "holdToFireButton", PurchaseButtonAt(special, 0), "hold-to-fire button");
+            Transform catalog = special?.Find("CatalogScroll");
+            if (catalog?.GetComponent<ScrollRect>() == null) errors.Add("Special catalog is missing its ScrollRect.");
+            if (catalog?.Find("Viewport")?.GetComponent<RectMask2D>() == null) errors.Add("Special catalog is missing its clipped viewport.");
+            if (catalog?.Find("Viewport/Content") == null) errors.Add("Special catalog is missing its scroll content.");
+            var specialButtons = new List<UnityEngine.Object>();
+            int expectedSpecialCount = Player.UI.Progression.ProgressionSpecialSkillCatalog.All.Count;
+            for (int index = 0; index < expectedSpecialCount; index++)
+            {
+                Component button = PurchaseButtonAt(special, index);
+                specialButtons.Add(button);
+                if (button == null) errors.Add("Special catalog is missing card " + (index + 1) + ".");
+            }
+            ValidateReferenceArray(errors, specialScreen, "skillButtons", specialButtons, "special catalog buttons");
             ValidateReference(errors, specialScreen, "goldText", FindText(special, "GoldValue"), "special shop gold text");
         }
 
@@ -289,7 +302,7 @@ namespace Progression.Editor
         {
             Transform card = cardIndex == 0 && screenOrCard?.Find("Purchase") != null
                 ? screenOrCard
-                : screenOrCard?.Find("Card_" + (cardIndex + 1).ToString("00"));
+                : FindCard(screenOrCard, cardIndex);
             return GetComponentByTypeName(card?.Find("Purchase")?.gameObject, "Player.UI.Progression.ProgressionPurchaseButton");
         }
 
@@ -659,9 +672,9 @@ namespace Progression.Editor
             Image dimmer = console.gameObject.AddComponent<Image>();
             dimmer.color = new Color(.01f, .025f, .06f, .76f);
             dimmer.raycastTarget = true;
-            BuildStationScreen(console, "Supply", "SUPPLY CONSOLE", "BASE_LARGE  /  FIELD RESUPPLY", new Color(.1f, .92f, .72f), new[] { "HEALTH PACK", "AMMO PACK" }, displayFont, utilityFont);
+            BuildStationScreen(console, "Supply", "SUPPLY CONSOLE", "BASE_LARGE  /  FIELD RESUPPLY", new Color(.1f, .92f, .72f), new[] { "HEALTH PACK", "LARGE HEALTH PACK", "AMMO PACK" }, displayFont, utilityFont);
             BuildStationScreen(console, "SkillTree", "SKILL ARCHIVE", "GEODESIC DOME  /  RUN UPGRADES", new Color(.57f, .38f, 1f), new[] { "MAX HP", "MOVEMENT", "FIRE RATE", "SHOOTING DMG", "MELEE DMG", "DEFENSE", "MAX AMMO" }, displayFont, utilityFont);
-            BuildStationScreen(console, "SpecialShop", "SPECIAL SYSTEM", "SOLAR ARRAY  /  ONE-TIME SKILL", new Color(1f, .67f, .13f), new[] { "HOLD TO FIRE" }, displayFont, utilityFont);
+            BuildSpecialSystemScreen(console, displayFont, utilityFont);
             CreateButton("CloseButton", console, "CLOSE", new Color(.65f, .78f, .88f), utilityFont,
                 new Vector2(540f, -300f), new Vector2(132f, 34f), new Vector2(.5f, .5f));
             console.gameObject.SetActive(false);
@@ -701,8 +714,69 @@ namespace Progression.Editor
                 {
                     AddText("Value", card, CardValue(name, index), utilityFont, 18, TextAnchor.UpperLeft, accent, new Vector2(24f, -108f), new Vector2(layout.Size.x - 48f, 28f), new Vector2(0f, 1f));
                 }
-                AddText("Cost", card, index == 0 && cards.Count == 1 ? "500 G" : "100 G", utilityFont, 16, TextAnchor.UpperLeft, accent, new Vector2(24f, -143f), new Vector2(100f, 24f), new Vector2(0f, 1f));
+                AddText("Cost", card, InitialCardCost(name, index), utilityFont, 16, TextAnchor.UpperLeft, accent, new Vector2(24f, -143f), new Vector2(100f, 24f), new Vector2(0f, 1f));
                 CreateButton("Purchase", card, "UPGRADE", accent, utilityFont, new Vector2(-22f, 18f), new Vector2(152f, 38f), new Vector2(1f, 0f));
+            }
+            screen.gameObject.SetActive(false);
+        }
+
+        /// <summary>Two-column, vertical-scroll catalog so every independent special is visible.</summary>
+        private static void BuildSpecialSystemScreen(Transform parent, Font displayFont, Font utilityFont)
+        {
+            Color accent = new Color(1f, .67f, .13f);
+            RectTransform screen = CreateRect("SpecialShop", parent, new Vector2(1260f, 700f), Vector2.zero, new Vector2(.5f, .5f));
+            Image background = screen.gameObject.AddComponent<Image>();
+            background.sprite = SpriteAt("SpaceExpansion_Panel.png");
+            background.type = Image.Type.Sliced;
+            background.color = new Color(.035f, .105f, .17f, .985f);
+            AddText("Title", screen, "SPECIAL SYSTEM", displayFont, 37, TextAnchor.MiddleLeft, accent, new Vector2(52f, -55f), new Vector2(600f, 46f), new Vector2(0f, 1f));
+            AddText("Subtitle", screen, "SOLAR ARRAY  /  ONE-TIME SKILL CATALOG", utilityFont, 18, TextAnchor.MiddleLeft, new Color(.72f, .85f, .92f), new Vector2(55f, -102f), new Vector2(750f, 30f), new Vector2(0f, 1f));
+            AddText("CloseHint", screen, "E / ESC  CLOSE", utilityFont, 16, TextAnchor.MiddleRight, new Color(.72f, .85f, .92f), new Vector2(-50f, -62f), new Vector2(250f, 30f), new Vector2(1f, 1f));
+            AddText("GoldValue", screen, "G 100", utilityFont, 20, TextAnchor.MiddleRight, accent, new Vector2(-50f, -100f), new Vector2(240f, 30f), new Vector2(1f, 1f));
+
+            RectTransform scrollRoot = CreateRect("CatalogScroll", screen, new Vector2(1140f, 510f), new Vector2(0f, -150f), new Vector2(.5f, 1f));
+            Image scrollBackground = scrollRoot.gameObject.AddComponent<Image>();
+            scrollBackground.color = new Color(.015f, .04f, .08f, .35f);
+            ScrollRect scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+
+            RectTransform viewport = CreateRect("Viewport", scrollRoot, Vector2.zero, Vector2.zero);
+            Stretch(viewport);
+            // A sprite-less Image may not generate Mask geometry, clipping every child.
+            // RectMask2D clips by this transform's rectangle without needing a Graphic.
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            var definitions = Player.UI.Progression.ProgressionSpecialSkillCatalog.All;
+            int rowCount = Mathf.CeilToInt(definitions.Count / 2f);
+            RectTransform content = CreateRect("Content", viewport, new Vector2(1100f, Mathf.Max(510f, rowCount * 190f + 12f)), Vector2.zero, new Vector2(.5f, 1f));
+            scroll.viewport = viewport;
+            scroll.content = content;
+
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                Player.UI.Progression.ProgressionSpecialSkillDefinition definition = definitions[index];
+                int column = index % 2;
+                int row = index / 2;
+                RectTransform card = CreateRect("Card_" + (index + 1).ToString("00"), content,
+                    new Vector2(520f, 174f), new Vector2(14f + column * 552f, -10f - row * 190f), new Vector2(0f, 1f));
+                Image cardPanel = card.gameObject.AddComponent<Image>();
+                cardPanel.sprite = SpriteAt("CartoonSciFi_Popup.png");
+                cardPanel.type = Image.Type.Sliced;
+                cardPanel.color = new Color(.08f, .18f, .25f, 1f);
+                BuildCardIcon(card, IconFor("SpecialShop", index), accent);
+                AddText("Name", card, definition.Title, displayFont, 20, TextAnchor.UpperLeft, Color.white,
+                    new Vector2(22f, -20f), new Vector2(405f, 30f), new Vector2(0f, 1f));
+                AddText("Flavor", card, "\"" + definition.Flavor + "\"", utilityFont, 14, TextAnchor.UpperLeft,
+                    accent, new Vector2(22f, -51f), new Vector2(450f, 22f), new Vector2(0f, 1f));
+                AddText("Detail", card, definition.HideEffect ? string.Empty : definition.Effect, utilityFont, 14,
+                    TextAnchor.UpperLeft, new Color(.69f, .82f, .9f), new Vector2(22f, -76f), new Vector2(470f, 37f), new Vector2(0f, 1f));
+                AddText("Cost", card, definition.Cost + " G", utilityFont, 16, TextAnchor.UpperLeft, accent,
+                    new Vector2(22f, -139f), new Vector2(115f, 24f), new Vector2(0f, 1f));
+                CreateButton("Purchase", card, "UNLOCK", accent, utilityFont, new Vector2(-20f, 17f),
+                    new Vector2(152f, 38f), new Vector2(1f, 0f));
             }
             screen.gameObject.SetActive(false);
         }
@@ -717,26 +791,45 @@ namespace Progression.Editor
                 float x = firstRow ? 90f + index * 275f : 222.5f + (index - 4) * 280f;
                 return new CardLayout(new Vector2(cardWidth, cardHeight), new Vector2(x, firstRow ? -160f : -374f));
             }
+            if (count == 3) return new CardLayout(new Vector2(350f, cardHeight), new Vector2(55f + index * 400f, -226f));
             if (count == 2) return new CardLayout(new Vector2(490f, cardHeight), new Vector2(index == 0 ? 105f : 665f, -226f));
             return new CardLayout(new Vector2(560f, cardHeight), new Vector2(350f, -226f));
         }
 
         private static string CardDescription(string stationName, int index)
         {
-            if (stationName == "Supply") return index == 0 ? "Restore current HP to full." : "Refill magazine and reserve.";
+            if (stationName == "Supply")
+            {
+                if (index == 0) return "Restore 50 current HP.";
+                if (index == 1) return "Restore 150 current HP.";
+                return "Refill magazine and reserve.";
+            }
             if (stationName == "SpecialShop") return "Fire continuously while held.";
             return "PURCHASED RUN STAT";
         }
 
         private static string CardValue(string stationName, int index)
         {
-            if (stationName == "Supply") return index == 0 ? "FULL HEAL" : "FULL REFILL";
+            if (stationName == "Supply")
+            {
+                if (index == 0) return "HEAL 50 HP";
+                if (index == 1) return "HEAL 150 HP";
+                return "FULL REFILL";
+            }
             return "ONE-TIME UNLOCK";
+        }
+
+        private static string InitialCardCost(string stationName, int index)
+        {
+            if (stationName == "SpecialShop") return "50 G";
+            if (stationName == "SkillTree") return "50 G";
+            if (stationName == "Supply") return index == 0 ? "50 G" : "100 G";
+            return "100 G";
         }
 
         private static string IconFor(string stationName, int index)
         {
-            if (stationName == "Supply") return index == 0 ? "CartoonSciFi_Icon_Heart.png" : "SpaceExpansion_Icon_Crosshair.png";
+            if (stationName == "Supply") return index < 2 ? "CartoonSciFi_Icon_Heart.png" : "SpaceExpansion_Icon_Crosshair.png";
             if (stationName == "SpecialShop") return "CartoonSciFi_Icon_Lightning.png";
             switch (index)
             {
@@ -768,20 +861,20 @@ namespace Progression.Editor
         private static void BuildStatsOverview(Transform parent, Font displayFont, Font utilityFont)
         {
             // Keep the read-only overlay beneath the persistent gold/health/ammo HUD row.
-            RectTransform overview = CreateRect("RunStatsOverview", parent, new Vector2(570f, 515f), new Vector2(-35f, -190f), new Vector2(1f, 1f));
+            RectTransform overview = CreateRect("RunStatsOverview", parent, new Vector2(620f, 650f), new Vector2(-35f, -190f), new Vector2(1f, 1f));
             Image panel = overview.gameObject.AddComponent<Image>();
             panel.sprite = SpriteAt("SpaceExpansion_Panel.png");
             panel.type = Image.Type.Sliced;
             panel.color = new Color(.025f, .10f, .17f, .96f);
             AddText("Title", overview, "RUN OVERVIEW", displayFont, 29, TextAnchor.UpperLeft, new Color(.55f, .82f, 1f), new Vector2(30f, -30f), new Vector2(350f, 40f), new Vector2(0f, 1f));
-            string[] stats = { "MAX HP     100", "MOVE        100%", "FIRE RATE   100%", "SHOOTING DMG 15", "MELEE DMG    20", "DEFENSE       0%", "MAX MAG      12" };
+            string[] stats = { "MAX HP     100", "MOVE        100%", "FIRE RATE   100%", "SHOOTING DMG 15", "MELEE DMG    20", "DEFENSE       0%", "MAX AMMO  MAG 15 / RES 120" };
             for (int index = 0; index < stats.Length; index++)
             {
                 AddText("Stat_" + index, overview, stats[index], utilityFont, 17, TextAnchor.MiddleLeft, Color.white, new Vector2(32f, -86f - 34f * index), new Vector2(505f, 28f), new Vector2(0f, 1f));
             }
-            AddText("HealthRow", overview, "HP  100 / 100", utilityFont, 17, TextAnchor.MiddleLeft, new Color(.72f, .9f, .82f), new Vector2(32f, -334f), new Vector2(505f, 28f), new Vector2(0f, 1f));
-            AddText("AmmoRow", overview, "AMMO  12 / 90", utilityFont, 17, TextAnchor.MiddleLeft, new Color(.72f, .84f, 1f), new Vector2(32f, -368f), new Vector2(505f, 28f), new Vector2(0f, 1f));
-            AddText("SkillsRow", overview, "OWNED SKILLS  NONE", utilityFont, 17, TextAnchor.MiddleLeft, new Color(1f, .78f, .4f), new Vector2(32f, -410f), new Vector2(505f, 28f), new Vector2(0f, 1f));
+            AddText("HealthRow", overview, "HP  100 / 100", utilityFont, 17, TextAnchor.MiddleLeft, new Color(.72f, .9f, .82f), new Vector2(32f, -334f), new Vector2(555f, 28f), new Vector2(0f, 1f));
+            AddText("AmmoRow", overview, "AMMO  15 / 120", utilityFont, 17, TextAnchor.MiddleLeft, new Color(.72f, .84f, 1f), new Vector2(32f, -368f), new Vector2(555f, 28f), new Vector2(0f, 1f));
+            AddText("SkillsRow", overview, "OWNED SKILLS  NONE", utilityFont, 14, TextAnchor.UpperLeft, new Color(1f, .78f, .4f), new Vector2(32f, -410f), new Vector2(555f, 180f), new Vector2(0f, 1f));
             overview.gameObject.SetActive(false);
         }
 
@@ -828,7 +921,8 @@ namespace Progression.Editor
             Component component = TryAttachAndConfigure(screen?.gameObject, "Player.UI.Progression.SupplyStationScreen", null);
             SetObject(component, "progression", adapter);
             SetObject(component, "healthPackButton", ConfigurePurchaseButton(screen, 0));
-            SetObject(component, "ammoPackButton", ConfigurePurchaseButton(screen, 1));
+            SetObject(component, "largeHealthPackButton", ConfigurePurchaseButton(screen, 1));
+            SetObject(component, "ammoPackButton", ConfigurePurchaseButton(screen, 2));
             SetObject(component, "goldText", FindText(screen, "GoldValue"));
         }
 
@@ -858,7 +952,10 @@ namespace Progression.Editor
         {
             Component component = TryAttachAndConfigure(screen?.gameObject, "Player.UI.Progression.SpecialShopStationScreen", null);
             SetObject(component, "progression", adapter);
-            SetObject(component, "holdToFireButton", ConfigurePurchaseButton(screen, 0));
+            var buttons = new List<UnityEngine.Object>();
+            int specialCount = Player.UI.Progression.ProgressionSpecialSkillCatalog.All.Count;
+            for (int index = 0; index < specialCount; index++) buttons.Add(ConfigurePurchaseButton(screen, index));
+            SetObjectArray(component, "skillButtons", buttons);
             SetObject(component, "goldText", FindText(screen, "GoldValue"));
         }
 
@@ -866,7 +963,7 @@ namespace Progression.Editor
         {
             Transform card = cardIndex == 0 && screen?.Find("Purchase") != null
                 ? screen
-                : screen?.Find("Card_" + (cardIndex + 1).ToString("00"));
+                : FindCard(screen, cardIndex);
             Transform buttonRoot = card?.Find("Purchase");
             Component component = TryAttachAndConfigure(buttonRoot?.gameObject, "Player.UI.Progression.ProgressionPurchaseButton", null);
             SetObject(component, "button", buttonRoot != null ? buttonRoot.GetComponent<Button>() : null);
@@ -874,6 +971,13 @@ namespace Progression.Editor
             SetObject(component, "price", FindText(card, "Cost"));
             SetObject(component, "accent", buttonRoot != null ? buttonRoot.GetComponent<Image>() : null);
             return component;
+        }
+
+        private static Transform FindCard(Transform screen, int cardIndex)
+        {
+            if (screen == null) return null;
+            string cardName = "Card_" + (cardIndex + 1).ToString("00");
+            return screen.Find(cardName) ?? screen.Find("CatalogScroll/Viewport/Content/" + cardName);
         }
 
         private static Component TryAttachAndConfigure(GameObject target, string typeName, StationSpec station)

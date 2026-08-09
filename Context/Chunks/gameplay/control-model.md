@@ -2,8 +2,8 @@
 chunk: control-model
 title: PC-only single-player control model
 owns: []
-related: [system, state, core-loop]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [system, state, core-loop, wave-system]
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -19,6 +19,8 @@ been removed from scope because of the remaining schedule.
 - Every gameplay, station, menu, and progression action is reachable by one
   player without controller/gamepad fallbacks.
 - The product is PC-only and its gameplay input baseline is keyboard and mouse.
+- Starting the next wave is a rebindable one-second hold, default F; it is
+  available only outside all protected areas.
 
 ## How to extend
 

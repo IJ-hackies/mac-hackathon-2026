@@ -10,7 +10,7 @@ owns:
   - "Assets/Scripts/UI/UltimateHudUI.cs*"
   - "Assets/Scripts/Vfx/TopDownGroundEffect.cs*"
 related: [player-controller, player-combat, progression, enemies, boss-fight, items, state]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -47,8 +47,10 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
 
 - `PlayerAbilityInput` owns `Ability`: `started` dashes once outside Ultimate;
   it holds Shield during Ultimate; `canceled` releases Shield. Keep ability
-  components input-agnostic apart from this routing.
-- `PlayerDash.TryDash()` has a 3-second cooldown and uses held `Move` through
+  components input-agnostic apart from this routing. Ability and Dash recreate
+  their private action copies on enable after an Editor assembly reload and
+  tolerate disable before initialization.
+- `PlayerDash.TryDash()` has a 2-second cooldown and uses held `Move` through
   `GetCameraRelativeTangentDirection`, falling back to tangent-projected facing.
   It calls `PlayerController.Dash(direction, speed, duration)` and emits
   `Burst/Poof_electric`. Its private actions map must be enabled in `OnEnable`:
@@ -58,6 +60,8 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
   Shield sets `Health.IncomingDamageMultiplier = 0`, then restores `1` on
   release/depletion. It uses a keyed Health modifier, so progression Defense
   remains present after shield release. Its `Shields/Shield_electric` VFX is parented to Mech.
+  Shield audio is runtime-only so EditMode contracts do not lazily create a
+  persistent audio manager.
 - `PlayerCombat.SetUltimateActive(true)` makes primary fire launch electric
   bolts from both Mech muzzles each beat; each hit calls `EnemyBase.ApplySlow`.
   Ultimate hold-fire works without the purchased pistol Hold-to-Fire skill, and

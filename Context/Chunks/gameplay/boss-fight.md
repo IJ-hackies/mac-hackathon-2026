@@ -15,27 +15,28 @@ owns:
   - "Assets/GabrielAguiarProductions.meta"
   - "Assets/GabrielAguiarProductions/**"
   - "Assets/Lana Studio*"
-related: [enemies, player-controller, player-combat, runtime-art, state, ultimate]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+related: [enemies, wave-system, player-controller, player-combat, runtime-art, state, ultimate]
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-The two-stage boss fight on [enemies](enemies.md)'s shared `Combat`/`EnemyBase` plumbing. `BossSceneSetup.BuildBossFight` (from
-`EnemySceneSetup.AddEnemiesToScene`) builds both stages plus a
-`BossFightController` wiring the Stage 1 -> Stage 2 transformation.
+The two-stage boss fight uses [enemies](enemies.md)'s shared plumbing.
+`BossSceneSetup` builds both stages and transformation; Arena2 reuses the full
+fight and completes only when the final Mech dies. Both stages face measured tangent
+displacement while walking and zero animation when blocked. Shared
+grounding preserves below-root clearance without pushing the Mech underground;
+Arena2's 3x wrapper scales each stage's authored movement/combat bands. See [wave-system](wave-system.md).
 
-- **Stage 1 - `BossAstronautAI`** (scale 2, `Astronaut_BarbaraTheBee.fbx`,
-  shares the player's rig/clips): circle-strafes, picks a **weighted-random**
+- **Stage 1 - `BossAstronautAI`** (300 base HP with Barbara's uncapped `1 + .15 * (wave - 1)` HP scaling, scale 2, `Astronaut_BarbaraTheBee.fbx`, shares the player's rig/clips): circle-strafes, picks a **weighted-random**
   attack (ranged burst / punch / heavy `Weapon` melee) - deliberately
   unpredictable, the mirror of Stage 2's fixed rotation. Fires visible
   travel-time `BossProjectile` bolts (`Projectiles_light`/`Hit_light`), not
   a hitscan. Health-threshold `Stagger` (one-shot per 75/50/25%) is
   separate from the permanent hit-react suppression below. Dies
   **without** `EnemyBase`'s dissolve - `BossFightController` owns death.
-- **Stage 2 - `BossMechAI`** (scale 4, `Mech_BarbaraTheBee.fbx`, own
-  `RobotArmature` rig): inert (scale 0, AI/collider disabled) until the
+- **Stage 2 - `BossMechAI`** (scale 4, `Mech_BarbaraTheBee.fbx`, own `RobotArmature` rig): inert (scale 0, AI/collider disabled) until the
   cutscene activates it. Wanders within `[minRange, maxRange]`. Attacks: a
   **fixed round-robin**, 8 steps (`TopDownBeam` -> `Shoot_Small` -> `Jump`
   -> `Shoot_Big` -> `TopDownRocket` -> `Shoot_Small` -> `Jump` -> `Shoot_Big`
@@ -50,20 +51,21 @@ The two-stage boss fight on [enemies](enemies.md)'s shared `Combat`/`EnemyBase` 
   (ultimate.md)'s secondary attacks) - telegraphs `topDownTelegraphDelay`,
   then applies `topDownDamage` if the player is still within
   `topDownHitRadius`.
+  The balanced Mech chases at speed 9; its 80-round `Shoot_Small` burst uses
+  base damage 3, becoming about 402 raw total at wave 10 after scaling.
 - **`BossFightController`**: four-phase cutscene on `Health.Died` - Linger ->
-  Pan -> Grow (scale `0 -> (4,4,4)`) -> Reveal (mech ground-slam). Player
-  input and `PlayerAnimatorRelay` disabled for the sequence (the Relay reads
-  frozen `PlayerController` properties, so must be disabled too or the
-  Animator holds the last pose instead of Idle). Every `EnemyBase` in the
-  scene (except the mech and the dying astronaut) is `SetFrozen(true)` for
-  the duration - see Gotchas.
+  Pan -> Grow (scale `0 -> (4,4,4)`) -> Reveal (mech ground-slam). Its camera
+  framing, look rotations, orbit, shake, and reveal VFX use the mech's radial
+  planet-surface frame and world target scale. Every pose is clamped outside
+  the surface radius, preventing the Arena2 3x wrapper from putting the camera
+  inside the planet; the isolated flat sandbox retains its world-up fallback.
+  Player input and other live enemies remain frozen for the sequence.
 - **`BossProjectile`**: one generic factory shared by the mech, astronaut,
   [player-combat](player-combat.md)'s player shot, and [enemies](enemies.md)'s
   flying-enemy shuriken - speed/damage/homing/lifetime plus optional
   `BossProjectileVisuals` and an `onHit` callback (used by [ultimate]
   (ultimate.md)'s electric bolts). Own kinematic `Rigidbody`,
   `SafeLookRotation` (Gotchas).
-
 Two imported VFX packs live at `Assets/` root, not `Assets/Art/` (self-contained, not [runtime-art](../assets/runtime-art.md) derivatives):
 `GabrielAguiarProductions/FreeQuickEffectsVol1/` (muzzle flash,
 transformation burst) and `Lana Studio/Casual RPG VFX/` (projectile/hit/
@@ -89,15 +91,14 @@ top-down-attack/Stun/melee-hit prefabs).
   2.558)`; Stage 2 `firePointLeft (-1.001, 1.943, 0.677)`, `firePointRight
   (1.01, 2.0189, 0.612)`. Imported-pack prefab paths degrade to
   `BossProjectile`'s procedural look if an asset fails to load.
-
 ## Invariants
 
 - Both bosses set `Health.SuppressHitReact = true` permanently (a flinch
   interrupted attack sequences) - damage still applies, just no reaction
   animation. See [enemies](enemies.md). `EnemySceneSetup.AddEnemiesToScene`
   disables the three basic enemies right after building the boss fight.
-  Bosses reuse `PlayerController.Stagger`/`ThirdPersonCameraController.Shake`
-  rather than boss-local code.
+  Bosses reuse the player stagger/camera shake; neither stage shows a
+  world-space health bar, while Arena2 keeps its top-center boss-health HUD.
 
 ## Gotchas
 
@@ -144,7 +145,6 @@ top-down-attack/Stun/melee-hit prefabs).
   lookup is a by-name search against the Lana Studio prefab's own child
   naming - a pack update renaming those children breaks the telegraph/
   impact split silently.
-
 **How to extend**: new projectile types get a `ProjectileVisualStyle`/`BossProjectileVisuals` config through `BossProjectile.Create`, not a new
 component. New boss attacks extend the relevant AI's weighted-random pool
 (Stage 1) or round-robin sequence (Stage 2).

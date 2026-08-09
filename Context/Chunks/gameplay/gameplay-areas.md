@@ -14,8 +14,8 @@ owns:
   - "Assets/Scripts/Player/LandingBaseMovementSpeedEffect.cs*"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
-related: [system, state, core-loop, progression, player-controller, unity-project, world-authoring]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [system, state, core-loop, wave-system, progression, player-controller, unity-project, world-authoring]
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -30,8 +30,14 @@ gameplay membership. The first consumer doubles locomotion inside LandingBase.
 astronaut body. It discovers active areas when its serialized list is empty and
 publishes enter, exit, and change events for future gameplay, VFX, audio, and UI
 consumers. A separate `LandingBaseMovementSpeedEffect` consumes those events to
-apply a 2x movement-speed modifier only inside the landing base; arena effects
-remain deliberately unimplemented.
+apply a 2x movement-speed modifier only inside the landing base, raising the
+current `9.75` baseline to `19.5`; arena effects remain deliberately unimplemented.
+
+`WaveAreaBarrier` builds collidable panels around each complete pole ring. The
+[wave system](wave-system.md) changes their lock state: regular waves lock all
+three; arena travel locks the base and non-target arena; entering the target
+seals it until the objective completes. Colliders enforce entry/exit but never
+replace polygon-derived membership.
 
 Progression stations use separate local 4-unit trigger spheres on three
 structure markers; they do not alter or reuse perimeter membership geometry.

@@ -81,12 +81,13 @@ namespace Player
             if (IsActive)
             {
                 SpawnShieldVfx();
-                _shieldLoopHandle = AudioManager.Instance.PlayLoop(SfxId.MechShieldActivate, transform);
+                if (Application.isPlaying)
+                    _shieldLoopHandle = AudioManager.Instance.PlayLoop(SfxId.MechShieldActivate, transform);
             }
             else
             {
                 DespawnShieldVfx();
-                if (_shieldLoopHandle.IsValid) AudioManager.Instance.StopLoop(_shieldLoopHandle);
+                if (Application.isPlaying && _shieldLoopHandle.IsValid) AudioManager.Instance.StopLoop(_shieldLoopHandle);
             }
         }
 

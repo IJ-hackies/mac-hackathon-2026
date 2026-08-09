@@ -15,7 +15,7 @@ namespace Player
                  "doesn't even walk\"), so this is the old sprint speed and Shift no longer " +
                  "does anything for locomotion itself; it's now the Dash/Shield ability button.")]
         [FormerlySerializedAs("sprintSpeed")]
-        [SerializeField] private float moveSpeed = 6.5f;
+        [SerializeField] private float moveSpeed = 9.75f;
         [SerializeField] private float acceleration = 18f;
         [SerializeField] private float rotationDegreesPerSecond = 540f;
 
@@ -124,13 +124,7 @@ namespace Player
 
         private void Awake()
         {
-            _body = GetComponent<Rigidbody>();
-            _capsule = GetComponent<CapsuleCollider>();
-            _motor = GetComponent<RadialCapsuleMotor>();
-            _actions = PlayerInputBindings.CreateActions();
-            if (animator == null) animator = GetComponentInChildren<Animator>();
-            _defaultHeadAnchor = headAnchor;
-            RecomputeDuckClipLength();
+            EnsureRuntimeState();
         }
 
         // Called by PlayerUltimate on activate/end - the astronaut's headAnchor is authored for
@@ -174,12 +168,18 @@ namespace Player
 
         private void OnEnable()
         {
+            EnsureRuntimeState();
             _actions.Player.Enable();
             _actions.Player.Jump.performed += OnJumpPerformed;
         }
 
         private void OnDisable()
         {
+            if (_actions == null)
+            {
+                return;
+            }
+
             _actions.Player.Jump.performed -= OnJumpPerformed;
             _actions.Player.Disable();
         }
@@ -188,6 +188,21 @@ namespace Player
         {
             PlayerInputBindings.ReleaseActions(_actions);
             _actions = null;
+        }
+
+        private void EnsureRuntimeState()
+        {
+            if (_body == null) _body = GetComponent<Rigidbody>();
+            if (_capsule == null) _capsule = GetComponent<CapsuleCollider>();
+            if (_motor == null) _motor = GetComponent<RadialCapsuleMotor>();
+            if (_actions == null) _actions = PlayerInputBindings.CreateActions();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
+            if (_defaultHeadAnchor == null)
+            {
+                Transform authoredHeadAnchor = transform.Find("VisualRoot/HeadAnchor");
+                _defaultHeadAnchor = authoredHeadAnchor != null ? authoredHeadAnchor : headAnchor;
+            }
+            RecomputeDuckClipLength();
         }
 
         private void Start()
@@ -226,6 +241,59 @@ namespace Player
             {
                 _radialSpeed = -Mathf.Abs(groundedStickSpeed);
             }
+        }
+
+        /// <summary>
+        /// Relocates the radial motor to a known-safe authored pose, then re-establishes
+        /// surface alignment and grounding. This remains valid while gameplay input is
+        /// suspended, such as when the in-game settings console owns the cursor.
+        /// </summary>
+        public void TeleportToSurface(Vector3 worldPosition, Quaternion worldRotation)
+        {
+            _currentSpeed = 0f;
+            _radialSpeed = 0f;
+            _jumpQueued = false;
+            _dashDirection = Vector3.zero;
+            _dashSpeed = 0f;
+            _dashUntil = -1f;
+            NormalizedSpeed = 0f;
+            JumpTriggeredThisFrame = false;
+
+            transform.SetPositionAndRotation(worldPosition, worldRotation);
+            if (_body != null)
+            {
+                _body.position = worldPosition;
+                _body.rotation = worldRotation;
+            }
+
+            Physics.SyncTransforms();
+
+            Vector3 castUp = TryResolvePlanetCenter()
+                ? GetRadialUpDirection()
+                : Vector3.up;
+            AlignUpImmediately(castUp);
+            if (!SnapToGround(castUp))
+            {
+                Debug.LogWarning(
+                    $"{nameof(PlayerController)} on '{name}' could not find ground below its teleport destination.",
+                    this);
+            }
+
+            Vector3 radialUp = GetPlanetUpDirection();
+            AlignUpImmediately(radialUp);
+            Vector3 localUp = transform.up.normalized;
+            IsGrounded = ProbeGround(
+                localUp,
+                false,
+                out Vector3 supportUp,
+                out float supportClearance,
+                out bool hasDirectSupport);
+            UpdateGroundSupport(IsGrounded, supportUp, supportClearance);
+            SetSurfaceUpImmediately(IsGrounded && hasDirectSupport
+                ? GetSurfaceUpDirection(radialUp, supportUp)
+                : radialUp);
+            _radialSpeed = IsGrounded ? -Mathf.Abs(groundedStickSpeed) : 0f;
+            Physics.SyncTransforms();
         }
 
         private void OnJumpPerformed(InputAction.CallbackContext context)

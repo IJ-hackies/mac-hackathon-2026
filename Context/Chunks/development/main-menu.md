@@ -11,7 +11,7 @@ owns:
   - "Assets/Editor/MainMenu/**"
   - "ProjectSettings/EditorBuildSettings.asset"
 related: [system, unity-project, player-controller, runtime-art, control-model]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -25,12 +25,12 @@ a menu-only, deterministic crash-site vignette: three outpost structures,
 16 rocks, and 42 vegetation props surface-fit to its exact crater mesh. This is
 a curated presentation pass, not a copy of SampleScene's 17,100-object scatter.
 
-The home page exposes Singleplayer, disabled Multiplayer, and Settings.
-Singleplayer saves settings and replaces the menu with `SampleScene` in Single
-mode, preserving that scene's opening cinematic. Multiplayer is deliberately
-non-interactable because it is out of hackathon scope. Settings contains
-master volume, look sensitivity, and the same live, persisted 12-binding PC
-control map exposed by the in-game pause console.
+The home page exposes only Singleplayer and Settings. Singleplayer saves
+settings and replaces the menu with `SampleScene` in Single mode, preserving
+that scene's opening cinematic. Multiplayer has no menu row or runtime wiring
+because it is out of hackathon scope. Settings contains master volume, look
+sensitivity, and the same live, persisted 13-binding PC control map exposed by
+the in-game pause console.
 
 ## Key files
 
@@ -52,12 +52,12 @@ control map exposed by the in-game pause console.
 
 - MainMenu and SampleScene stay enabled at build indexes 0 and 1 respectively.
 - Singleplayer loads `SampleScene` directly with `LoadSceneMode.Single`.
-- Multiplayer has no listener and remains non-interactable until its product
-  and authority model are confirmed.
+- Multiplayer stays absent from the menu and controller while the release is
+  single-player only.
 - The menu and gameplay console share `settings.masterVolume` and
   `settings.mouseSensitivity` through `GameSettings`, plus one versioned
   binding-override JSON through `PlayerInputBindings`; do not fork their keys.
-- Controls exposes 12 keyboard/mouse bindings. Movement, pointer look, Escape
+- Controls exposes 13 keyboard/mouse bindings. Movement, pointer look, Escape
   settings, and Escape/Space cinematic skip are fixed and never editable.
 - Menu entry restores time scale 1 and an unlocked visible cursor. Settings
   never instantiates or depends on a player rig.
@@ -67,8 +67,8 @@ control map exposed by the in-game pause console.
   local-X environment-model correction as world authoring, and remains a small
   deterministic subset concentrated on the camera-facing hemisphere.
 - The left title, console, full-width instrument header, action rows, and footer
-  share one alignment grid. Background separation uses low-alpha stepped shade
-  bands; do not restore the overlapping yellow rail or a single hard shade seam.
+  share one alignment grid. The title and console sit directly over the space
+  background; do not restore a full-screen veil or stepped shade bands.
 
 ## Gotchas
 

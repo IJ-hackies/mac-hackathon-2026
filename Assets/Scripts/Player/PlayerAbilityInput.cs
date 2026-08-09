@@ -18,7 +18,12 @@ namespace Player
 
         private void Awake()
         {
-            _actions = PlayerInputBindings.CreateActions();
+            EnsureRuntimeState();
+        }
+
+        private void EnsureRuntimeState()
+        {
+            if (_actions == null) _actions = PlayerInputBindings.CreateActions();
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
             if (playerDash == null) playerDash = GetComponent<PlayerDash>();
             if (playerShield == null) playerShield = GetComponent<PlayerShield>();
@@ -26,6 +31,7 @@ namespace Player
 
         private void OnEnable()
         {
+            EnsureRuntimeState();
             _actions.Player.Enable();
             _actions.Player.Ability.started += OnAbilityStarted;
             _actions.Player.Ability.canceled += OnAbilityCanceled;
@@ -33,9 +39,12 @@ namespace Player
 
         private void OnDisable()
         {
-            _actions.Player.Ability.started -= OnAbilityStarted;
-            _actions.Player.Ability.canceled -= OnAbilityCanceled;
-            _actions.Player.Disable();
+            if (_actions != null)
+            {
+                _actions.Player.Ability.started -= OnAbilityStarted;
+                _actions.Player.Ability.canceled -= OnAbilityCanceled;
+                _actions.Player.Disable();
+            }
             playerShield?.SetHeld(false);
         }
 

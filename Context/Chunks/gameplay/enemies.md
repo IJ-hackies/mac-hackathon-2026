@@ -9,8 +9,8 @@ owns:
   - "Assets/Editor/Enemies.meta"
   - "Assets/Editor/Enemies/**"
   - "Assets/Editor/ModelAnimationUtility.cs*"
-related: [player-controller, player-combat, progression, runtime-art, state, boss-fight, items, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [player-controller, player-combat, progression, wave-system, runtime-art, state, boss-fight, items, ultimate]
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -27,6 +27,27 @@ boss fight via `BossSceneSetup`, then `SetActive(false)`s all three basic
 enemies - leaving only the boss fightable, but keeping the basic-enemy build
 calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
 
+The same enemy prefabs now support [wave-system](wave-system.md) in SampleScene.
+`EnemyBase` accepts wave stat scaling, detection radius, immediate/sticky aggro,
+reward-free retreat/despawn, and separate killed/despawned events. Basic and boss
+AI derive movement, up, facing, and death fall from the planet center when
+configured, while retaining their flat-ground fallback for the Player sandbox.
+`EnemyBase` explicitly resolves the enabled crater `MeshCollider` rather than
+the disabled reference sphere, projects random/chase movement into the local
+tangent plane, probes solid props/walls ahead, takes deterministic detours, and
+flips detour side after measured stalls. Probes use the lower body/capsule sphere,
+its scaled physical radius plus a small margin, and fixed look-ahead; the player
+and dynamic enemies are not classified as rocks, and clear direct routes cancel
+detours immediately. Hover and grounded movement report the actual post-navigation
+tangent displacement after collision sliding and radial
+grounding; walking/melee actors face that result instead of the player vector or
+pre-detour intent, and their movement animation stops when measured displacement
+is zero. Grounded controller roots also retain any clearance required by an
+authored capsule bottom below the root instead of being snapped inside terrain.
+Hover and grounded movers share this recovery layer. Wave-spawned roots are 3x,
+and their authored walking/combat distance bands inherit that wrapper multiplier.
+Basic Small/Flying/Large enemies have 100/120/150 base HP and speeds of Small
+approach 4, Flying wander 1.5/approach 2.25, and Large walk 2/run 4.5.
 ## Key files
 
 - `Assets/Scripts/Combat/IDamageable.cs` / `Health.cs` - shared by the player
@@ -43,25 +64,19 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   firing `Hit`/`HealthChanged`/`Died` - both boss AIs set it permanently
   `true` (a flinch interrupted their attack coroutines); `hitReactCooldown`
   rate-limits `HitReact` for non-suppressed callers instead.
-- `Assets/Scripts/Enemies/EnemyBase.cs` - shared plumbing: finds the player
-  via `FindFirstObjectByType<Player.PlayerController>()` at `Awake`,
-  `FacePlayer()` (hard requirement), `SpawnMeleeHitVfx` (instantiate/
-  `ImportedVfxUtility` fix/destroy boilerplate for `meleeHitVfxPrefab`,
-  shared by `EnemySmallAI`/`EnemyLargeAI`), `SpeedMultiplier`/`ApplySlow
-  (multiplier, duration)` (a timed movement-speed debuff - refreshes
-  duration on reapply rather than stacking, plus a looping `slowVfxPrefab` -
-  used by [ultimate](ultimate.md)'s electric bolts), and `Died` → sets
-  `isDead`, `StopAllCoroutines()` (an in-flight attack coroutine doesn't
-  check `isDead` mid-sequence - `EnemyFlyingAI`'s multi-second `Headbutt`
-  telegraph fought the `Death` animation before this fix), then runs
+- `Assets/Scripts/Enemies/EnemyBase.cs` - resolves the player, active crater,
+  and radial frame; owns obstacle/stuck recovery plus combat-facing versus
+  locomotion-facing. It also centralizes melee-hit VFX and refresh-not-stack
+  slow debuffs with their looping VFX. Death stops in-flight attack coroutines
+  (otherwise a flyer telegraph can fight the death animation), then runs
   `DissolveAndDestroy`.
 
-  `DissolveAndDestroy` first runs `FallToGround` (gravity-accelerated fall to `y=0` - the two flyers freeze mid-air at their last hover height once
-  `isDead` stops their `Update` loop). Once grounded, swaps every renderer
-  onto a per-instance clone of `Custom/EnemyDissolve`
-  (`Assets/Art/Shaders/S_EnemyDissolve.shader`) and animates
-  `_DissolveAmount` 0→1 (a true per-pixel noise-clip dissolve) - per-instance
-  so it never touches the shared `M_Enemy*.mat`.
+  Death disables the enemy's colliders and terminal AI updates before a bounded
+  radial `FallToGround`; passive hover/controller maintenance must never run for
+  dead, frozen, or retreating actors. Grounding failure times out rather than
+  blocking cleanup forever. `DissolveAndDestroy` then swaps renderers onto
+  per-instance `Custom/EnemyDissolve` materials and animates `_DissolveAmount`
+  0→1 without touching shared `M_Enemy*.mat` assets.
 - `EnemyFlyingAI.cs` - ranged. Wanders while drifting toward the player,
   capped at `maxDistanceFromPlayer`. Attack: brief `chargeStartDelay`
   windup (Attack anim only, no visual telegraph), then fires a real
@@ -106,19 +121,18 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
   BuildTestScene`, which wipes the scene and would otherwise drop these.
 - `Assets/Editor/ModelAnimationUtility.cs` - clip-lookup/looping/layer
   helpers shared with `PlayerSceneSetup`.
-- `EnemyHealthBarUI.cs` - world-space bar above each fightable enemy, from
-  `EnemySceneSetup.AddHealthBar` using the hit collider's measured bounds.
-  Parented under its enemy so the hierarchy saves as one self-contained
-  prefab, but drives its transform off an anchor each `LateUpdate` and
-  billboards to `Camera.main`. Fill resizes via `anchorMax.x`, not
-  `Image.Type.Filled`; hides at 0 health, not after the death dissolve.
-  [boss-fight](boss-fight.md)'s bosses reuse it, scale-compensated for their
-  2x/4x models.
+- World-space health bars are retired for regular enemies and both boss stages.
+  Their legacy prefab children remain inactive, and the enemy/boss setup tools
+  no longer add new ones. Arena2 still presents boss health in the separate
+  top-center arena objective HUD.
 
 ## Invariants
 
-- Every enemy always faces the player (`EnemyBase.FacePlayer`, every frame
-  outside attack windups that intentionally freeze facing).
+- Combat aim remains explicitly player-targeted. Walking and melee actors face
+  their measured post-navigation tangent displacement while moving, then return
+  to player facing while idle or attacking so forward-only clips do not moonwalk
+  during detours, recovery steering, or collision slides. Walk animation is also
+  driven by actual displacement, not merely a requested velocity.
 - Hit reactions never gate movement/AI/attack logic for either side ("hit
   reactions shouldn't cause stoppage in gameplay").
 - Player-side damage (melee `OverlapSphere` and travelling `BossProjectile`)
@@ -130,21 +144,7 @@ calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
 
 ## Gotchas
 
-- `Health.CurrentHealth` falls back to `MaxHealth` while its backing field is
-  the unset sentinel (`-1`), since editor setup scripts bind UI right after
-  `AddComponent<Health>()`, before `Awake` (Play-mode only) runs.
-  **Never subscribe to a `Health` event from an editor setup script** - Play
-  mode reloads the domain, dropping edit-time delegate subscriptions;
-  `HealthHudUI`/`EnemyHealthBarUI.Bind()` only store the reference, real
-  `+=` happens in `OnEnable`, same as `EnemyBase`/`PlayerDeathHandler`.
-- All AI movement is a flat-ground assumption (`CharacterController` +
-  constant-Y/hover-height translation) - does **not** implement the planet's
-  radial gravity (`unity-project-bootstrap` in `STATE.md`).
+- Wave-spawned AI must be configured through `EnemyWaveScaling`; direct prefab
+  stat edits bypass endless-wave scaling and reward/removal semantics.
 - See [player-controller](player-controller.md) Gotchas for the iCloud-Drive
   " 2"/" 3" duplicate-file pattern - affects the whole `Assets/` tree.
-
-## How to extend
-
-The two flyers already share `BuildHoverController`; a third hover-based enemy should reuse it, not duplicate the controller-building code. Boss AI/
-cutscene/imported-VFX projectiles live in [boss-fight](boss-fight.md) - this chunk stays scoped to the three basic enemies plus shared `Combat`/
-`EnemyBase` plumbing.

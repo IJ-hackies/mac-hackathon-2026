@@ -13,7 +13,6 @@ namespace Player.UI.Progression
         [SerializeField] private Text nextValue;
         [SerializeField] private Text levelPips;
         [SerializeField] private ProgressionPurchaseButton purchaseButton;
-        [SerializeField] private int cost = 100;
 
         public ProgressionStat Stat => stat;
 
@@ -28,13 +27,14 @@ namespace Player.UI.Progression
             if (progression == null) return;
             int level = progression.GetLevel(stat);
             int max = progression.MaxLevel;
-            float current = progression.GetPurchasedValue(stat);
+            int cost = progression.GetUpgradeCost(stat);
             if (title != null) title.text = DisplayName(stat);
             if (description != null) description.text = Description(stat);
-            if (currentValue != null) currentValue.text = "NOW  " + Format(stat, current);
+            if (currentValue != null) currentValue.text = "NOW  " + FormatAtLevel(progression, stat, level);
             if (nextValue != null)
             {
-                nextValue.text = level >= max ? "MAX LEVEL" : "NEXT  " + Format(stat, PreviewNext(stat, level));
+                nextValue.text = level >= max ? "MAX LEVEL" :
+                    "NEXT  " + FormatAtLevel(progression, stat, level + 1);
             }
             if (levelPips != null) levelPips.text = BuildPips(level, max);
 
@@ -82,29 +82,27 @@ namespace Player.UI.Progression
         {
             switch (value)
             {
-                case ProgressionStat.MaxHealth: return "+10 HP per level";
-                case ProgressionStat.MovementSpeed: return "+3% base speed per level";
-                case ProgressionStat.FireRate: return "+5% base fire rate per level";
-                case ProgressionStat.ShootingDamage: return "+10% damage per level";
-                case ProgressionStat.MeleeDamage: return "+10% damage per level";
-                case ProgressionStat.Defense: return "+4% damage reduction per level";
-                default: return "+2 loaded rounds per level";
+                case ProgressionStat.MaxHealth: return "+10 HP, then +5 more each level";
+                case ProgressionStat.MovementSpeed: return "+3%, then +2 points each level";
+                case ProgressionStat.FireRate: return "+5%, then +2 points each level";
+                case ProgressionStat.ShootingDamage: return "+2 damage, then +2 each level";
+                case ProgressionStat.MeleeDamage: return "+3 damage, then +3 each level";
+                case ProgressionStat.Defense: return "+2%, then +1 point each level";
+                default: return "Magazine +2/+3/...  Reserve +5/+10/...";
             }
         }
 
-        private static float PreviewNext(ProgressionStat value, int level)
+        private static string FormatAtLevel(ProgressionDataAdapter progression, ProgressionStat value, int level)
         {
-            int next = Mathf.Clamp(level + 1, 1, 10);
-            switch (value)
+            level = Mathf.Clamp(level, 1, progression.MaxLevel);
+            if (value == ProgressionStat.MaxAmmo)
             {
-                case ProgressionStat.MaxHealth: return 100f + (next - 1) * 10f;
-                case ProgressionStat.MovementSpeed: return 1f + (next - 1) * .03f;
-                case ProgressionStat.FireRate: return 1f + (next - 1) * .05f;
-                case ProgressionStat.ShootingDamage: return 15f * (1f + (next - 1) * .1f);
-                case ProgressionStat.MeleeDamage: return 20f * (1f + (next - 1) * .1f);
-                case ProgressionStat.Defense: return (next - 1) * .04f;
-                default: return 12 + (next - 1) * 2;
+                int magazine = Mathf.RoundToInt(progression.GetValueAtLevel(value, level));
+                int reserve = progression.GetReserveCapacityAtLevel(level);
+                return "MAG " + magazine + " / RES " + reserve;
             }
+
+            return Format(value, progression.GetValueAtLevel(value, level));
         }
 
         private static string Format(ProgressionStat value, float number)

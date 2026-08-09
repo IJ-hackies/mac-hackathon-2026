@@ -36,18 +36,19 @@ namespace Progression.Tests
         }
 
         [Test]
-        public void AllStats_CostOneHundredScaleCorrectlyAndStopAtLevelTen()
+        public void AllStats_UseCumulativeCurvesAndStopAtLevelTen()
         {
             Fixture fixture = CreateFixture();
+            SetAutoProperty(fixture.Progression, "Gold", 100000);
             var expectedValues = new Dictionary<string, float>
             {
-                { "MaxHealth", 190f },
-                { "MovementSpeed", 1.27f },
-                { "FireRate", 1.45f },
-                { "ShootingDamage", 28.5f },
-                { "MeleeDamage", 38f },
-                { "Defense", .36f },
-                { "MaxAmmo", 30f },
+                { "MaxHealth", 370f },
+                { "MovementSpeed", 1.99f },
+                { "FireRate", 2.17f },
+                { "ShootingDamage", 105f },
+                { "MeleeDamage", 155f },
+                { "Defense", .54f },
+                { "MaxAmmo", 69f },
             };
 
             foreach (object stat in Enum.GetValues(fixture.StatType))
@@ -64,12 +65,49 @@ namespace Progression.Tests
                 Assert.That(ReadStringProperty(fixture.Progression, "LastPurchaseResult"), Is.EqualTo("MaxLevel"));
             }
 
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(3700));
-            Assert.That(ReadFloat(fixture.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1.27f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Combat, "FireRateMultiplier"), Is.EqualTo(1.45f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(28.5f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Combat, "EffectiveMeleeDamage"), Is.EqualTo(38f).Within(.001f));
-            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.64f).Within(.001f));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(59750));
+            Assert.That(ReadFloat(fixture.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1.99f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "FireRateMultiplier"), Is.EqualTo(2.17f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(105f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveSecondaryDamage"), Is.EqualTo(115f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveElectricDamage"), Is.EqualTo(100f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveUltimateSecondaryDamage"), Is.EqualTo(120f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveMeleeDamage"), Is.EqualTo(155f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "MeleeDamageBonus"), Is.EqualTo(135f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.46f).Within(.001f));
+            Assert.That(ReadInt(Invoke(fixture.Progression, "GetReserveCapacityAtLevel", 10)), Is.EqualTo(345));
+        }
+
+        [Test]
+        public void UpgradeCosts_DoubleThroughLevelSixThenRiseByOneHundred()
+        {
+            Fixture fixture = CreateFixture();
+            object stat = fixture.Stat("MaxHealth");
+            int[] expectedCosts = { 50, 100, 200, 400, 800, 900, 1000, 1100, 1200 };
+            SetAutoProperty(fixture.Progression, "Gold", 100000);
+
+            for (int index = 0; index < expectedCosts.Length; index++)
+            {
+                Assert.That(ReadInt(Invoke(fixture.Progression, "GetUpgradeCost", stat)), Is.EqualTo(expectedCosts[index]));
+                Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", stat), Is.True);
+            }
+
+            Assert.That(ReadInt(Invoke(fixture.Progression, "GetUpgradeCost", stat)), Is.EqualTo(0));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", stat, 0)), Is.EqualTo(100f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetValueAtLevel", stat, 99)), Is.EqualTo(370f));
+        }
+
+        [Test]
+        public void PlayerRuntime_DefaultAmmoAndDashMatchTheBalancedBaseLoadout()
+        {
+            Fixture fixture = CreateFixture();
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(120));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(120));
+
+            Component dash = fixture.Root.AddComponent(RequireType("Player.PlayerDash, Assembly-CSharp"));
+            Assert.That(ReadFloat(dash, "CooldownDuration"), Is.EqualTo(2f));
         }
 
         [Test]
@@ -86,38 +124,44 @@ namespace Progression.Tests
         }
 
         [Test]
-        public void MaxAmmoUpgrade_AddsTwoLoadedRoundsWithoutChangingReserve()
+        public void MaxAmmoUpgrade_AddsIncreasingMagazineAndReserveCapacityImmediately()
         {
             Fixture fixture = CreateFixture();
             for (int round = 0; round < 7; round++) Assert.That(InvokeBool(fixture.Ammo, "TryConsumeRound"), Is.True);
 
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(5));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(90));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(8));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(120));
             Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat("MaxAmmo")), Is.True);
 
-            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(14));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(7));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(90));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(17));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(10));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(125));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(125));
         }
 
         [Test]
         public void SupplyPacks_RefillOnceAndRejectFullOrInsufficientPurchases()
         {
             Fixture fixture = CreateFixture();
-            ApplyDamage(fixture.Health, 40f, fixture.Root);
+            SetAutoProperty(fixture.Progression, "Gold", 10000);
+            ApplyDamage(fixture.Health, 70f, fixture.Root);
             Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSupply", fixture.Supply("HealthPack")), Is.True);
-            Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(100f));
+            Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(80f));
             Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9950));
+
+            Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSupply", fixture.Supply("LargeHealthPack")), Is.True);
+            Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(100f));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9850));
 
             Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSupply", fixture.Supply("HealthPack")), Is.False);
             Assert.That(ReadStringProperty(fixture.Progression, "LastPurchaseResult"), Is.EqualTo("Full"));
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9950));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9850));
 
             Assert.That(InvokeBool(fixture.Ammo, "TryConsumeRound"), Is.True);
             Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSupply", fixture.Supply("AmmoPack")), Is.True);
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(12));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(90));
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9850));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(120));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9750));
 
             SetAutoProperty(fixture.Progression, "Gold", 0);
             Assert.That(InvokeBool(fixture.Ammo, "TryConsumeRound"), Is.True);
@@ -126,45 +170,93 @@ namespace Progression.Tests
         }
 
         [Test]
-        public void HoldToFire_IsOneTimeFiveHundredGoldPurchaseAndResetsWithRun()
+        public void HoldToFire_IsOneTimeFiftyGoldPurchaseAndResetsWithRun()
         {
             Fixture fixture = CreateFixture();
+            SetAutoProperty(fixture.Progression, "Gold", 10000);
             object holdToFire = fixture.Special("HoldToFire");
 
             Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSpecial", holdToFire), Is.True);
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9500));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(9950));
             Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", holdToFire), Is.True);
             Assert.That(ReadBoolProperty(fixture.Combat, "HoldToFireUnlocked"), Is.True);
             Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSpecial", holdToFire), Is.False);
             Assert.That(ReadStringProperty(fixture.Progression, "LastPurchaseResult"), Is.EqualTo("AlreadyOwned"));
 
             Invoke(fixture.Progression, "BeginNewRun");
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(10000));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(100));
             Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", holdToFire), Is.False);
             Assert.That(ReadBoolProperty(fixture.Combat, "HoldToFireUnlocked"), Is.False);
+        }
+
+        [Test]
+        public void SpecialSkills_AreIndependentAndSecretComposesWithArchiveAndMinigun()
+        {
+            Fixture fixture = CreateFixture();
+            SetAutoProperty(fixture.Progression, "Gold", 100000);
+
+            // Fortune II stays independently purchasable: owning Fortune is neither required nor implied.
+            object fortuneII = fixture.Special("FortuneII");
+            Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSpecial", fortuneII), Is.True);
+            Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", fixture.Special("Fortune")), Is.False);
+
+            foreach (string statName in new[]
+                     { "MaxHealth", "MovementSpeed", "FireRate", "ShootingDamage", "MeleeDamage", "Defense", "MaxAmmo" })
+            {
+                Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat(statName)), Is.True, statName);
+            }
+
+            object secret = fixture.Special("Secret");
+            Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSpecial", secret), Is.True);
+            Assert.That(ReadFloat(fixture.Health, "MaxHealth"), Is.EqualTo(330f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Controller, "MovementSpeedMultiplier"), Is.EqualTo(3.09f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "FireRateMultiplier"), Is.EqualTo(3.15f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveRangedDamage"), Is.EqualTo(51f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Combat, "EffectiveMeleeDamage"), Is.EqualTo(69f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.94f).Within(.001f));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(51));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(375));
+
+            object minigun = fixture.Special("Minigun");
+            Assert.That(InvokeBool(fixture.Progression, "TryPurchaseSpecial", minigun), Is.True);
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetPurchasedValue", fixture.Stat("FireRate"))),
+                Is.EqualTo(6.3f).Within(.001f));
+            Assert.That(ReadFloat(Invoke(fixture.Progression, "GetPurchasedValue", fixture.Stat("ShootingDamage"))),
+                Is.EqualTo(1f).Within(.001f));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(141));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(975));
+
+            Invoke(fixture.Progression, "BeginNewRun");
+            Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", secret), Is.False);
+            Assert.That(InvokeBool(fixture.Progression, "OwnsSpecial", minigun), Is.False);
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MaxStorage"), Is.EqualTo(120));
         }
 
         [Test]
         public void BeginNewRun_ResetsUpgradesHealthAmmoAndCombatModifiers()
         {
             Fixture fixture = CreateFixture();
+            SetAutoProperty(fixture.Progression, "Gold", 10000);
             Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat("MaxHealth")), Is.True);
             Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat("MaxAmmo")), Is.True);
             Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat("ShootingDamage")), Is.True);
             Assert.That(ReadFloat(fixture.Health, "MaxHealth"), Is.EqualTo(110f));
-            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(14));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(17));
 
             Invoke(fixture.Progression, "BeginNewRun");
 
-            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(10000));
+            Assert.That(ReadProperty<int>(fixture.Progression, "Gold"), Is.EqualTo(100));
             foreach (object stat in Enum.GetValues(fixture.StatType))
                 Assert.That(ReadInt(Invoke(fixture.Progression, "GetLevel", stat)), Is.EqualTo(1), stat.ToString());
             Assert.That(ReadFloat(fixture.Health, "MaxHealth"), Is.EqualTo(100f));
             Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(100f));
-            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(12));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(12));
-            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(90));
+            Assert.That(ReadIntProperty(fixture.Ammo, "MagazineSize"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentMagazine"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(fixture.Ammo, "CurrentStorage"), Is.EqualTo(120));
             Assert.That(ReadFloat(fixture.Combat, "RangedDamageMultiplier"), Is.EqualTo(1f));
+            Assert.That(ReadFloat(fixture.Combat, "RangedDamageBonus"), Is.EqualTo(0f));
+            Assert.That(ReadFloat(fixture.Combat, "MeleeDamageBonus"), Is.EqualTo(0f));
         }
 
         [Test]
@@ -172,7 +264,7 @@ namespace Progression.Tests
         {
             Fixture fixture = CreateFixture();
             Assert.That(InvokeBool(fixture.Progression, "TryUpgrade", fixture.Stat("Defense")), Is.True);
-            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.96f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.98f).Within(.001f));
 
             Component shield = fixture.Root.AddComponent(RequireType(ShieldTypeName));
             InvokeNonPublic(shield, "Awake");
@@ -182,9 +274,9 @@ namespace Progression.Tests
             Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(100f));
 
             Invoke(shield, "SetHeld", false);
-            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.96f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Health, "EffectiveIncomingDamageMultiplier"), Is.EqualTo(.98f).Within(.001f));
             ApplyDamage(fixture.Health, 50f, fixture.Root);
-            Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(52f).Within(.001f));
+            Assert.That(ReadFloat(fixture.Health, "CurrentHealth"), Is.EqualTo(51f).Within(.001f));
         }
 
         private Fixture CreateFixture()

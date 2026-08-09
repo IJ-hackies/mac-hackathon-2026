@@ -12,8 +12,8 @@ owns:
   - "Assets/Art/Materials/Items/**"
   - "Assets/Scripts/Player/PlayerAmmo.cs*"
   - "Assets/Scripts/UI/AmmoHudUI.cs*"
-related: [player-controller, player-combat, progression, runtime-art, asset-library, state, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [player-controller, player-combat, progression, wave-system, runtime-art, asset-library, state, ultimate]
+verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
 
@@ -30,6 +30,13 @@ player before destroying itself. `HealthPickup`/`AmmoPickup` implement
 `ApplyEffect`; Thunder's activates the player's timed Ultimate (see
 [ultimate](ultimate.md)) via `Player.PlayerUltimate.ActivateUltimate()` and
 no longer overrides `CollectibleOnContact`.
+
+The pickup payloads remain full heal, full magazine+reserve refill, and a full
+40-second Ultimate refresh. Their special-skill allocation is owned by
+[wave-system](wave-system.md): regular waves may place 15 Health and 10 Ammo
+pickups around the valid globe outside protected areas, while arena combat may
+place one Thunder at the arena center. Those allocations are cleaned up with
+their wave/fight rather than behaving as enemy drops.
 
 Per-item backlight assignment: Health -> `Regeneration/
 Regeneration_health_loop`, Ammo -> `States/Aura_acceleration`, Thunder ->
@@ -83,14 +90,15 @@ state shows a full bar and infinity symbol. `PlayerCombat.CheckShootBeat` gates
   without cancelling the Shoot animation loop.
 - The HUD bar represents the magazine, not reserve storage: reload transfers
   storage into the magazine and refills the bar only when that transfer ends.
-- The progression Max Ammo stat changes magazine capacity only: +2 per level,
-  grants two loaded rounds without consuming reserve, and leaves reserve at 90.
+- Base ammo is 15 magazine / 120 reserve. Progression Max Ammo adds escalating
+  capacity to both pools and grants each capacity increase immediately. Minigun
+  adds another 30/200 capacity, and `???` triples effective capacities. Quickdraw
+  sets reload duration to 0.1 seconds; see [progression](progression.md).
 
 ## How to extend
 
 Ammo/reload tuning (`magazineSize`, `maxStorage`, `reloadTime` on
-`PlayerAmmo`) is serialized placeholder balance meant to be retuned in the
-Inspector. The current magazine-size upgrade is owned by [progression]; reload
-speed remains a future tuning option. Thunder's
+`PlayerAmmo`) remains serialized. Magazine/reserve and special reload modifiers
+are owned by [progression]. Thunder's
 Ultimate-duration/mech-scale tuning lives on `PlayerUltimate` - see
 [ultimate](ultimate.md).
