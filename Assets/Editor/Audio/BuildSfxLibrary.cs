@@ -28,8 +28,11 @@ namespace AudioEditor
             public float pitchMin;
             public float pitchMax;
             public int maxConcurrent;
+            public float minDistance;
+            public float maxDistance;
 
-            public Row(SfxId id, string clipPath, AudioCategory category, float volume, float pitchMin, float pitchMax, int maxConcurrent)
+            public Row(SfxId id, string clipPath, AudioCategory category, float volume, float pitchMin, float pitchMax,
+                int maxConcurrent, float minDistance = 8f, float maxDistance = 180f)
             {
                 this.id = id;
                 this.clipPath = clipPath;
@@ -38,6 +41,8 @@ namespace AudioEditor
                 this.pitchMin = pitchMin;
                 this.pitchMax = pitchMax;
                 this.maxConcurrent = maxConcurrent;
+                this.minDistance = minDistance;
+                this.maxDistance = maxDistance;
             }
         }
 
@@ -50,10 +55,10 @@ namespace AudioEditor
                 new Row(SfxId.PlayerShootSecondary, $"{SfxRoot}/Weapons/laserLarge_002.ogg", AudioCategory.Weapons, 0.7f, 0.97f, 1.03f, 4),
                 new Row(SfxId.PlayerMelee, $"{SfxRoot}/Weapons/kick.wav", AudioCategory.Weapons, 0.85f, 0.95f, 1.05f, 3),
                 new Row(SfxId.PlayerHitReact, $"{SfxRoot}/Impacts/footstep_carpet_001.ogg", AudioCategory.Impacts, 0.55f, 0.9f, 1.1f, 3),
-                new Row(SfxId.PlayerFootstep, $"{SfxRoot}/Movement/impactMetal_001.ogg", AudioCategory.Movement, 0.38f, 0.9f, 1.1f, 2),
+                new Row(SfxId.PlayerFootstep, $"{SfxRoot}/Movement/impactMetal_001.ogg", AudioCategory.Movement, 0.2432f, 0.9f, 1.1f, 2),
                 new Row(SfxId.PlayerDash, $"{SfxRoot}/Movement/footstep_grass_000.ogg", AudioCategory.Movement, 0.4f, 1f, 1f, 2),
                 new Row(SfxId.PlayerJump, $"{SfxRoot}/Movement/whoosh_1.wav", AudioCategory.Movement, 0.55f, 0.95f, 1.05f, 1),
-                new Row(SfxId.PlayerLand, $"{SfxRoot}/Impacts/impactSoft_medium_000.ogg", AudioCategory.Impacts, 0.55f, 0.9f, 1.05f, 1),
+                new Row(SfxId.PlayerLand, $"{SfxRoot}/Impacts/impactSoft_medium_000.ogg", AudioCategory.Impacts, 0.44f, 0.9f, 1.05f, 1),
                 new Row(SfxId.PlayerDeath, $"{SfxRoot}/Voice/scream.wav", AudioCategory.Voice, 0.8f, 1f, 1f, 1),
                 // pitch fixed at 0.5 (half speed/half rate) per request - also lowers its pitch a
                 // touch, which is an acceptable side effect of slowing playback without a
@@ -96,6 +101,9 @@ namespace AudioEditor
                 new Row(SfxId.UiClose, $"{SfxRoot}/UI/close_002.ogg", AudioCategory.UI, 0.5f, 1f, 1f, 2),
                 new Row(SfxId.UiToggle, $"{SfxRoot}/UI/switch_003.ogg", AudioCategory.UI, 0.45f, 1f, 1f, 2),
                 new Row(SfxId.UiError, $"{SfxRoot}/UI/error_003.ogg", AudioCategory.UI, 0.5f, 1f, 1f, 2),
+                // Deliberately quiet - plays once per coin as it arrives at the player, and
+                // several can land in quick succession during a coin burst.
+                new Row(SfxId.CoinCollect, $"{SfxRoot}/UI/freesound_gamestudio-drop-coin-384921.mp3", AudioCategory.UI, 0.18f, 0.97f, 1.05f, 4),
             };
 
             var library = AssetDatabase.LoadAssetAtPath<SfxLibrary>(AssetPath);
@@ -125,6 +133,8 @@ namespace AudioEditor
                     pitchMin = row.pitchMin,
                     pitchMax = row.pitchMax,
                     maxConcurrent = row.maxConcurrent,
+                    minDistance = row.minDistance,
+                    maxDistance = row.maxDistance,
                 });
             }
 

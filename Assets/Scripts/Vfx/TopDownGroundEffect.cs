@@ -31,7 +31,8 @@ namespace Vfx
         /// part of the prefab, just starting mid-timeline so whatever the pack authored as its
         /// early "build-up" portion is skipped and playback opens already further into the effect.
         public static IEnumerator Play(GameObject prefab, Vector3 point, float telegraphDelay,
-            float lingerAfterHit, Action onImpact, bool hideChargeVisual = false, float skipFraction = 0f)
+            float lingerAfterHit, Action onImpact, bool hideChargeVisual = false, float skipFraction = 0f,
+            float vfxScale = 1f)
         {
             if (prefab == null)
             {
@@ -41,6 +42,7 @@ namespace Vfx
             }
 
             var instance = UnityEngine.Object.Instantiate(prefab, point, Quaternion.identity);
+            if (vfxScale != 1f) instance.transform.localScale *= vfxScale;
             ImportedVfxUtility.FixUrpMaterials(instance);
             ImportedVfxUtility.ForceHierarchyParticleScaling(instance);
 

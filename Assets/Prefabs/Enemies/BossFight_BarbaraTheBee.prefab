@@ -975,7 +975,7 @@ MonoBehaviour:
   shootSmallDelay: 0.4
   bulletBurstCount: 80
   bulletBurstInterval: 0.05
-  bulletSpeed: 26
+  bulletSpeed: 52
   bulletDamage: 3
   bulletLifetime: 4
   bulletColor: {r: 1, g: 0.95, b: 0.6, a: 1}
