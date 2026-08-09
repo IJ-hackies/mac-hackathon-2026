@@ -15,7 +15,7 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
 related: [system, state, core-loop, gameplay-areas, progression, enemies, boss-fight, player-controller, items, ultimate, unity-project]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -24,8 +24,8 @@ lastVerified: 2026-08-09
 `WaveDirector` owns one endless run: intermission, regular wave, arena travel,
 arena seal/countdown, arena combat, and game over. `WaveGameController` owns
 the rebindable one-second StartWave hold, protected-area tracking, UI, barrier
-presentation, the intermission-only base recall, scene restart, and main-menu
-return. `Tools > Waves > Configure
+presentation, the intermission-only base recall, and circle-wipe scene restart/
+main-menu return. `Tools > Waves > Configure
 Complete Wave Loop` idempotently wires the prefab and SampleScene; validation
 checks serialized references without changing gameplay.
 The isolated Wave UI rebuild also rewires its six prefab-local controller view

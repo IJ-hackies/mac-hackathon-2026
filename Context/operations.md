@@ -12,8 +12,8 @@ projectRoot: ./
 The repository root is also the Unity project root; open
 `mac-hackathon-2026/` directly in Unity Hub. It uses the Universal Render
 Pipeline with separate template PC and mobile renderer assets, Force Text asset
-serialization, and the new Input System. `Assets/Scenes/MainMenu.unity` and
-`SampleScene.unity` are enabled build scenes 0 and 1.
+serialization, and the new Input System. `Assets/Scenes/MainMenu.unity`,
+`SampleScene.unity`, and `Tutorial.unity` are enabled build scenes 0, 1, and 2.
 
 WebGL with WebGL2 is the confirmed publication target, but no repeatable
 project-level WebGL build, browser test, or deployment command has been
@@ -45,8 +45,8 @@ Scene` command for that repair.
 
 The serialized MainMenu scene, PlayerRig settings console, and Progression UI/
 station layouts are authoritative. Their former broad rebuild/configure tools
-were removed because they could overwrite hand-authored work. MainMenu remains
-Singleplayer-only at build index 0, with SampleScene at index 1. Use targeted
+were removed because they could overwrite hand-authored work. MainMenu stays at
+build index 0, with SampleScene at 1 and Tutorial at 2. Use targeted
 tools for repairs and previews. `Configure PC-Only Input` retains only the
 Keyboard&Mouse scheme and regenerates `InputSystem_Actions.cs`;
 `PcUiInputBinding` replaces Unity's cross-platform default menu actions.

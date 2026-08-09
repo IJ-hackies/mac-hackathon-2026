@@ -15,13 +15,14 @@ owns:
   - "Assets/Scripts/UI/EmoteWheelUI.cs*"
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/SettingsMenuController.cs*"
+  - "Assets/Scripts/UI/CutsceneSkipPromptUI.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Art/Models/Characters/Player.prefab*"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
 related: [control-model, core-loop, wave-system, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -70,8 +71,8 @@ normal 112.5-unit prop distance.
   `SphereCast` collision, smoothing, mouse look, boss shake, and cutscene
   follow pose. Its clamped `MouseSensitivity` API is the settings hook;
   `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
-- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT
-  framing, temporary shadow/prop visibility, and safe handoff; it belongs to
+- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT framing,
+  async-load retry, shared skip prompt, temporary shadow/prop visibility, and safe handoff; it belongs to
   `SampleScene`, not `PlayerRig.prefab`.
 - `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
   and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
@@ -85,8 +86,7 @@ normal 112.5-unit prop distance.
   the top UI sibling, wires menu SFX, and restores only state it acquired.
   `ControlsRebindingUI` drives 13 two-column rows with Escape-cancel, duplicate
   rejection, and Reset Defaults. `ReturnToMainMenu()` resets time/cursor and
-  loads `MainMenu`; the targeted `Add Return To Main Menu Button` tool clones
-  Close so both `SampleScene` and `Tutorial.unity` inherit the same control.
+  transitions to `MainMenu`; `Add Return To Main Menu Button` clones Close so both scenes inherit it.
 - `PlayerInputBindings.cs` is the factory/registry for every independent
   `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
   accepted rebind out to live copies while preserving map enablement, and

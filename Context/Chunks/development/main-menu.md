@@ -5,6 +5,7 @@ owns:
   - "Assets/Scenes/MainMenu.unity*"
   - "Assets/Scripts/UI/GameSettings.cs*"
   - "Assets/Scripts/UI/MainMenuController.cs*"
+  - "Assets/Scripts/UI/SceneTransitionController.cs*"
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/PcUiInputBinding.cs*"
   - "Assets/Scripts/UI/ButtonHoverEffect.cs*"
@@ -14,23 +15,23 @@ owns:
   - "Assets/Editor/MainMenu/**"
   - "ProjectSettings/EditorBuildSettings.asset"
 related: [system, unity-project, player-controller, runtime-art, control-model]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
 ## What this is
 
 `MainMenu.unity` is the lightweight startup scene and enabled build scene 0;
-`SampleScene.unity` is enabled build scene 1. Its mission-control presentation
+`SampleScene.unity` and `Tutorial.unity` are enabled build scenes 1 and 2. Its mission-control presentation
 reuses the procedural space sky and cratered planet while selected Cartoon UI
 and Space Expansion UI sprites form the interactive console. The planet carries
 a menu-only, deterministic crash-site vignette: three outpost structures,
 16 rocks, and 42 vegetation props surface-fit to its exact crater mesh. This is
 a curated presentation pass, not a copy of SampleScene's 17,100-object scatter.
 
-The home page exposes only Singleplayer and Settings. Singleplayer saves
-settings and replaces the menu with `SampleScene` in Single mode, preserving
-that scene's opening cinematic. Multiplayer has no menu row or runtime wiring
+The home page exposes Singleplayer, Tutorial, Settings, and Quit. Singleplayer
+saves settings and transitions to `SampleScene`, preserving that scene's
+opening cinematic; Tutorial transitions to the onboarding scene. Multiplayer has no menu row or runtime wiring
 because it is out of hackathon scope. Settings contains master volume, look
 sensitivity, and the same live, persisted 13-binding PC control map exposed by
 the in-game pause console.
@@ -39,6 +40,8 @@ the in-game pause console.
 
 - `MainMenuController.cs` - navigation, scene loading, settings, selection,
   cursor/time reset, Escape behavior, and slow menu-planet rotation.
+- `SceneTransitionController.cs` - persistent aspect-correct circle wipe used
+  by menu, tutorial, pause, restart, and game-over scene changes.
 - `GameSettings.cs` - shared PlayerPrefs keys, clamping, application, and saves
   used by both startup and gameplay settings menus.
 - `ControlsRebindingUI.cs`/`PlayerInputBindings.cs` - shared two-column binding
@@ -52,8 +55,9 @@ the in-game pause console.
 
 ## Invariants
 
-- MainMenu and SampleScene stay enabled at build indexes 0 and 1 respectively.
-- Singleplayer loads `SampleScene` directly with `LoadSceneMode.Single`.
+- MainMenu, SampleScene, and Tutorial stay enabled at build indexes 0, 1, and 2.
+- Scene changes route through `SceneTransitionController`; do not bypass the
+  wipe with synchronous `SceneManager.LoadScene` calls.
 - Multiplayer stays absent from the menu and controller while the release is
   single-player only.
 - The menu and gameplay console share `settings.masterVolume` and
@@ -75,8 +79,8 @@ the in-game pause console.
 ## Gotchas
 
 `MainMenu.unity` is authoritative; the former broad scene generator was removed
-because it could overwrite hand-authored work. Preserve its Singleplayer-only
-layout and use targeted tools such as preview capture. Runtime copies belong
+because it could overwrite hand-authored work. Preserve its Singleplayer,
+Tutorial, Settings, and Quit layout and use targeted tools such as preview capture. Runtime copies belong
 under `Assets/Art/`; never reference `asset packs/` from the scene. Do not call
 the gameplay vegetation/rock generators here: they require gameplay roots and
 would destroy the menu's lightweight budget.

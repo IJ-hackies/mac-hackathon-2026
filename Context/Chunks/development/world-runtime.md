@@ -7,7 +7,7 @@ owns:
   - "Assets/Tests/EditMode/WorldRuntime.meta"
   - "Assets/Tests/EditMode/WorldRuntime/**"
 related: [system, unity-project, world-authoring, runtime-art, player-controller]
-verifiedAtCommit: bbe3799f82348f2367d9a308b9fd87ed7f9601ee
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 

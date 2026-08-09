@@ -14,7 +14,7 @@ owns:
   - "Assets/TutorialInfo.meta"
   - "Assets/TutorialInfo/**"
 related: [system, control-model, core-loop, wave-system, gameplay-areas, progression, main-menu, git-collaboration, runtime-art, world-authoring, world-runtime, player-controller]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -23,8 +23,8 @@ lastVerified: 2026-08-09
 The repository root is the Unity `6000.3.10f1` project root, initialized from
 the Universal Render Pipeline empty template. The project uses Universal Render
 Pipeline and Visual Effect Graph `17.3.0`, Input System `1.18.0`, and Unity's
-3D physics module. `MainMenu.unity` and `SampleScene.unity` are enabled build
-scenes 0 and 1; other top-level scenes are sandboxes without implied build
+3D physics module. `MainMenu.unity`, `SampleScene.unity`, and `Tutorial.unity`
+are enabled build scenes 0, 1, and 2; other top-level scenes are sandboxes without implied build
 inclusion. WebGL using the production WebGL2 graphics
 path is the confirmed publication target. WebGL selects the Mobile quality
 tier and its forward URP asset; project settings disable WebGL static and

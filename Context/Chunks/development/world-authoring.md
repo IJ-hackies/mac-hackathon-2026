@@ -5,7 +5,7 @@ owns:
   - "Assets/Editor/World.meta"
   - "Assets/Editor/World/**"
 related: [system, runtime-art, unity-project, world-runtime, player-controller]
-verifiedAtCommit: bbe3799f82348f2367d9a308b9fd87ed7f9601ee
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 

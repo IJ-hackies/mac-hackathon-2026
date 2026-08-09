@@ -9,12 +9,14 @@ owns:
   - "Assets/Audio.meta"
   - "Assets/Audio/**"
   - "Assets/Resources/SfxLibrary.asset*"
+  - "Assets/Resources/UI.meta"
+  - "Assets/Resources/UI/**"
   - "Assets/Scripts/Audio.meta"
   - "Assets/Scripts/Audio/**"
   - "Assets/Editor/Audio.meta"
   - "Assets/Editor/Audio/**"
 related: [asset-library, unity-project, main-menu, progression, player-controller, world-authoring, world-runtime, items, ultimate]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -90,6 +92,8 @@ through the runtime audio service, keeping callers on stable `SfxId` values.
 - `Resources/S_WaveEnergyBarrier.shader` is the WebGL-safe transparent lock
   field used by `WaveAreaBarrier`. Its explicit blend/depth state and direct
   Resources reference avoid the opaque runtime-URP setup and shader stripping.
+- `S_UICircleWipe.shader` and `Resources/UI/M_CircleWipe.mat` provide the
+  aspect-correct persistent scene transition used by menu and gameplay exits.
 - `Resources/SfxLibrary.asset`, `Scripts/Audio/`, and `Editor/Audio/` provide
   the centralized SFX catalog/runtime and its targeted library builder. Source
   clips live under `Assets/Audio/SFX/`.

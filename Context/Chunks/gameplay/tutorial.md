@@ -7,27 +7,27 @@ owns:
   - "Assets/Editor/Tutorial.meta"
   - "Assets/Editor/Tutorial/**"
   - "Assets/Scenes/Tutorial.unity*"
+  - "Assets/Prefabs/TutorialPlanet.prefab*"
   - "Assets/Art/Models/Environment/ModularSciFi/**"
   - "Assets/Art/Materials/ModularSciFi/**"
   - "Assets/Art/Materials/Tutorial/**"
   - "Assets/Art/Textures/ModularSciFi/**"
 related: [system, state, player-controller, player-combat, enemies, items, ultimate, progression, core-loop, world-authoring, main-menu]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-A tutorial scene (`Assets/Scenes/Tutorial.unity`) that walks a new player through every core
-mechanic, gated Overwatch-style: a `TutorialGate` blocks the way into each stage until the
-previous requirement is met. Room geometry is hand-built in the editor; targeted
-commands under `Assets/Editor/Tutorial/` add or repair individual gameplay
+A tutorial scene (`Assets/Scenes/Tutorial.unity`) that teaches every core mechanic through gated rooms.
+Room geometry is hand-built; targeted commands under `Assets/Editor/Tutorial/` add or repair individual gameplay
 objects without repositioning existing work.
 
-Stage order: Movement -> Jump -> Dash -> Light Attack (5 hits) -> Heavy Attack
-(1 hit) -> Power-Ups (three pickups plus 30 Shield-mitigated damage) -> Overview
-(base/wave info markers, then an `Area_generic_blue` exit that loads MainMenu
-immediately without a completion screen).
+Stage order: Movement -> Jump -> Dash -> Light Attack (5 hits) -> Heavy Attack (1 hit) -> Power-Ups
+(three pickups plus 30 Shield-mitigated damage) -> Overview -> MainMenu transition without a completion screen.
+
+The scene opens with a skippable planet/base hold, room overview, astronaut Wave, and camera handoff.
+`TutorialManager` begins Movement only after `TutorialOpeningCutscene` completes or is skipped.
 
 ## Key files
 
@@ -42,7 +42,7 @@ immediately without a completion screen).
   can't be missed regardless of which happens last. Collecting Thunder immediately re-activates
   Ultimate with an effectively-infinite duration (`TutorialUltimateDuration`), overriding the
   finite duration `ThunderPickup.ApplyEffect` already started, so it can never expire mid-stage.
-  Reaching `Complete` calls `SceneManager.LoadScene("MainMenu")` directly - no completion UI.
+  Reaching `Complete` uses the shared scene transition to load MainMenu - no completion UI.
 - `Assets/Scripts/Tutorial/TutorialShieldTrainerAI.cs` - a stationary flying enemy for the
   Power-Ups room. It turns to face the player every frame and, on a fixed interval, fires a real
   travelling `Enemies.BossProjectile` (the same shuriken VFX `EnemyFlyingAI` uses) after a short
