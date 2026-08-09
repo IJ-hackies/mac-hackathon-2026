@@ -134,7 +134,7 @@ Tools are additive and position-preserving, and skip objects already present.
   every frame (`TutorialDummyAI.FacePlayer()`, or another `ItemPickup`'s own spin) - fixed by
   `Tools/Tutorial/Fix Orbiting Item Pickups`; (2) the model's own import pivot isn't at its visual
   center (the vendor Ultimate Space Kit models are inconsistent about this - see
-  [world-authoring](world-authoring.md)'s "pivots are not universally at the visible base"), so it
+  [world-authoring](../development/world-authoring.md)'s "pivots are not universally at the visible base"), so it
   sweeps around that off-center point even with no unusual parenting at all - fixed by
   `Tools/Tutorial/Fix Off-Center Pickup Pivots`, which recenters the instance without moving it on
   screen. Try both if one doesn't resolve it.

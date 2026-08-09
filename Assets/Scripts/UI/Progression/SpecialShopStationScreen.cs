@@ -78,7 +78,19 @@ namespace Player.UI.Progression
             var source = ProgressionSpecialSkillCatalog.All;
             var result = new ProgressionSpecialSkillDefinition[source.Count];
             for (int index = 0; index < source.Count; index++) result[index] = source[index];
+            Array.Sort(result, CompareByCost);
             return result;
+        }
+
+        private static int CompareByCost(ProgressionSpecialSkillDefinition left,
+            ProgressionSpecialSkillDefinition right)
+        {
+            int costOrder = left.Cost.CompareTo(right.Cost);
+            if (costOrder != 0) return costOrder;
+
+            // Enum order mirrors the authoritative catalog and gives equal-cost skills a stable,
+            // intentional order without changing the catalog used by progression and the overview.
+            return left.Skill.CompareTo(right.Skill);
         }
     }
 }

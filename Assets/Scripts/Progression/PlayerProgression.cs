@@ -82,10 +82,10 @@ namespace Player.UI.Progression
             int upgrades = Mathf.Clamp(level, InitialLevel, MaxLevelValue) - InitialLevel;
             switch (stat)
             {
-                case ProgressionStat.MaxHealth: return _baseMaxHealth + SumArithmetic(10f, 5f, upgrades);
+                case ProgressionStat.MaxHealth: return _baseMaxHealth + SumArithmetic(20f, 5f, upgrades);
                 case ProgressionStat.MovementSpeed: return 1f + SumArithmetic(.03f, .02f, upgrades);
                 case ProgressionStat.FireRate: return 1f + SumArithmetic(.05f, .02f, upgrades);
-                case ProgressionStat.ShootingDamage: return (_combat != null ? _combat.BaseRangedDamage : 15f) + SumArithmetic(2f, 2f, upgrades);
+                case ProgressionStat.ShootingDamage: return (_combat != null ? _combat.BaseRangedDamage : 15f) + SumArithmetic(4f, 1f, upgrades);
                 case ProgressionStat.MeleeDamage: return (_combat != null ? _combat.BaseMeleeDamage : 20f) + SumArithmetic(3f, 3f, upgrades);
                 case ProgressionStat.Defense: return SumArithmetic(.02f, .01f, upgrades);
                 case ProgressionStat.MaxAmmo: return _baseMagazineSize + SumArithmetic(2f, 1f, upgrades);

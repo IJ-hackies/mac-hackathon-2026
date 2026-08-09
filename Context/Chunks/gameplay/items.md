@@ -32,8 +32,9 @@ player before destroying itself. `HealthPickup`/`AmmoPickup` implement
 [ultimate](ultimate.md)) via `Player.PlayerUltimate.ActivateUltimate()` and
 no longer overrides `CollectibleOnContact`.
 
-The pickup payloads remain full heal, full magazine+reserve refill, and a full
-40-second Ultimate refresh. Their special-skill allocation is owned by
+The pickup payloads are a clamped 50-HP heal, two current magazines added to
+reserve without changing the loaded magazine, and a full 20-second Ultimate
+refresh. Their special-skill allocation is owned by
 [wave-system](wave-system.md): regular waves may place 15 Health and 10 Ammo
 pickups around the valid globe outside protected areas, while arena combat may
 place one Thunder at the arena center. Those allocations are cleaned up with

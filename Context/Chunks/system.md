@@ -51,12 +51,13 @@ The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
 curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base
 gameplay or construction system. The rest of the authored crater shell carries
-16,000 oversized orange/dark-orange vegetation instances plus 800 small and
-300 large clustered, collidable rocks; all three walled gameplay areas remain
-clear of rock generation. At runtime, the generated vegetation and rock
-renderers are regrouped into spherical sectors for WebGL2 GPU instancing,
-distance, frustum, and horizon culling. Their source objects and rock colliders
-remain present, while the landing base and arenas stay outside this prop system.
+compact baked data for 16,000 oversized orange/dark-orange vegetation instances
+plus 800 small and 300 large clustered rocks; all three walled gameplay areas
+remain clear of rock generation. At runtime, those records are regrouped into
+spherical sectors for WebGL2 GPU instancing, distance, frustum, and horizon
+culling. Vegetation authoring objects are absent from the runtime scene. The
+1,100 rock objects retain only their static mesh colliders; the landing base and
+arenas stay outside this prop system.
 
 The landing base and both arenas now have reusable gameplay-area membership
 derived from their authored perimeter poles. One tracker follows the

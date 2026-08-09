@@ -133,12 +133,13 @@ namespace Waves.Editor
 
         private static void BuildIntermissionPrompt(RectTransform parent, Font utility)
         {
-            RectTransform root = CreateRect("Intermission Prompt", parent, new Vector2(660f, 86f), new Vector2(0f, -150f), new Vector2(.5f, 1f));
+            RectTransform root = CreateRect("Intermission Prompt", parent, new Vector2(760f, 96f), new Vector2(0f, -36f), new Vector2(.5f, 1f));
+            root.pivot = new Vector2(.5f, 1f);
             CanvasGroup group = root.gameObject.AddComponent<CanvasGroup>();
             group.alpha = 0f;
             AddImage(root.gameObject, new Color(Void.r, Void.g, Void.b, .86f), false);
-            Text message = AddText("Message", root, "LEAVE PROTECTED AREA TO START NEXT WAVE", utility, 19, Ice, TextAnchor.MiddleCenter, new Vector2(0f, 16f), new Vector2(620f, 30f));
-            Text hold = AddText("Hold", root, "HOLD 1.0s", utility, 15, Cyan, TextAnchor.MiddleCenter, new Vector2(0f, -21f), new Vector2(150f, 25f));
+            Text message = AddText("Message", root, "LEAVE PROTECTED AREA TO START NEXT WAVE", utility, 24, Ice, TextAnchor.MiddleCenter, new Vector2(0f, 16f), new Vector2(720f, 34f));
+            Text hold = AddText("Hold", root, "HOLD F TO START WAVE", utility, 24, Cyan, TextAnchor.MiddleCenter, new Vector2(0f, -19f), new Vector2(440f, 34f));
             RectTransform track = CreateRect("Hold Track", root, new Vector2(420f, 6f), new Vector2(0f, -35f));
             AddImage(track.gameObject, new Color(Ice.r, Ice.g, Ice.b, .18f), false);
             Image fill = AddImage(CreateRect("Hold Fill", track, new Vector2(420f, 6f), Vector2.zero).gameObject, Cyan, false);
@@ -358,6 +359,7 @@ namespace Waves.Editor
             if (root != null)
             {
                 ValidateWaveHudLayout(root, errors);
+                ValidateIntermissionPromptLayout(root, errors);
                 ValidateArenaObjectiveLayout(root, errors);
                 foreach (Text text in root.GetComponentsInChildren<Text>(true))
                 {
@@ -414,6 +416,34 @@ namespace Waves.Editor
                 wave.rectTransform.anchoredPosition.y <= state.rectTransform.anchoredPosition.y)
             {
                 errors.Add("Wave HUD must stack timer above wave number above state text.");
+            }
+        }
+
+        private static void ValidateIntermissionPromptLayout(Transform root, List<string> errors)
+        {
+            RectTransform prompt = root.Find("Intermission Prompt") as RectTransform;
+            if (prompt == null) return;
+
+            Vector2 topCenter = new Vector2(.5f, 1f);
+            if (prompt.anchorMin != topCenter || prompt.anchorMax != topCenter || prompt.pivot != topCenter)
+            {
+                errors.Add("Intermission Prompt must be anchored and pivoted to the top-center.");
+            }
+            if (prompt.anchoredPosition.y < -120f)
+            {
+                errors.Add("Intermission Prompt must stay in the top HUD safe area.");
+            }
+
+            Text message = prompt.Find("Message")?.GetComponent<Text>();
+            Text hold = prompt.Find("Hold")?.GetComponent<Text>();
+            if (message == null || hold == null) return;
+            if (message.fontSize < 24 || hold.fontSize < 24)
+            {
+                errors.Add("Intermission Prompt instruction text must remain at least 24px.");
+            }
+            if (hold.text != "HOLD F TO START WAVE")
+            {
+                errors.Add("Intermission Prompt must use the concise default StartWave instruction.");
             }
         }
 

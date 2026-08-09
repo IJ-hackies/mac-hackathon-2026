@@ -38,6 +38,17 @@ namespace Gameplay.Areas.Tests
                     Assert.That(area.RebuildPerimeter(), Is.True, area.ValidationError);
                 }
 
+                foreach (GameplayArea arena in areas.Where(area =>
+                             area.AreaId == GameplayAreaId.Arena1 ||
+                             area.AreaId == GameplayAreaId.Arena2))
+                {
+                    Assert.That(arena.Entrance, Is.Not.Null, arena.name);
+                    Assert.That(
+                        arena.Entrance,
+                        Is.SameAs(arena.transform.Find("Perimeter/Entrance")),
+                        arena.name);
+                }
+
                 PlayerAreaTracker[] trackers = scene.GetRootGameObjects()
                     .SelectMany(root => root.GetComponentsInChildren<PlayerAreaTracker>(true))
                     .ToArray();

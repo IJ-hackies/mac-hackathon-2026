@@ -30,6 +30,37 @@ namespace Gameplay.Waves.Tests
             Assert.That(Convert.ToSingle(Invoke("SpawnInterval", 100)), Is.EqualTo(.55f).Within(.0001f));
         }
 
+        [Test]
+        public void RegularEnemyDefaultsAndWaveHandlesUseFortyUnitAggro()
+        {
+            var aiObject = new GameObject("Regular Enemy AI");
+            var enemyObject = new GameObject("Wave Enemy");
+            var playerObject = new GameObject("Player");
+            try
+            {
+                Component enemyAi = aiObject.AddComponent(
+                    RequireType("Enemies.EnemySmallAI, Assembly-CSharp"));
+                Component handle = enemyObject.AddComponent(
+                    RequireType("Gameplay.Waves.WaveEnemyHandle, Assembly-CSharp"));
+                playerObject.transform.position = new Vector3(39.9f, 0f, 0f);
+
+                InvokeInstance(handle, "EvaluateAggro", playerObject.transform);
+
+                Assert.That(Convert.ToSingle(enemyAi.GetType().GetProperty("DetectionRadius")?.GetValue(enemyAi)),
+                    Is.EqualTo(40f));
+                Assert.That(Convert.ToSingle(handle.GetType().GetProperty("AggroRadius")?.GetValue(handle)),
+                    Is.EqualTo(40f));
+                Assert.That(Convert.ToBoolean(handle.GetType().GetProperty("AggroAcquired")?.GetValue(handle)),
+                    Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerObject);
+                UnityEngine.Object.DestroyImmediate(enemyObject);
+                UnityEngine.Object.DestroyImmediate(aiObject);
+            }
+        }
+
         [TestCase(1, 30f)]
         [TestCase(10, 30f)]
         [TestCase(11, 25f)]
@@ -63,18 +94,43 @@ namespace Gameplay.Waves.Tests
         }
 
         [Test]
-        public void EconomyAndStatsUseSpecifiedMultipliersAndCaps()
+        public void KillGoldUsesNaturalLogScalingAndCapsAtFourTimes()
         {
             Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Small"), 1)), Is.EqualTo(20));
-            Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Flying"), 11)), Is.EqualTo(50));
-            Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Large"), 21)), Is.EqualTo(90));
             Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 1)), Is.EqualTo(1f));
-            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 11)), Is.EqualTo(2f));
-            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 21)), Is.EqualTo(3f));
-            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 100)), Is.EqualTo(3f));
-            Assert.That(Convert.ToInt32(Invoke("ArenaCompletionGold", Kind("Arena2"), 100)), Is.EqualTo(900));
-            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 11)), Is.EqualTo(2f));
-            Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 5)), Is.EqualTo(1.3f).Within(.0001f));
+            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 2)), Is.EqualTo(1f));
+            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 21)), Is.EqualTo(3.9957323f).Within(.00001f));
+            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 22)), Is.EqualTo(4f));
+            Assert.That(Convert.ToSingle(Invoke("KillMultiplier", 100)), Is.EqualTo(4f));
+            Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Small"), 21)), Is.EqualTo(80));
+            Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Flying"), 22)), Is.EqualTo(100));
+            Assert.That(Convert.ToInt32(Invoke("KillGold", Enemy("Large"), 22)), Is.EqualTo(120));
+        }
+
+        [Test]
+        public void ArenaCompletionGoldUsesNewBasesAndRetainsItsExistingCap()
+        {
+            Assert.That(Convert.ToInt32(Invoke("ArenaCompletionGold", Kind("Arena1"), 1)), Is.EqualTo(200));
+            Assert.That(Convert.ToInt32(Invoke("ArenaCompletionGold", Kind("Arena2"), 1)), Is.EqualTo(400));
+            Assert.That(Convert.ToSingle(Invoke("ArenaCompletionMultiplier", 40)), Is.EqualTo(2.95f).Within(.0001f));
+            Assert.That(Convert.ToSingle(Invoke("ArenaCompletionMultiplier", 41)), Is.EqualTo(3f));
+            Assert.That(Convert.ToInt32(Invoke("ArenaCompletionGold", Kind("Arena2"), 100)), Is.EqualTo(1200));
+        }
+
+        [Test]
+        public void RegularEnemyHealthAndDamageUseHybridExponentialScaling()
+        {
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 1)), Is.EqualTo(1f));
+            Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 1)), Is.EqualTo(1f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 11)), Is.EqualTo(2.6288946f).Within(.00001f));
+            Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 5)), Is.EqualTo(1.4255089f).Within(.00001f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 100)), Is.GreaterThan(100f));
+            Assert.That(Convert.ToSingle(Invoke("DamageMultiplier", 100)), Is.GreaterThan(20f));
+        }
+
+        [Test]
+        public void NonHealthRegularStatsRetainTheirExistingLinearCaps()
+        {
             Assert.That(Convert.ToSingle(Invoke("MovementMultiplier", 100)), Is.EqualTo(2f));
             Assert.That(Convert.ToSingle(Invoke("AttackRateMultiplier", 100)), Is.EqualTo(2f));
             Assert.That(Convert.ToSingle(Invoke("ProjectileSpeedMultiplier", 100)), Is.EqualTo(2f));
@@ -232,11 +288,12 @@ namespace Gameplay.Waves.Tests
             AssertPrefabFloat(prefabPath, "Enemies.BossMechAI", "bulletDamage", 3f);
             AssertPrefabFloat(prefabPath, "Enemies.BossMechAI", "bulletBurstCount", 80f);
 
-            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 10)), Is.EqualTo(1.9f).Within(.0001f));
+            Assert.That(Convert.ToSingle(Invoke("HealthMultiplier", 10)), Is.EqualTo(2.4513283f).Within(.00001f));
             Assert.That(Convert.ToSingle(Invoke("BarbaraHealthMultiplier", 10)), Is.EqualTo(2.35f).Within(.0001f));
             Assert.That(300f * Convert.ToSingle(Invoke("BarbaraHealthMultiplier", 10)), Is.EqualTo(705f));
-            // Wave 10 applies 1.675x damage, making the full Shoot Small burst 402 raw damage.
-            Assert.That(80f * 3f * Convert.ToSingle(Invoke("DamageMultiplier", 10)), Is.EqualTo(402f));
+            // Wave 10 applies the regular-enemy hybrid damage curve to the full Shoot Small burst.
+            Assert.That(80f * 3f * Convert.ToSingle(Invoke("DamageMultiplier", 10)),
+                Is.EqualTo(475.14557f).Within(.0001f));
         }
 
         [TestCase("Intermission", true)]
@@ -256,6 +313,66 @@ namespace Gameplay.Waves.Tests
             Assert.That(method, Is.Not.Null);
             object phase = Enum.Parse(phaseType, phaseName);
             Assert.That(Convert.ToBoolean(method.Invoke(null, new[] { phase })), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void ArenaGuidanceTargetsTheAuthoredEntranceInsteadOfThePerimeterCenter()
+        {
+            var planet = new GameObject("Planet Center");
+            var arena = new GameObject("Arena1");
+            var poles = new GameObject("Poles").transform;
+            var entrance = new GameObject("Entrance").transform;
+            var controllerObject = new GameObject("Wave Controller");
+
+            try
+            {
+                poles.SetParent(arena.transform, false);
+                entrance.SetParent(arena.transform, false);
+                entrance.position = new Vector3(30f, 80f, -20f);
+                for (int index = 0; index < 3; index++)
+                {
+                    Transform pole = new GameObject($"Pole {index}").transform;
+                    pole.SetParent(poles, false);
+                    pole.position = Quaternion.Euler(0f, index * 120f, 0f) *
+                                    new Vector3(0f, 100f, 10f);
+                }
+
+                Type areaType = RequireType("Gameplay.Areas.GameplayArea, Gameplay.Areas");
+                Type areaIdType = RequireType("Gameplay.Areas.GameplayAreaId, Gameplay.Areas");
+                Component area = arena.AddComponent(areaType);
+                MethodInfo configure = areaType.GetMethod(
+                    "Configure",
+                    BindingFlags.Public | BindingFlags.Instance);
+                Assert.That(configure, Is.Not.Null);
+                configure.Invoke(
+                    area,
+                    new object[]
+                    {
+                        Enum.Parse(areaIdType, "Arena1"),
+                        planet.transform,
+                        poles,
+                        1.5f,
+                        0,
+                        entrance
+                    });
+
+                Component controller = controllerObject.AddComponent(
+                    RequireType("Gameplay.Waves.WaveGameController, Assembly-CSharp"));
+                MethodInfo buildTarget = controller.GetType().GetMethod(
+                    "BuildGuidanceTarget",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                Assert.That(buildTarget, Is.Not.Null);
+
+                Transform target = (Transform)buildTarget.Invoke(controller, new object[] { area });
+                Assert.That(target.position, Is.EqualTo(entrance.position));
+                Assert.That(target.position, Is.Not.EqualTo(arena.transform.position));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(controllerObject);
+                UnityEngine.Object.DestroyImmediate(arena);
+                UnityEngine.Object.DestroyImmediate(planet);
+            }
         }
 
         [Test]

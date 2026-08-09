@@ -28,7 +28,7 @@ enemies - leaving only the boss fightable, but keeping the basic-enemy build
 calls intact (one-line change to re-enable). See [boss-fight](boss-fight.md).
 
 The same enemy prefabs now support [wave-system](wave-system.md) in SampleScene.
-`EnemyBase` accepts wave stat scaling, detection radius, immediate/sticky aggro,
+`EnemyBase` accepts wave stat scaling, a 40-unit passive detection radius, immediate/sticky aggro,
 reward-free retreat/despawn, and separate killed/despawned events. Basic and boss
 AI derive movement, up, facing, and death fall from the planet center when
 configured, while retaining their flat-ground fallback for the Player sandbox.

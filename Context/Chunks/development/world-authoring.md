@@ -5,7 +5,7 @@ owns:
   - "Assets/Editor/World.meta"
   - "Assets/Editor/World/**"
 related: [system, runtime-art, unity-project, world-runtime, player-controller]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+verifiedAtCommit: bbe3799f82348f2367d9a308b9fd87ed7f9601ee
 lastVerified: 2026-08-09
 ---
 
@@ -53,6 +53,10 @@ runtime components or alter the radial player controller.
   It guarantees separate small/large quotas, supports small-only, large-only,
   and mixed clusters, grounds transformed vertices through the shared surface
   cast, and derives closed polygons from each area's direct perimeter poles.
+- `PlanetPropBakeTool.cs` - `Bake Planet Props for Runtime` converts both named
+  authoring roots into compact binary datasets and assigns them to the
+  SampleScene planet instance. It removes vegetation objects and strips rock
+  render/filter components while retaining their 1,100 static colliders.
 - `LandingBaseNautRockArt.cs` - deterministic `Rock_1` dot-matrix lettering
   tool. It geodesically maps `NAUT` around `LandingBase/Layout/BaseCenter`,
   surface-fits every scaled rock, and replaces only the generated base child.
@@ -90,6 +94,10 @@ runtime components or alter the radial player controller.
   static only, not batching static. Runtime prop batching is owned by
   `SphericalPropInstancingRenderer`, and WebGL static batching is disabled to
   avoid duplicating geometry for these large authored hierarchies.
+- Regenerating either prop category clears only that category's baked assignment,
+  returning it to the renderer's legacy authoring-root fallback. Run the bake
+  command after the final scatter pass; it requires the open SampleScene to be
+  clean and rejects wrong instance/collider counts instead of saving partial data.
 - Wall-ring arrangement is explicit, atomic, Undoable, and preserves the
   selected objects, their scales, and prefab-instance overrides. Connector
   generation creates a new scene-root group on every run and never removes an
@@ -104,47 +112,36 @@ runtime components or alter the radial player controller.
 
 ## Gotchas
 
-Imported model pivots are not universally at the visible base. Use Surface
+- Imported model pivots are not universally at the visible base. Use Surface
 Offset when a model appears buried or floating after snapping. The one-click
 command always uses surface-normal alignment, preserves heading, and uses zero
 offset; open the full window for other settings. Planet vegetation compensates
 for these pivot differences automatically from the instantiated mesh geometry.
-
-`Regenerate Planet Vegetation` is a reroll, not an additive pass: it removes the
+- `Regenerate Planet Vegetation` is a reroll, not an additive pass: it removes the
 previous generated root before placing the new fixed 16,000-instance pass. The
 checked-in pass uses seed `80`: 12,800 grasses, 1,600 bushes, and 1,600 plants.
 Its 4,000 clustered placements are interleaved with 12,000 uniform placements;
 cluster centers and radii are seed-driven. Call `Regenerate(seed, min, max)` to
 reproduce or deliberately tune the pass.
-
-The asset configuration command intentionally regenerates the selective Trim01
-mask and overwrites its shared materials with documented defaults. Trim02 stays
-non-emissive; do not hand-tune these assets unless a later reset is intended.
-
-Rock imports retain the pack's small source-unit scale and need the same
+- `Bake Planet Props for Runtime` is a destructive scene compaction step, guarded
+by a clean-scene precondition. Use `Validate Baked Planet Props` afterward.
+Vegetation authoring objects are intentionally unavailable after baking; rerun
+the vegetation scatter tool before changing individual placements.
+- Rock imports retain the pack's small source-unit scale and need the same
 -90-degree local-X placement correction used by other Environment models.
 Adjust instance scale rather than changing importer defaults.
-
-`Regenerate Planet Rocks` is a full reroll, not an additive pass. The authored
+- `Regenerate Planet Rocks` is a full reroll, not an additive pass. The authored
 pass uses seed `80826`: 800 small and 300 large rocks, both at literal
 100x-200x Transform scale, across 146 clusters: 26 small-only, 89 large-only,
 and 31 mixed. Small-bearing clusters hold 10-20 small rocks;
 large-bearing clusters hold 1-3 large rocks, and some clusters mix both types.
 Malformed `Area/Perimeter/Poles` paths fail instead of populating that area.
-
-`BaseCenter` is currently a renamed, scale-1 `Roof_Opening` prefab rather than
+- `BaseCenter` is currently a renamed, scale-1 `Roof_Opening` prefab rather than
 an empty marker. The NAUT tool surface-projects its position and derives a
 tangent heading safely; use the tool's Heading field to rotate the word.
-
-Generated landing-base mesh colliders are non-convex and intended for static
-environment objects. Do not add a non-kinematic Rigidbody to those objects;
-use a simplified convex collider setup for anything that must move. A fully
-unpacked scene copy no longer inherits later FBX importer changes.
-
-The wall-ring builder uses the active selected wall as its phase reference.
+- The wall-ring builder uses the active selected wall as its phase reference.
 Assign a Center Anchor for repeatable edits. Radius fitting assumes the chosen
 local X or Z axis is the wall's length; use End Inset for connector overlap.
-
-Curved-sheet Pole Clearance is measured from pole center along its span; about
+- Curved-sheet Pole Clearance is measured from pole center along its span; about
 `0.6` reaches a default `Column_Hollow` edge. Empty Wall Material reuses the
 active pole material. Undo keeps the generated mesh asset for reuse or cleanup.

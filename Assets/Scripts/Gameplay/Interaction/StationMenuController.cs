@@ -17,6 +17,9 @@ namespace Gameplay.Interaction
     [DisallowMultipleComponent]
     public sealed class StationMenuController : MonoBehaviour
     {
+        private const float StationTextScale = 1.15f;
+        private const float StationCardTextOffset = 152f;
+
         [Header("Station roots")]
         [SerializeField] private GameObject shellRoot;
         [SerializeField] private GameObject supplyRoot;
@@ -55,6 +58,9 @@ namespace Gameplay.Interaction
         private void Awake()
         {
             ResolveReferences();
+            ApplyStationReadability(supplyRoot, 650f);
+            ApplyStationReadability(skillTreeRoot, 650f);
+            ApplyStationReadability(specialShopRoot, 500f);
             SetRoot(shellRoot, false);
             SetRoot(supplyRoot, false);
             SetRoot(skillTreeRoot, false);
@@ -200,5 +206,36 @@ namespace Gameplay.Interaction
         {
             if (target != null) target.SetActive(active);
         }
+
+        private static void ApplyStationReadability(GameObject root, float textLaneExpansion)
+        {
+            if (root == null) return;
+            foreach (Text text in root.GetComponentsInChildren<Text>(true))
+            {
+                text.fontSize = Mathf.CeilToInt(text.fontSize * StationTextScale);
+                RectTransform rect = text.rectTransform;
+                if (IsDirectCardText(text.transform))
+                {
+                    Vector2 position = rect.anchoredPosition;
+                    position.x += StationCardTextOffset;
+                    rect.anchoredPosition = position;
+                }
+
+                if (textLaneExpansion <= 0f || !UsesExpandableTextLane(text.gameObject.name)) continue;
+
+                Vector2 size = rect.sizeDelta;
+                size.x += textLaneExpansion;
+                rect.sizeDelta = size;
+            }
+        }
+
+        private static bool IsDirectCardText(Transform textTransform)
+        {
+            Transform parent = textTransform.parent;
+            return parent != null && parent.gameObject.name.StartsWith("Card_");
+        }
+
+        private static bool UsesExpandableTextLane(string objectName) =>
+            objectName == "Name" || objectName == "Detail" || objectName == "Flavor" || objectName == "Value";
     }
 }

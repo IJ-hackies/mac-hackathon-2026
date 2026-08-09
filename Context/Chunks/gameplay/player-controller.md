@@ -49,7 +49,8 @@ strafe and backpedal; camera keeps shoulder offset, collision pull-in, and
 mouse-look suspension while the emote wheel is open. The opening cutscene runs
 terminator-to-NAUT orbit/dolly, NAUT zoom, Wave, then collision-resolved handoff
 with input/HUD suspended. It raises URP shadow distance to 500 temporarily and
-always restores the captured gameplay value (Mobile is 50).
+requests all visible-face props, then restores Mobile's 50 shadow range and the
+normal 112.5-unit prop distance.
 
 ## Key files
 
@@ -70,8 +71,8 @@ always restores the captured gameplay value (Mobile is 50).
   follow pose. Its clamped `MouseSensitivity` API is the settings hook;
   `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
 - `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT
-  framing, temporary shadow range, and safe handoff; it belongs to `SampleScene`,
-  not `PlayerRig.prefab`.
+  framing, temporary shadow/prop visibility, and safe handoff; it belongs to
+  `SampleScene`, not `PlayerRig.prefab`.
 - `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
   and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
   jump, or attack interrupts it. `Configure(labels)` rebuilds for three labels,
@@ -138,10 +139,9 @@ always restores the captured gameplay value (Mobile is 50).
   the rig. For planet-scale changes, move top-level scene `PlayerRig` by the same
   center-relative factor with radial-snap (alignment off, heading preserved), and
   keep its short outward startup cast clear of roofs/other `groundMask` art.
-- The cutscene wide path is spherical around `Planet Ground`; its top shot uses
-  art-bounds radial up and true N-to-T screen-right, not `BaseCenter`. Missing
-  contracts must skip safely and every exit must restore gameplay, presentation,
-  and shadow distance.
+- The cutscene wide path is spherical around `Planet Ground`; its top shot uses art-bounds
+  radial up and true N-to-T screen-right, not `BaseCenter`. Missing contracts must skip
+  safely and every exit must restore gameplay, presentation, shadow, and prop visibility.
 
 ## How to extend
 

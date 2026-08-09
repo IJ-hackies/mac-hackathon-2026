@@ -437,6 +437,14 @@ namespace Gameplay.Waves
                 _guidanceTarget.SetParent(transform, true);
             }
 
+            if (arena.Entrance != null)
+            {
+                _guidanceTarget.SetPositionAndRotation(
+                    arena.Entrance.position,
+                    arena.Entrance.rotation);
+                return _guidanceTarget;
+            }
+
             Transform poles = arena.PerimeterPoles;
             if (poles == null || poles.childCount == 0 || arena.PlanetCenter == null)
             {

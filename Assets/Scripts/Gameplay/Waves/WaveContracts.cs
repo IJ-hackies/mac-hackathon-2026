@@ -66,17 +66,29 @@ namespace Gameplay.Waves
         public static int ActiveCap(int wave) => Mathf.Min(5 + Mathf.Max(1, wave), 40);
         public static float SpawnInterval(int wave) => Mathf.Max(2.2f - .04f * (Mathf.Max(1, wave) - 1), .55f);
         public static int Arena1Count(int wave) => 10 + 10 * ((Mathf.Max(5, wave) - 5) / 10);
-        public static float KillMultiplier(int wave) => Mathf.Min(1f + .10f * Mathf.Max(0, wave - 1), 3f);
+        public static float KillMultiplier(int wave)
+        {
+            int n = Mathf.Max(0, wave - 1);
+            return Mathf.Min(1f + Mathf.Log(Mathf.Max(1, n)), 4f);
+        }
         public static float ArenaCompletionMultiplier(int wave) => Mathf.Min(1f + .05f * Mathf.Max(0, wave - 1), 3f);
         public static int KillGold(WaveEnemyType type, int wave) => Mathf.RoundToInt(BaseGold(type) * KillMultiplier(wave));
         public static int ArenaCompletionGold(WaveKind kind, int wave) =>
-            Mathf.RoundToInt((kind == WaveKind.Arena1 ? 100 : kind == WaveKind.Arena2 ? 300 : 0) * ArenaCompletionMultiplier(wave));
+            Mathf.RoundToInt((kind == WaveKind.Arena1 ? 200 : kind == WaveKind.Arena2 ? 400 : 0) * ArenaCompletionMultiplier(wave));
         /// <summary>Applies a special-skill reward bonus to one award, retaining the run economy's integer convention.</summary>
         public static int GoldWithSpecialBonus(int amount, bool bonusOwned) =>
             bonusOwned ? Mathf.RoundToInt(Mathf.Max(0, amount) * FortuneGoldMultiplier) : Mathf.Max(0, amount);
-        public static float HealthMultiplier(int wave) => 1f + .10f * Mathf.Max(0, wave - 1);
+        public static float HealthMultiplier(int wave)
+        {
+            int n = Mathf.Max(0, wave - 1);
+            return .10f * n + Mathf.Pow(1.05f, n);
+        }
         public static float BarbaraHealthMultiplier(int wave) => 1f + .15f * Mathf.Max(0, wave - 1);
-        public static float DamageMultiplier(int wave) => 1f + .075f * Mathf.Max(0, wave - 1);
+        public static float DamageMultiplier(int wave)
+        {
+            int n = Mathf.Max(0, wave - 1);
+            return .075f * n + Mathf.Pow(1.03f, n);
+        }
         public static float MovementMultiplier(int wave) => Mathf.Min(1f + .015f * Mathf.Max(0, wave - 1), 2f);
         public static float AttackRateMultiplier(int wave) => Mathf.Min(1f + .02f * Mathf.Max(0, wave - 1), 2f);
         public static float ProjectileSpeedMultiplier(int wave) => Mathf.Min(1f + .02f * Mathf.Max(0, wave - 1), 2f);

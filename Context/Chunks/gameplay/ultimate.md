@@ -17,7 +17,7 @@ lastVerified: 2026-08-09
 ## What this is
 
 `Items.ThunderPickup` activates a timed Ultimate: Finn becomes a 1.4x Mech for
-40 seconds (base tunables) with a new attack profile. It reuses the existing
+20 seconds (base tunables) with a new attack profile. It reuses the existing
 `PlayerController`/`PlayerCombat` pipeline—locomotion, camera, health, and
 stagger—not a separate mech controller. `Ability` (Shift, repurposed from the
 removed Sprint action) means Dash normally and Shield during Ultimate.

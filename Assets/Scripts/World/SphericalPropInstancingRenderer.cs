@@ -7,8 +7,9 @@ using UnityEngine.SceneManagement;
 namespace WorldRuntime
 {
     /// <summary>
-    /// Re-renders the authored planet dressing as WebGL2-compatible instanced
-    /// sector batches while leaving the source GameObjects and rock colliders intact.
+    /// Renders compact baked planet dressing, or compatible legacy authoring roots,
+    /// as WebGL2-compatible instanced sector batches. Rock collision objects may
+    /// remain in the scene without their original rendering components.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SphericalPropInstancingRenderer : MonoBehaviour
@@ -19,6 +20,11 @@ namespace WorldRuntime
         [Header("Scene Contracts")]
         [SerializeField] private Camera targetCamera;
         [SerializeField] private SphereCollider planetRadiusSource;
+        [SerializeField]
+        [Tooltip("Valid datasets replace only their matching generated scene-object root. " +
+                 "Leave empty to preserve the legacy path; multiple datasets allow " +
+                 "vegetation and rocks to migrate independently.")]
+        private SphericalPropInstanceData[] bakedInstanceDataSets = Array.Empty<SphericalPropInstanceData>();
         [SerializeField] private string[] generatedRootNames =
         {
             "Generated Planet Vegetation",
@@ -39,13 +45,51 @@ namespace WorldRuntime
         [Header("Diagnostics")]
         [SerializeField] private bool logInitializationSummary = true;
 
+        /// <summary>
+        /// Baked categories assigned to this renderer. Editor bakers should set this
+        /// on the SampleScene instance, rather than applying it to Planet.prefab.
+        /// </summary>
+        public IReadOnlyList<SphericalPropInstanceData> BakedInstanceDataSets =>
+            bakedInstanceDataSets;
+
+        /// <summary>
+        /// True while one or more cinematic callers have requested that distance
+        /// culling be bypassed. Frustum and spherical-horizon culling remain active.
+        /// </summary>
+        public bool IsFullPlanetVisibilityRequested =>
+            _fullPlanetVisibilityRequestCount > 0;
+
+        /// <summary>
+        /// Replaces the assigned baked categories. Intended for Edit-mode baking tools;
+        /// the caller owns Undo, scene dirtiness, and saving the SampleScene override.
+        /// </summary>
+        public void SetBakedInstanceDataSets(SphericalPropInstanceData[] dataSets)
+        {
+            bakedInstanceDataSets = dataSets != null
+                ? (SphericalPropInstanceData[])dataSets.Clone()
+                : Array.Empty<SphericalPropInstanceData>();
+        }
+
         private readonly Plane[] _frustumPlanes = new Plane[6];
         private readonly List<RendererState> _sourceRenderers = new();
         private readonly List<Sector> _sectors = new();
         private bool _initialized;
         private bool _reportedUnsupportedInstancing;
+        private bool _reportedInvalidBakedData;
+        private int _fullPlanetVisibilityRequestCount;
         private Vector3 _planetCenter;
         private float _planetRadius;
+
+        /// <summary>
+        /// Temporarily bypasses maximum-distance culling so a distant cinematic camera
+        /// can render all props on the visible face of the planet. Dispose the returned
+        /// request to restore the normal gameplay distance. Requests may be nested.
+        /// </summary>
+        public IDisposable RequestFullPlanetVisibility()
+        {
+            _fullPlanetVisibilityRequestCount++;
+            return new FullPlanetVisibilityRequest(this);
+        }
 
         private void Awake()
         {
@@ -140,7 +184,7 @@ namespace WorldRuntime
                     float maximumDistance =
                         _planetRadius * 2f * renderDistanceDiameterFraction;
                     Debug.Log(
-                        $"Planet prop instancing captured {capturedCount:N0} renderers into " +
+                        $"Planet prop instancing captured {capturedCount:N0} prop instances into " +
                         $"{_sectors.Count:N0} spherical sectors and {drawBatchCount:N0} " +
                         $"instanced draw batches. Maximum prop distance is " +
                         $"{maximumDistance:0.#} world units.",
@@ -159,6 +203,63 @@ namespace WorldRuntime
         private int BuildSectors()
         {
             var sectorsByKey = new Dictionary<SectorKey, Sector>();
+            var bakedRootNames = new HashSet<string>(StringComparer.Ordinal);
+            int capturedCount = 0;
+
+            for (int dataIndex = 0;
+                 bakedInstanceDataSets != null && dataIndex < bakedInstanceDataSets.Length;
+                 dataIndex++)
+            {
+                SphericalPropInstanceData data = bakedInstanceDataSets[dataIndex];
+                if (data == null ||
+                    bakedRootNames.Contains(data.SourceRootName) ||
+                    !TryAppendBakedData(data, sectorsByKey, out int dataInstanceCount))
+                {
+                    continue;
+                }
+
+                bakedRootNames.Add(data.SourceRootName);
+                DisableSourceRootRenderers(data.SourceRootName);
+                capturedCount += dataInstanceCount;
+            }
+
+            capturedCount += AppendSceneRootRenderers(sectorsByKey, bakedRootNames);
+            foreach (Sector sector in sectorsByKey.Values)
+            {
+                sector.FinalizeBatches();
+                _sectors.Add(sector);
+            }
+
+            return capturedCount;
+        }
+
+        private void DisableSourceRootRenderers(string rootName)
+        {
+            GameObject root = FindRoot(gameObject.scene.GetRootGameObjects(), rootName);
+            if (root == null)
+            {
+                return;
+            }
+
+            var renderers = new List<MeshRenderer>();
+            root.GetComponentsInChildren(false, renderers);
+            for (int index = 0; index < renderers.Count; index++)
+            {
+                MeshRenderer renderer = renderers[index];
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                _sourceRenderers.Add(new RendererState(renderer, true));
+                renderer.enabled = false;
+            }
+        }
+
+        private int AppendSceneRootRenderers(
+            IDictionary<SectorKey, Sector> sectorsByKey,
+            ISet<string> excludedRootNames)
+        {
             var rendererBuffer = new List<MeshRenderer>(16000);
             var materialBuffer = new List<Material>(4);
             GameObject[] sceneRoots = gameObject.scene.GetRootGameObjects();
@@ -169,6 +270,11 @@ namespace WorldRuntime
                  rootNameIndex++)
             {
                 string rootName = generatedRootNames[rootNameIndex];
+                if (excludedRootNames.Contains(rootName))
+                {
+                    continue;
+                }
+
                 GameObject generatedRoot = FindRoot(sceneRoots, rootName);
                 if (generatedRoot == null)
                 {
@@ -197,13 +303,168 @@ namespace WorldRuntime
                 }
             }
 
-            foreach (Sector sector in sectorsByKey.Values)
+            return capturedCount;
+        }
+
+        private bool TryAppendBakedData(
+            SphericalPropInstanceData data,
+            IDictionary<SectorKey, Sector> sectorsByKey,
+            out int capturedCount)
+        {
+            capturedCount = 0;
+            if (string.IsNullOrWhiteSpace(data.SourceRootName) ||
+                data.PrototypeCount == 0 ||
+                data.InstanceCount == 0)
             {
-                sector.FinalizeBatches();
-                _sectors.Add(sector);
+                ReportInvalidBakedData(
+                    $"'{data.name}' has no source root, prototypes, or instances.");
+                return false;
             }
 
-            return capturedCount;
+            IReadOnlyList<SphericalPropInstanceData.Prototype> prototypes = data.Prototypes;
+            IReadOnlyList<SphericalPropInstanceData.Instance> instances = data.Instances;
+            for (int prototypeIndex = 0; prototypeIndex < prototypes.Count; prototypeIndex++)
+            {
+                if (!IsValidBakedPrototype(prototypes[prototypeIndex], out string validationError))
+                {
+                    ReportInvalidBakedData(
+                        $"'{data.name}' prototype {prototypeIndex} is invalid: {validationError}");
+                    return false;
+                }
+            }
+
+            for (int instanceIndex = 0; instanceIndex < instances.Count; instanceIndex++)
+            {
+                SphericalPropInstanceData.Instance instance = instances[instanceIndex];
+                if (instance.PrototypeIndex < 0 ||
+                    instance.PrototypeIndex >= prototypes.Count)
+                {
+                    ReportInvalidBakedData(
+                        $"'{data.name}' instance {instanceIndex} references prototype " +
+                        $"{instance.PrototypeIndex}, but only {prototypes.Count} exist.");
+                    return false;
+                }
+            }
+
+            for (int instanceIndex = 0; instanceIndex < instances.Count; instanceIndex++)
+            {
+                SphericalPropInstanceData.Instance instance = instances[instanceIndex];
+                if (AddBakedInstance(
+                    prototypes[instance.PrototypeIndex],
+                    transform.localToWorldMatrix * instance.BuildLocalMatrix(),
+                    sectorsByKey))
+                {
+                    capturedCount++;
+                }
+            }
+
+            return capturedCount > 0;
+        }
+
+        private static bool IsValidBakedPrototype(
+            SphericalPropInstanceData.Prototype prototype,
+            out string validationError)
+        {
+            Mesh mesh = prototype.Mesh;
+            if (mesh == null || mesh.subMeshCount <= 0)
+            {
+                validationError = "it has no mesh or mesh submeshes";
+                return false;
+            }
+
+            for (int submeshIndex = 0; submeshIndex < mesh.subMeshCount; submeshIndex++)
+            {
+                Material material = prototype.GetMaterialForSubmesh(submeshIndex);
+                if (material == null)
+                {
+                    validationError = $"submesh {submeshIndex} has no material";
+                    return false;
+                }
+
+                if (!material.enableInstancing)
+                {
+                    validationError =
+                        $"material '{material.name}' does not have GPU instancing enabled";
+                    return false;
+                }
+            }
+
+            validationError = null;
+            return true;
+        }
+
+        private bool AddBakedInstance(
+            SphericalPropInstanceData.Prototype prototype,
+            Matrix4x4 matrix,
+            IDictionary<SectorKey, Sector> sectorsByKey)
+        {
+            Bounds instanceBounds = TransformBounds(prototype.Mesh.bounds, matrix);
+            Vector3 fromCenter = instanceBounds.center - _planetCenter;
+            if (fromCenter.sqrMagnitude <= MinimumDirectionLengthSquared)
+            {
+                return false;
+            }
+
+            Vector3 direction = fromCenter.normalized;
+            SectorKey sectorKey = SectorKey.FromDirection(direction, sectorSizeDegrees);
+            if (!sectorsByKey.TryGetValue(sectorKey, out Sector sector))
+            {
+                sector = new Sector();
+                sectorsByKey.Add(sectorKey, sector);
+            }
+
+            float radialDistance = Mathf.Max(fromCenter.magnitude, 0.001f);
+            float angularExtent = Mathf.Asin(Mathf.Clamp01(
+                instanceBounds.extents.magnitude / radialDistance)) * Mathf.Rad2Deg;
+            sector.IncludeRenderer(instanceBounds, direction, angularExtent);
+
+            Mesh mesh = prototype.Mesh;
+            for (int submeshIndex = 0; submeshIndex < mesh.subMeshCount; submeshIndex++)
+            {
+                var drawKey = new DrawKey(
+                    mesh,
+                    prototype.GetMaterialForSubmesh(submeshIndex),
+                    submeshIndex,
+                    prototype.Layer,
+                    prototype.ShadowCastingMode,
+                    prototype.ReceiveShadows,
+                    prototype.RenderingLayerMask,
+                    prototype.LightProbeUsage,
+                    prototype.ReflectionProbeUsage);
+                sector.AddInstance(drawKey, matrix, instanceBounds);
+            }
+
+            return true;
+        }
+
+        private void ReportInvalidBakedData(string message)
+        {
+            if (_reportedInvalidBakedData)
+            {
+                return;
+            }
+
+            Debug.LogWarning(
+                $"Planet prop instancing will use its source MeshRenderers because baked " +
+                $"instance data {message}",
+                this);
+            _reportedInvalidBakedData = true;
+        }
+
+        private static Bounds TransformBounds(Bounds localBounds, Matrix4x4 matrix)
+        {
+            Vector3 localExtents = localBounds.extents;
+            Vector3 worldExtents = new Vector3(
+                Mathf.Abs(matrix.m00) * localExtents.x +
+                Mathf.Abs(matrix.m01) * localExtents.y +
+                Mathf.Abs(matrix.m02) * localExtents.z,
+                Mathf.Abs(matrix.m10) * localExtents.x +
+                Mathf.Abs(matrix.m11) * localExtents.y +
+                Mathf.Abs(matrix.m12) * localExtents.z,
+                Mathf.Abs(matrix.m20) * localExtents.x +
+                Mathf.Abs(matrix.m21) * localExtents.y +
+                Mathf.Abs(matrix.m22) * localExtents.z);
+            return new Bounds(matrix.MultiplyPoint3x4(localBounds.center), worldExtents * 2f);
         }
 
         private bool TryCaptureRenderer(
@@ -305,7 +566,8 @@ namespace WorldRuntime
             for (int sectorIndex = 0; sectorIndex < _sectors.Count; sectorIndex++)
             {
                 Sector sector = _sectors[sectorIndex];
-                if (sector.Bounds.SqrDistance(cameraPosition) > maximumDistanceSquared ||
+                if ((!IsFullPlanetVisibilityRequested &&
+                     sector.Bounds.SqrDistance(cameraPosition) > maximumDistanceSquared) ||
                     !GeometryUtility.TestPlanesAABB(_frustumPlanes, sector.Bounds) ||
                     !IsAboveHorizon(sector, cameraDirection, horizonAngle))
                 {
@@ -353,6 +615,32 @@ namespace WorldRuntime
 
             targetCamera = Camera.main;
             return targetCamera;
+        }
+
+        private void ReleaseFullPlanetVisibility()
+        {
+            _fullPlanetVisibilityRequestCount =
+                Mathf.Max(0, _fullPlanetVisibilityRequestCount - 1);
+        }
+
+        private sealed class FullPlanetVisibilityRequest : IDisposable
+        {
+            private SphericalPropInstancingRenderer _owner;
+
+            public FullPlanetVisibilityRequest(SphericalPropInstancingRenderer owner)
+            {
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                SphericalPropInstancingRenderer owner = _owner;
+                _owner = null;
+                if (owner != null)
+                {
+                    owner.ReleaseFullPlanetVisibility();
+                }
+            }
         }
 
         private void ResolvePlanetGeometry()

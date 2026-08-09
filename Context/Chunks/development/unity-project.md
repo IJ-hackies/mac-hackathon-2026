@@ -108,28 +108,22 @@ SampleScene also owns the configured `Wave System` director/controller and one
 generated barrier per area; PlayerRig owns its wave HUD and StartWave input
 consumer. See [wave-system](../gameplay/wave-system.md).
 
-The scene also contains one top-level `Generated Planet Vegetation` hierarchy
-with 16,000 static, non-colliding prefab instances sampled across the full
-crater mesh: 1,600 bushes, 12,800 grasses, and 1,600 plants. The exact 8:1:1
-grass:bush:plant mix blends 12,000 uniform placements with 4,000 placements in
-64 broad, mild-density clusters. It uses all nine variants: grasses at 60x-70x,
-bushes at 40x-50x, and plants at 50x-60x source-relative uniform scale. Every
-instance has the -90-degree local-X correction and uses a shared dark-orange or
-orange material.
+SampleScene assigns two binary `SphericalPropInstanceData` assets to its planet
+instance: 16,000 non-colliding vegetation records and 1,100 rock records. The
+vegetation data preserves the authored seed-`80` 8:1:1 mix, nine variants,
+scales, materials, and 12,000 uniform/4,000 clustered layout without keeping a
+`Generated Planet Vegetation` hierarchy in the scene. The rock data preserves
+the seed-`80826` 800-small/300-large, 146-cluster layout and protected-area
+exclusions. A collider-only `Generated Planet Rocks` hierarchy remains with
+exactly 1,100 enabled static `MeshCollider`s and no mesh render/filter components.
 
-`Generated Planet Rocks` contains the authored seed-`80826` pass: exactly
-800 small and 300 large rocks, both at literal 100x-200x Transform scale,
-grouped into 146 clusters. There are 26 small-only, 89 large-only, and 31 mixed
-clusters; small-bearing clusters hold 10-20 small rocks while every
-large-bearing cluster holds 1-3 large rocks. Exact crater grounding and closed
-pole-ring exclusions keep `LandingBase`, `Arena1`, and `Arena2` clear.
-
-The planet prefab owns `SphericalPropInstancingRenderer`, which captures only
-the top-level `Generated Planet Vegetation` and `Generated Planet Rocks`
-hierarchies in Play mode. It submits WebGL2-compatible instanced mesh batches
-after spherical-sector distance, frustum, and horizon culling. `LandingBase`,
-`Arena1`, and `Arena2` remain ordinary renderers, so the prop draw distance does
-not prevent arenas from being visible farther away.
+The planet prefab owns `SphericalPropInstancingRenderer`; the SampleScene
+instance override supplies its two baked datasets. It submits WebGL2-compatible
+instanced mesh batches after spherical-sector distance, frustum, and horizon
+culling. A freshly regenerated category can temporarily fall back to its named
+authoring hierarchy until the bake command runs again. `LandingBase`, `Arena1`,
+and `Arena2` remain ordinary renderers, so the prop draw distance does not
+prevent arenas from being visible farther away.
 
 Unity asset serialization is Force Text. Commit Unity `.meta` files with their
 assets; generated caches and local IDE files are excluded by the repository
