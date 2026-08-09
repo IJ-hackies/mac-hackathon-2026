@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
-using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Player.UI
@@ -13,15 +13,18 @@ namespace Player.UI
     {
         [Header("Navigation")]
         [SerializeField] private string singleplayerScene = "SampleScene";
+        [SerializeField] private string tutorialScene = "Tutorial";
         [SerializeField] private GameObject homePage;
         [SerializeField] private GameObject settingsPage;
         [SerializeField] private GameObject controlsPage;
         [SerializeField] private Button singleplayerButton;
-        [SerializeField] private Button multiplayerButton;
+        [FormerlySerializedAs("multiplayerButton")]
+        [SerializeField] private Button tutorialButton;
         [SerializeField] private Button settingsButton;
         [SerializeField] private Button settingsBackButton;
         [SerializeField] private Button controlsButton;
         [SerializeField] private Button controlsBackButton;
+        [SerializeField] private Button quitButton;
         [SerializeField] private ControlsRebindingUI controlsRebindingUi;
 
         [Header("Settings")]
@@ -63,11 +66,6 @@ namespace Player.UI
 
             var musicManager = MusicManager.Instance;
             if (musicManager != null) musicManager.PlayMusic(musicManager.menuMusic);
-
-            if (multiplayerButton != null)
-            {
-                multiplayerButton.interactable = false;
-            }
 
             ShowPage(Page.Home);
         }
@@ -142,7 +140,24 @@ namespace Player.UI
         {
             SaveSettings();
             Time.timeScale = 1f;
-            SceneManager.LoadScene(singleplayerScene, LoadSceneMode.Single);
+            SceneTransitionController.LoadScene(singleplayerScene);
+        }
+
+        public void LoadTutorial()
+        {
+            SaveSettings();
+            Time.timeScale = 1f;
+            SceneTransitionController.LoadScene(tutorialScene);
+        }
+
+        public void QuitGame()
+        {
+            SaveSettings();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         public void ShowHome()
@@ -185,10 +200,12 @@ namespace Player.UI
         private void RegisterListeners()
         {
             if (singleplayerButton != null) singleplayerButton.onClick.AddListener(LoadSingleplayer);
+            if (tutorialButton != null) tutorialButton.onClick.AddListener(LoadTutorial);
             if (settingsButton != null) settingsButton.onClick.AddListener(ShowSettings);
             if (settingsBackButton != null) settingsBackButton.onClick.AddListener(ShowHome);
             if (controlsButton != null) controlsButton.onClick.AddListener(ShowControls);
             if (controlsBackButton != null) controlsBackButton.onClick.AddListener(ShowSettings);
+            if (quitButton != null) quitButton.onClick.AddListener(QuitGame);
             if (volumeSlider != null) volumeSlider.onValueChanged.AddListener(ApplyMasterVolume);
             if (sensitivitySlider != null)
             {
@@ -199,10 +216,12 @@ namespace Player.UI
         private void UnregisterListeners()
         {
             if (singleplayerButton != null) singleplayerButton.onClick.RemoveListener(LoadSingleplayer);
+            if (tutorialButton != null) tutorialButton.onClick.RemoveListener(LoadTutorial);
             if (settingsButton != null) settingsButton.onClick.RemoveListener(ShowSettings);
             if (settingsBackButton != null) settingsBackButton.onClick.RemoveListener(ShowHome);
             if (controlsButton != null) controlsButton.onClick.RemoveListener(ShowControls);
             if (controlsBackButton != null) controlsBackButton.onClick.RemoveListener(ShowSettings);
+            if (quitButton != null) quitButton.onClick.RemoveListener(QuitGame);
             if (volumeSlider != null) volumeSlider.onValueChanged.RemoveListener(ApplyMasterVolume);
             if (sensitivitySlider != null)
             {

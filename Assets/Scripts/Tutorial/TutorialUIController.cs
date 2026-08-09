@@ -53,7 +53,8 @@ namespace Tutorial
 
         private static readonly string[] StageNames =
         {
-            "Movement", "Jump", "Dash", "Light Attack", "Heavy Attack", "Power-Ups", "Overview", "Complete",
+            "Movement", "Wave", "Jump", "Dash", "Light Attack", "Reload", "Heavy Attack",
+            "Power-Ups", "Overview", "Complete",
         };
 
         private void Awake()

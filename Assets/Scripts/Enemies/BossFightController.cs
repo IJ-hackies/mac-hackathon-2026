@@ -3,6 +3,7 @@ using Audio;
 using Combat;
 using Player;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Enemies
@@ -83,6 +84,12 @@ namespace Enemies
         [SerializeField] private float slowMotionScale = 0.35f;
         [SerializeField] private float slowMotionDuration = 0.6f;
 
+        [Header("Skip")]
+        [SerializeField] private bool allowSkip = true;
+
+        private bool _skipRequested;
+        private bool _cutscenePlaying;
+
         private static readonly int SpeedParam = Animator.StringToHash("Speed");
         private static readonly int GroundedParam = Animator.StringToHash("Grounded");
 
@@ -123,9 +130,20 @@ namespace Enemies
             StartCoroutine(PlayTransitionCutscene());
         }
 
+        private void Update()
+        {
+            if (!allowSkip || _skipRequested || !_cutscenePlaying) return;
+            if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                _skipRequested = true;
+            }
+        }
+
         private IEnumerator PlayTransitionCutscene()
         {
             BossFightActive = true;
+            _cutscenePlaying = true;
+            if (allowSkip) Player.UI.CutsceneSkipPromptUI.Show();
             AudioHandle cutsceneLoopHandle = AudioManager.Instance.PlayLoop(SfxId.Boss1Cutscene);
             MusicManager.Instance.PlayMusic(MusicManager.Instance.bossMusic);
 
@@ -179,7 +197,7 @@ namespace Enemies
             Vector3 lingerCameraPos = astronautPosition + Vector3.up * astronautLingerHeight
                 + Vector3.back * astronautLingerDistance;
             float lingerElapsed = 0f;
-            while (lingerElapsed < astronautLingerDuration)
+            while (lingerElapsed < astronautLingerDuration && !_skipRequested)
             {
                 lingerElapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(lingerElapsed / astronautLingerDuration);
@@ -205,7 +223,7 @@ namespace Enemies
             Quaternion panStartRot = _mainCamera != null ? _mainCamera.transform.rotation : Quaternion.identity;
 
             float panElapsed = 0f;
-            while (panElapsed < panToMechDuration)
+            while (panElapsed < panToMechDuration && !_skipRequested)
             {
                 panElapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(panElapsed / panToMechDuration);
@@ -227,13 +245,16 @@ namespace Enemies
             // exceed 360) from the mech's feet up to its head while it scales up. Flash/particles
             // start here, not at the top of the cutscene, so they land on the actual reveal
             // instead of firing off-screen while the camera is still lingering on the astronaut.
-            StartCoroutine(FlashRoutine());
-            SpawnBurstParticles();
+            if (!_skipRequested)
+            {
+                StartCoroutine(FlashRoutine());
+                SpawnBurstParticles();
+            }
 
             float elapsed = 0f;
             bool slowed = false;
 
-            while (elapsed < growDuration)
+            while (elapsed < growDuration && !_skipRequested)
             {
                 elapsed += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / growDuration);
@@ -274,22 +295,27 @@ namespace Enemies
             AudioManager.Instance.PlaySfx(SfxId.Boss2Roar, mechRoot.transform.position);
 
             if (mechCollider != null) mechCollider.enabled = true;
-            StartCoroutine(ShakeCameraAt(impactCameraPos, impactLookAt, introSlamCameraShakeDuration));
-            if (mechAi != null)
+
+            if (!_skipRequested)
             {
-                yield return StartCoroutine(mechAi.PlayIntroSlam());
+                StartCoroutine(ShakeCameraAt(impactCameraPos, impactLookAt, introSlamCameraShakeDuration));
+                if (mechAi != null)
+                {
+                    yield return StartCoroutine(mechAi.PlayIntroSlam());
+                }
             }
 
             // Hand-back: blend Camera.main to wherever the normal follow camera would already be
             // (player hasn't moved - input's been locked this whole time) before re-enabling it,
-            // so control returns as a smooth pan rather than a jarring cut.
+            // so control returns as a smooth pan rather than a jarring cut. Skipping snaps
+            // straight to that same follow pose instead of blending, so a skip lands immediately.
             if (_cameraController != null && _mainCamera != null)
             {
                 Vector3 blendStartPos = _mainCamera.transform.position;
                 Quaternion blendStartRot = _mainCamera.transform.rotation;
                 float blendElapsed = 0f;
 
-                while (blendElapsed < cameraBlendBackDuration)
+                while (blendElapsed < cameraBlendBackDuration && !_skipRequested)
                 {
                     blendElapsed += Time.unscaledDeltaTime;
                     float bt = Mathf.Clamp01(blendElapsed / cameraBlendBackDuration);
@@ -297,6 +323,12 @@ namespace Enemies
                     _mainCamera.transform.position = Vector3.Lerp(blendStartPos, targetPos, bt);
                     _mainCamera.transform.rotation = Quaternion.Slerp(blendStartRot, targetRot, bt);
                     yield return null;
+                }
+
+                if (_skipRequested)
+                {
+                    _cameraController.GetFollowPose(out Vector3 snapPos, out Quaternion snapRot);
+                    _mainCamera.transform.SetPositionAndRotation(snapPos, snapRot);
                 }
 
                 _cameraController.enabled = true;
@@ -313,6 +345,9 @@ namespace Enemies
                 if (astronautHealth != null && enemy.gameObject == astronautHealth.gameObject) continue;
                 enemy.SetFrozen(false);
             }
+
+            _cutscenePlaying = false;
+            Player.UI.CutsceneSkipPromptUI.Hide();
         }
 
         private IEnumerator ShakeCameraAt(Vector3 basePosition, Vector3 lookAt, float duration)
