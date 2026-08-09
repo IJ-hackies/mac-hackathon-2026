@@ -9,9 +9,11 @@ namespace Player.UI.Progression
     {
         [SerializeField] private ProgressionDataAdapter progression;
         [SerializeField] private ProgressionPurchaseButton healthPackButton;
+        [SerializeField] private ProgressionPurchaseButton largeHealthPackButton;
         [SerializeField] private ProgressionPurchaseButton ammoPackButton;
         [SerializeField] private Text goldText;
         [SerializeField] private int healthPackCost = 50;
+        [SerializeField] private int largeHealthPackCost = 100;
         [SerializeField] private int ammoPackCost = 100;
         [SerializeField] private Health health;
         [SerializeField] private global::Player.PlayerAmmo ammo;
@@ -20,6 +22,8 @@ namespace Player.UI.Progression
         {
             if (healthPackButton != null && healthPackButton.Button != null)
                 healthPackButton.Button.onClick.AddListener(BuyHealth);
+            if (largeHealthPackButton != null && largeHealthPackButton.Button != null)
+                largeHealthPackButton.Button.onClick.AddListener(BuyLargeHealth);
             if (ammoPackButton != null && ammoPackButton.Button != null)
                 ammoPackButton.Button.onClick.AddListener(BuyAmmo);
         }
@@ -43,6 +47,7 @@ namespace Player.UI.Progression
         }
 
         public void BuyHealth() => Buy(ProgressionSupply.HealthPack);
+        public void BuyLargeHealth() => Buy(ProgressionSupply.LargeHealthPack);
         public void BuyAmmo() => Buy(ProgressionSupply.AmmoPack);
 
         private void Buy(ProgressionSupply supply)
@@ -58,6 +63,8 @@ namespace Player.UI.Progression
             int gold = progression != null ? progression.Gold : 0;
             if (goldText != null) goldText.text = "G " + gold;
             SetSupply(healthPackButton, ProgressionSupply.HealthPack, healthPackCost, gold,
+                health != null && !health.IsDead && health.CurrentHealth < health.MaxHealth);
+            SetSupply(largeHealthPackButton, ProgressionSupply.LargeHealthPack, largeHealthPackCost, gold,
                 health != null && !health.IsDead && health.CurrentHealth < health.MaxHealth);
             SetSupply(ammoPackButton, ProgressionSupply.AmmoPack, ammoPackCost, gold,
                 ammo != null && !ammo.IsFull);

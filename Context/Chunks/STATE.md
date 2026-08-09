@@ -5,12 +5,10 @@ owns: []
 landmines: []
 openWork:
   - unity-project-bootstrap
-  - core-game-loop
-  - enemy-wave-prototype
-  - progression-rewards
+  - wave-followups
   - branching-and-integration-policy
-related: [control-model, core-loop, progression, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller, items, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [control-model, core-loop, wave-system, progression, gameplay-areas, unity-project, main-menu, world-runtime, git-collaboration, player-controller, items, ultimate]
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -25,21 +23,13 @@ lastVerified: 2026-08-09
   Planet-aligned locomotion, grounded surface adhesion with radial
   airborne gravity, stable radial body orientation, and camera conventions now
   exist in the single-player prototype.
-- **`core-game-loop`** - turn the confirmed crash-site defense and planetary
-  scavenging loop into exact phases. Decide wave timing/scaling, breaks,
-  residual enemies, failure states, dark-region risk/reward behavior,
-  remaining area-specific effects, and the endgame.
-  Reusable perimeter membership now drives a 2x landing-base movement-speed
-  benefit; both arenas currently have membership only.
-- **`enemy-wave-prototype`** - implement planet-wide spawning, a timed wave
-  director, drops, and player/base failure. Health, melee/projectile damage, three
-  basic enemy types, and a two-stage boss now work in the flat-ground
-  `Player.unity` sandbox, but their movement/spawning is not planet-ready and
-  no wave orchestration exists.
-- **`progression-rewards`** - connect the implemented run economy and base
-  stations to future waves: decide enemy gold/drop rewards, loot tables,
-  crafting, and score multiplier rules. Current station prices/stats and the
-  10,000g test start are fixed in [progression](gameplay/progression.md).
+- **`wave-followups`** - playtest rocky-terrain detours, Round 5's complete
+  ten-enemy Arena1 spawn on its uneven surface, large boss spawn clearance, the
+  controller-grounding/navigation-reach/range-scaling fix, radial Stage 2 cutscene,
+  and the newly tuned duration/stat/reward curves;
+  later add deliberately deferred enemy-drop loot and
+  the planned online furthest-wave leaderboard. Score and a local best-wave
+  record are intentionally absent. See [wave-system](gameplay/wave-system.md).
 - **`branching-and-integration-policy`** - define branch naming, worktree
   placement, integration and review rules, and ownership of conflict-prone
   Unity scenes, prefabs, and project settings.

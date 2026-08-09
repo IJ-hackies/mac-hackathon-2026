@@ -18,7 +18,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3868048399044550300
 RectTransform:
   m_ObjectHideFlags: 0
@@ -458,7 +458,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45bf186f4f47e4dcc8b977fe5fbb25a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.Health
-  maxHealth: 100
+  maxHealth: 120
   animator: {fileID: 0}
   hitReactCooldown: 0.35
 --- !u!114 &9195633258301358971
@@ -485,8 +485,8 @@ MonoBehaviour:
   hoverHeight: 2
   bobAmplitude: 0.25
   bobSpeed: 1.5
-  wanderSpeed: 1.2
-  approachSpeed: 1.8
+  wanderSpeed: 1.5
+  approachSpeed: 2.25
   maxDistanceFromPlayer: 14
   wanderRadius: 4
   wanderInterval: 3

@@ -1,4 +1,5 @@
 using Combat;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -68,7 +69,10 @@ namespace Player.UI.Progression
                 ProgressionStat stat = Stats[index];
                 int level = progression != null ? progression.GetLevel(stat) : 1;
                 float value = progression != null ? progression.GetPurchasedValue(stat) : 0f;
-                statRows[index].text = Label(stat) + "  LV " + level + "  " + Format(stat, value);
+                statRows[index].text = stat == ProgressionStat.MaxAmmo
+                    ? Label(stat) + "  LV " + level + "  MAG " + Mathf.RoundToInt(value) + " / RES " +
+                      (progression != null ? progression.GetReserveCapacityAtLevel(level) : 0)
+                    : Label(stat) + "  LV " + level + "  " + Format(stat, value);
             }
             if (healthRow != null && health != null)
             {
@@ -81,8 +85,17 @@ namespace Player.UI.Progression
             }
             if (skillsRow != null)
             {
-                bool holdToFire = progression != null && progression.OwnsSpecial(ProgressionSpecialSkill.HoldToFire);
-                skillsRow.text = holdToFire ? "OWNED SKILLS  HOLD TO FIRE" : "OWNED SKILLS  NONE";
+                var ownedNames = new List<string>();
+                if (progression != null)
+                {
+                    foreach (ProgressionSpecialSkillDefinition definition in ProgressionSpecialSkillCatalog.All)
+                    {
+                        if (progression.OwnsSpecial(definition.Skill)) ownedNames.Add(definition.Title);
+                    }
+                }
+                skillsRow.text = ownedNames.Count == 0
+                    ? "OWNED SKILLS  NONE"
+                    : "OWNED SKILLS  " + string.Join(", ", ownedNames);
             }
         }
 
@@ -104,7 +117,7 @@ namespace Player.UI.Progression
                 case ProgressionStat.FireRate: return "FIRE RATE";
                 case ProgressionStat.ShootingDamage: return "SHOT DMG";
                 case ProgressionStat.MeleeDamage: return "MELEE DMG";
-                case ProgressionStat.MaxAmmo: return "MAX MAG";
+                case ProgressionStat.MaxAmmo: return "MAX AMMO";
                 default: return "DEFENSE";
             }
         }

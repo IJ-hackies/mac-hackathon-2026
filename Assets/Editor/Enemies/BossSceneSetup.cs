@@ -104,6 +104,9 @@ namespace EnemiesEditor
 
             WireAnimator(instance, controller);
             var health = instance.AddComponent<Health>();
+            var healthSo = new SerializedObject(health);
+            healthSo.FindProperty("maxHealth").floatValue = 300f;
+            healthSo.ApplyModifiedProperties();
             var astronautAi = instance.AddComponent<BossAstronautAI>();
 
             // Same local offset PlayerSceneSetup.BuildCombatAndEmotes uses for the player's own
@@ -125,7 +128,6 @@ namespace EnemiesEditor
             astronautSo.FindProperty("rangedProjectileRotationOffset").quaternionValue = Quaternion.Euler(0f, 90f, 0f);
             astronautSo.ApplyModifiedProperties();
 
-            AddHealthBar(instance, new Bounds(new Vector3(0f, 1f, 0f), new Vector3(0.7f, 2.2f, 0.7f)), health);
 
             return (instance, health);
         }
@@ -221,6 +223,8 @@ namespace EnemiesEditor
             if (topDownRocket == null) Debug.LogWarning($"BossSceneSetup: no top-down rocket prefab at {TopDownRocketPath} - TopDownRocket attack will skip its VFX/damage.");
 
             var aiSo = new SerializedObject(ai);
+            aiSo.FindProperty("chaseSpeed").floatValue = 9f;
+            aiSo.FindProperty("bulletDamage").floatValue = 3f;
             aiSo.FindProperty("firePointLeft").objectReferenceValue = muzzleLeft;
             aiSo.FindProperty("firePointRight").objectReferenceValue = muzzleRight;
             aiSo.FindProperty("bulletVisualPrefab").objectReferenceValue = lightVisual;
@@ -236,7 +240,6 @@ namespace EnemiesEditor
             aiSo.FindProperty("topDownRocketPrefab").objectReferenceValue = topDownRocket;
             aiSo.ApplyModifiedProperties();
 
-            AddHealthBar(instance, bounds, health);
 
             // Inert until BossFightController activates it post-cutscene - scale 0 is applied by
             // BossFightController.Awake at runtime (keeping the built scene's authored transform

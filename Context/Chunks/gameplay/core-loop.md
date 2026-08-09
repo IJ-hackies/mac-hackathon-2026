@@ -2,8 +2,8 @@
 chunk: core-loop
 title: Crash-site wave survival and planetary scavenging
 owns: []
-related: [system, state, control-model, gameplay-areas, progression, player-controller, unity-project]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+related: [system, state, control-model, wave-system, gameplay-areas, progression, player-controller, unity-project]
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -16,16 +16,20 @@ upgrading, and crafting, and enemies begin appearing across the planet.
 
 ## Session loop
 
-- Enemy pressure is organized into waves whose duration is determined by time,
-  not by killing every enemy.
-- Enemies can spawn around the whole planet rather than only at the base.
-- Players may leave the base and travel around the spherical world to scavenge
-  loot while managing the risk created by the active wave.
-- Enemy rewards remain future work because there is no wave/spawn director.
-  The implemented run economy starts with 10,000 test gold so station purchases
-  can be exercised now; see [progression](progression.md).
-- Score comes from enemy kills and increases through a wave multiplier, so
-  surviving and killing in later waves is more valuable.
+- The run is endless until player death. Intermissions have no timer; the player
+  starts each next wave only after leaving every protected area.
+- Regular waves last 30 seconds and spawn scaled enemies near the player's
+  current planet position. All three protected areas deny entry until time ends.
+- Every fifth wave is an untimed arena contract: odd multiples of five are
+  Arena1 swarms; multiples of ten are the complete two-stage Barbara fight.
+- Enemy kills and arena clears award run gold for the existing base upgrades.
+  Health and ammo persist through waves. Residual regular enemies retreat
+  without rewards at timeout.
+- After a wave, the player may return to the base and take as long as needed
+  before leaving and starting the next one. The in-game settings console also
+  offers an intermission-only Teleport to Base shortcut; it is unavailable from
+  every active-wave and game-over phase. See [wave-system](wave-system.md)
+  for exact scaling, mixes, rewards, and state transitions.
 
 ## Invariants
 
@@ -34,28 +38,20 @@ upgrading, and crafting, and enemies begin appearing across the planet.
 - The pistol is the player's only weapon for defeating enemies. Progression may
   improve the pistol, astronaut, equipment, or consumables, but must not
   silently become a multi-weapon arsenal.
-- A wave completes according to its timer; clearing all currently visible
-  enemies is not the completion condition.
+- A regular wave completes according to its timer; arena waves require their
+  complete objective.
 - Planetary exploration and scavenging remain useful alongside defending the
   crash-site base.
 - Combat rewards and scavenged resources return value to the base economy.
 
-## Design direction
+## Deferred direction
 
 Regions outside sunlight should generally offer a higher-risk, higher-reward
 scavenging opportunity, with stronger enemies and better loot. The strength of
 that relationship, whether lighting changes over time, and how clearly danger
 is communicated remain open rather than fixed tuning rules.
 
-The three walled areas use their authored perimeter poles as runtime membership
-boundaries. The landing base currently doubles player movement speed through a
-separate membership consumer. Arena effects and all area-specific visual/audio
-treatments remain open. Three existing LandingBase structures now host the
-supply, skill-upgrade, and special-skill consoles.
-
-## Undecided details
-
-Wave duration and scaling, breaks between waves, residual-enemy behavior,
-enemy types and spawn rules, player/base failure states, loot tables, recipes,
-score formula, and the final session/endgame structure remain open. V1 station
-prices/categories and run-only persistence are fixed in [progression].
+Pickup drops, score, crafting, final balance, and the planned online furthest-wave
+leaderboard remain deferred. There is intentionally no local best-wave record.
+The three base consoles and run-only station upgrades remain fixed in
+[progression](progression.md).

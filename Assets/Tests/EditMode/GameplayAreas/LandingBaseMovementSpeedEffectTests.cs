@@ -37,20 +37,19 @@ namespace Gameplay.Areas.Tests
             Invoke(rig.Controller, "SetMovementSpeedModifier", otherModifier, 1.5f);
 
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1.5f));
-            Assert.That(ReadFloat(rig.Controller, "EffectiveWalkSpeed"), Is.EqualTo(5.25f));
-            Assert.That(ReadFloat(rig.Controller, "EffectiveSprintSpeed"), Is.EqualTo(9.75f));
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(14.625f));
 
             rig.Body.position = Vector3.up * 100f;
             Assert.That(rig.Tracker.EvaluateCurrentArea(), Is.SameAs(rig.LandingBase));
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(3f));
-            Assert.That(ReadFloat(rig.Controller, "EffectiveWalkSpeed"), Is.EqualTo(10.5f));
-            Assert.That(ReadFloat(rig.Controller, "EffectiveSprintSpeed"), Is.EqualTo(19.5f));
-            WriteFloat(rig.Controller, "_currentSpeed", 19.5f);
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(29.25f));
+            WriteFloat(rig.Controller, "_currentSpeed", 29.25f);
 
             rig.Body.position = GameplayAreaTestFactory.DirectionOffset(Vector3.up, 15f) * 100f;
             Assert.That(rig.Tracker.EvaluateCurrentArea(), Is.Null);
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1.5f));
-            Assert.That(ReadFloat(rig.Controller, "CurrentHorizontalSpeed"), Is.EqualTo(9.75f));
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(14.625f));
+            Assert.That(ReadFloat(rig.Controller, "CurrentHorizontalSpeed"), Is.EqualTo(14.625f));
         }
 
         [Test]
@@ -60,12 +59,15 @@ namespace Gameplay.Areas.Tests
             rig.Body.position = Vector3.up * 100f;
             rig.Tracker.EvaluateCurrentArea();
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(2f));
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(19.5f));
 
             InvokeNonPublic(rig.Effect, "OnDisable");
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(1f));
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(9.75f));
 
             InvokeNonPublic(rig.Effect, "OnEnable");
             Assert.That(ReadFloat(rig.Controller, "MovementSpeedMultiplier"), Is.EqualTo(2f));
+            Assert.That(ReadFloat(rig.Controller, "EffectiveMoveSpeed"), Is.EqualTo(19.5f));
         }
 
         private TestRig CreateRig()

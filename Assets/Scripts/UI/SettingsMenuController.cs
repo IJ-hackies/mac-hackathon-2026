@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Gameplay.Waves;
 
 namespace Player.UI
 {
@@ -21,6 +22,8 @@ namespace Player.UI
         [SerializeField] private Slider sensitivitySlider;
         [SerializeField] private Text sensitivityValue;
         [SerializeField] private Button controlsButton;
+        [SerializeField] private Button teleportToBaseButton;
+        [SerializeField] private Text teleportToBaseLabel;
         [SerializeField] private Button backButton;
         [SerializeField] private Button closeButton;
         [Tooltip("Available from SampleScene and Tutorial's pause menu - both instantiate this " +
@@ -29,6 +32,7 @@ namespace Player.UI
         [SerializeField] private ControlsRebindingUI controlsRebindingUi;
 
         [Header("Gameplay Suspension")]
+        [SerializeField] private WaveGameController waveGameController;
         [SerializeField] private global::Player.PlayerController playerController;
         [SerializeField] private global::Player.PlayerCombat playerCombat;
         [SerializeField] private global::Player.PlayerEmoteController emoteController;
@@ -63,6 +67,7 @@ namespace Player.UI
             ConfigureSliders();
 
             if (controlsButton != null) controlsButton.onClick.AddListener(ShowControlsPage);
+            if (teleportToBaseButton != null) teleportToBaseButton.onClick.AddListener(TeleportToBase);
             if (backButton != null) backButton.onClick.AddListener(ShowMainPage);
             if (closeButton != null) closeButton.onClick.AddListener(CloseSettings);
             if (mainMenuButton != null) mainMenuButton.onClick.AddListener(ReturnToMainMenu);
@@ -129,6 +134,7 @@ namespace Player.UI
             _pcUiInput = null;
 
             if (controlsButton != null) controlsButton.onClick.RemoveListener(ShowControlsPage);
+            if (teleportToBaseButton != null) teleportToBaseButton.onClick.RemoveListener(TeleportToBase);
             if (backButton != null) backButton.onClick.RemoveListener(ShowMainPage);
             if (closeButton != null) closeButton.onClick.RemoveListener(CloseSettings);
             if (mainMenuButton != null) mainMenuButton.onClick.RemoveListener(ReturnToMainMenu);
@@ -153,6 +159,7 @@ namespace Player.UI
             _isOpen = true;
             ShowMainPage();
             menuRoot.SetActive(true);
+            RefreshTeleportToBaseState();
             // Ensure the pause menu always draws above sibling HUD elements (e.g. the "E -
             // INTERACT" prompt), which otherwise share this Canvas and can render on top.
             menuRoot.transform.SetAsLastSibling();
@@ -338,6 +345,7 @@ namespace Player.UI
         {
             if (mainPage != null) mainPage.SetActive(true);
             if (controlsPage != null) controlsPage.SetActive(false);
+            RefreshTeleportToBaseState();
 
             if (_isOpen && EventSystem.current != null && volumeSlider != null)
             {
@@ -362,9 +370,22 @@ namespace Player.UI
             }
         }
 
+        public void TeleportToBase()
+        {
+            ResolveReferences();
+            if (waveGameController == null || !waveGameController.TryTeleportToBase())
+            {
+                RefreshTeleportToBaseState();
+                return;
+            }
+
+            CloseSettings();
+        }
+
         private void ResolveReferences()
         {
             if (hudCanvas == null) hudCanvas = GetComponentInChildren<Canvas>(true);
+            if (waveGameController == null) waveGameController = GetComponent<WaveGameController>();
             if (playerController == null) playerController = GetComponentInChildren<global::Player.PlayerController>(true);
             if (playerCombat == null) playerCombat = GetComponentInChildren<global::Player.PlayerCombat>(true);
             if (emoteController == null) emoteController = GetComponentInChildren<global::Player.PlayerEmoteController>(true);
@@ -375,6 +396,24 @@ namespace Player.UI
                 cameraController = GetComponentInChildren<global::Player.ThirdPersonCameraController>(true);
             }
             if (crosshairUi == null) crosshairUi = GetComponentInChildren<CrosshairUI>(true);
+        }
+
+        private void RefreshTeleportToBaseState()
+        {
+            bool available = waveGameController != null && waveGameController.CanTeleportToBase;
+            if (teleportToBaseButton != null)
+            {
+                teleportToBaseButton.interactable = available;
+            }
+
+            if (teleportToBaseLabel != null)
+            {
+                teleportToBaseLabel.text = available
+                    ? "TELEPORT TO BASE"
+                    : waveGameController != null
+                        ? "TELEPORT TO BASE // LOCKED"
+                        : "BASE RECALL UNAVAILABLE";
+            }
         }
 
         private void EnsureEventSystem()

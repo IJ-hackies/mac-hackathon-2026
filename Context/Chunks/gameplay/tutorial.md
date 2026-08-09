@@ -2,7 +2,9 @@
 chunk: tutorial
 title: Overwatch-style onboarding tutorial (Tutorial.unity)
 owns:
+  - "Assets/Scripts/Tutorial.meta"
   - "Assets/Scripts/Tutorial/**"
+  - "Assets/Editor/Tutorial.meta"
   - "Assets/Editor/Tutorial/**"
   - "Assets/Scenes/Tutorial.unity*"
   - "Assets/Art/Models/Environment/ModularSciFi/**"
@@ -10,7 +12,7 @@ owns:
   - "Assets/Art/Materials/Tutorial/**"
   - "Assets/Art/Textures/ModularSciFi/**"
 related: [system, state, player-controller, player-combat, enemies, items, ultimate, progression, core-loop, world-authoring, main-menu]
-verifiedAtCommit: 73eb7d644468973196f17f4dc204b6653c5fb8dc
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -18,19 +20,14 @@ lastVerified: 2026-08-09
 
 A tutorial scene (`Assets/Scenes/Tutorial.unity`) that walks a new player through every core
 mechanic, gated Overwatch-style: a `TutorialGate` blocks the way into each stage until the
-previous stage's requirement is met. **The room geometry is hand-built in the editor, not
-scripted.** Two automated scene-builder passes were tried and discarded as too rough without live
-visual feedback (a white one-tile/one-band primitive tube, then a scripted three-tile/three-band
-Modular SciFi MegaKit assembly with unverified piece rotations) - the owner builds the room by
-hand and uses small targeted editor commands (`Assets/Editor/Tutorial/`) to add/fix individual
-gameplay objects without ever touching or repositioning what's already placed.
+previous requirement is met. Room geometry is hand-built in the editor; targeted
+commands under `Assets/Editor/Tutorial/` add or repair individual gameplay
+objects without repositioning existing work.
 
-Stage order: Movement (WASD) -> Jump (Space) -> Dash (Shift) -> Light Attack (LMB, 5 hits) ->
-Heavy Attack (RMB, 1 hit) -> Power-Ups (Health/Ammo/Thunder pickups, plus mitigating 30 damage
-with Shield from a stationary flying trainer enemy once Thunder activates Ultimate) -> Overview
-(walk-up info markers for the three LandingBase stations and the wave system, ending at an Exit
-Zone marked with Lana Studio's `Area_generic_blue` VFX, which loads MainMenu immediately on
-contact - no completion screen or confirmation button).
+Stage order: Movement -> Jump -> Dash -> Light Attack (5 hits) -> Heavy Attack
+(1 hit) -> Power-Ups (three pickups plus 30 Shield-mitigated damage) -> Overview
+(base/wave info markers, then an `Area_generic_blue` exit that loads MainMenu
+immediately without a completion screen).
 
 ## Key files
 
@@ -65,8 +62,7 @@ contact - no completion screen or confirmation button).
   break hit counting. `Combat.DamageType` can't tell a light (pistol) hit from a heavy (secondary)
   hit apart - both tag `Ranged` - so it correlates `Health.Hit` timing against two small
   [player-combat](player-combat.md) events instead.
-- `Assets/Scripts/Player/PlayerCombat.cs` gained `ShotFired`/`SecondaryFired` events (fired on
-  every successful cast, mode-agnostic) purely for this attribution; no other behavior changed.
+- `PlayerCombat.ShotFired`/`SecondaryFired` provide mode-agnostic attribution.
 - `Assets/Scripts/Tutorial/TutorialGate.cs` - a solid collider that `SetActive(false)`s itself
   once, physically opening the way forward. Supports a `Linked Gates` list so several separate
   barrier pieces spanning one doorway can open together - `TutorialManager` only ever holds one
@@ -101,45 +97,16 @@ contact - no completion screen or confirmation button).
 
 ### Editor tools (`Assets/Editor/Tutorial/`)
 
-All additive and position-preserving - none of them move, rotate, or rescale anything already in
-the scene, and each checks for an existing instance of what it would add before adding it.
+Tools are additive and position-preserving, and skip objects already present.
 
-- `ModularKitAssetSetup.cs` - `Tools/Tutorial/Import Modular Kit Assets`. Copies **the entire**
-  Modular SciFi MegaKit pack (~190 FBXs across Walls/Platforms/Columns/Props/Decals/Aliens) from
-  the vendor `FBX (Unity)` export into `Assets/Art/Models/Environment/ModularSciFi/<Category>/`,
-  and binds every one of them to a shared material family (`M_Trim01/02/03/03Dark`,
-  `M_PaddedWall`, `M_Decal`, a placeholder `M_Glass`) via `ModelImporter.AddRemap` on the exact
-  `MI_Trim_*`/`M_Decal_White`/`M_Glass` slot names read off the vendor `.mtl` files - the same idea
-  as `LandingBaseAssetSetup`'s curated Ultimate Space Kit import, so any combination of pieces
-  automatically matches. Also copies the kit's whole texture set into
-  `Assets/Art/Textures/ModularSciFi/`. `TileSize`(4)/`LowerWallHeight`(3)/`UpperWallHeight`(2)/
-  `LevelHeight`(5) constants document the grid measured directly from the vendor OBJ export, for
-  hand-placement reference - nothing reads them anymore.
-- `TutorialSceneStrip.cs` - one-shot `Tools/Tutorial/Strip Scene For Manual Build`, already run;
-  removed the discarded auto-builder's generated hierarchy while keeping `Sun Light` and a
-  `PlayerRig` reference instance. Safe to delete.
-- `TutorialGameplayStarterKit.cs` - `Tools/Tutorial/Add One Of Each Gameplay Object` drops in one
-  of everything (the five named gates, the dummy, the shield trainer, the three pickups, an info
-  zone, the exit zone, the UI, the manager) as a reference to duplicate/reposition by hand, and
-  self-wires every `manager`/`ui`/`dummy`/`shieldTrainer`/gate field it finds still empty (the
-  manager is created *first* in the same pass specifically so the rest can find and self-wire to
-  it immediately, not only on a second run). `Add Exit Zone VFX` and `Add Shield Trainer Only` are
-  isolated single-purpose versions of two of those steps.
-- `TutorialFixups.cs` - targeted point fixes for objects already hand-placed: `Fix Training Dummy
-  Hit Collider` (adds a missing `Collider` sized from render bounds + sets the `Enemy` layer -
-  see Gotchas), `Link Selected Gates` (wires a multi-piece barrier's `Linked Gates`), `Style Gates
-  As Energy Barriers` (recolors every `TutorialGate` renderer to a shared transparent-yellow
-  material), `Fix Orbiting Item Pickups` (unparents a pickup nested under a rotating object),
-  `Fix Off-Center Pickup Pivots` (recenters an instance whose import pivot isn't at its visual
-  center - see Gotchas, this is the more common of the two orbit causes), `Fix Shield Trainer
-  Targeting` (retrofits FirePoint/VFX/Player refs onto an already-placed trainer),
-  `Diagnose And Fix Power-Ups Wiring` (checks/fixes every Manager<->Pickup/ShieldTrainer<->Player
-  reference in one pass and logs each pickup's configured Kind - run this first if the Power-Ups
-  stage's instructions never update or Shield mitigation never registers), `Diagnose Info Zones`
-  (read-only report of every `TutorialZone`'s Message/Advances To Complete/Manager/Collider -
-  Is Trigger state - run this if walking into one does nothing; `TutorialZone.OnTriggerEnter` also
-  now logs a runtime warning itself when a zone has nothing to do or no Manager), `Polish Tutorial UI`
-  (assigns the HUD sprite/font, above).
+- `ModularKitAssetSetup.cs` imports the complete Modular SciFi MegaKit into
+  semantic model/texture folders and remaps vendor slots to shared materials.
+- `TutorialGameplayStarterKit.cs` adds one reference instance of each gameplay
+  object, creates the manager first, wires empty references, and offers isolated
+  Exit VFX and Shield Trainer additions.
+- `TutorialFixups.cs` contains targeted collider, gate-link/style, pickup-pivot,
+  trainer-targeting, Power-Ups wiring, info-zone diagnosis, and UI polish fixes.
+- `TutorialSceneStrip.cs` is a completed one-shot cleanup and is safe to delete.
 
 ## Invariants
 

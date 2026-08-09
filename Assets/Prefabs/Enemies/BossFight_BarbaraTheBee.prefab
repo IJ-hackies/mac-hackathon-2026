@@ -18,7 +18,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4069498728489293699
 RectTransform:
   m_ObjectHideFlags: 0
@@ -219,7 +219,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1374086442745384468
 RectTransform:
   m_ObjectHideFlags: 0
@@ -958,7 +958,7 @@ MonoBehaviour:
   minRange: 3
   maxRange: 7
   wanderSpeed: 2.5
-  chaseSpeed: 7.5
+  chaseSpeed: 9
   wanderInterval: 4
   gravity: -18
   groundedStickForce: -2
@@ -976,7 +976,7 @@ MonoBehaviour:
   bulletBurstCount: 80
   bulletBurstInterval: 0.05
   bulletSpeed: 26
-  bulletDamage: 6
+  bulletDamage: 3
   bulletLifetime: 4
   bulletColor: {r: 1, g: 0.95, b: 0.6, a: 1}
   shootBigDelay: 0.6
@@ -1410,7 +1410,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45bf186f4f47e4dcc8b977fe5fbb25a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.Health
-  maxHealth: 100
+  maxHealth: 300
   animator: {fileID: 0}
   hitReactCooldown: 0.35
 --- !u!114 &1239882375951331123

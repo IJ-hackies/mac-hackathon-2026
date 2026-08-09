@@ -161,7 +161,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b80a50771caa64545ab7f19f79ff1a7f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerController
-  moveSpeed: 6.5
+  moveSpeed: 9.75
   acceleration: 18
   rotationDegreesPerSecond: 540
   planetCenter: {fileID: 0}
@@ -314,7 +314,7 @@ MonoBehaviour:
   playerController: {fileID: 0}
   dashSpeed: 26
   dashDuration: 0.3
-  dashCooldown: 3
+  dashCooldown: 2
   dashVfxPrefab: {fileID: 8307689965681055727, guid: 8050863a467fe9e46acb029a0fa570fc, type: 3}
   dashVfxScale: 1
 --- !u!114 &4556358362831272069
@@ -449,8 +449,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98888885d37044f1d844bf195531c324, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerAmmo
-  magazineSize: 12
-  maxStorage: 90
+  magazineSize: 15
+  maxStorage: 120
   reloadTime: 1.5
 --- !u!1 &4040120029771822334
 GameObject:

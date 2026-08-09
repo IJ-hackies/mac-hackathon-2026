@@ -22,6 +22,54 @@ namespace Enemies
     ///      before control is handed back.
     public class BossFightController : MonoBehaviour
     {
+        // The stage-two presentation needs the same radial frame as the player camera. Keeping the
+        // calculations as value types lets the cutscene remain correct both on the spherical planet
+        // and in Player.unity, which intentionally has no Planet Ground object.
+        internal readonly struct CutsceneSurfaceFrame
+        {
+            public CutsceneSurfaceFrame(
+                Vector3 surfacePoint,
+                Vector3 planetCenter,
+                Vector3 up,
+                Vector3 forward,
+                bool isPlanetary,
+                float surfaceRadius)
+            {
+                SurfacePoint = surfacePoint;
+                PlanetCenter = planetCenter;
+                Up = up;
+                Forward = forward;
+                Right = Vector3.Cross(up, forward).normalized;
+                IsPlanetary = isPlanetary;
+                SurfaceRadius = surfaceRadius;
+            }
+
+            public Vector3 SurfacePoint { get; }
+            public Vector3 PlanetCenter { get; }
+            public Vector3 Up { get; }
+            public Vector3 Forward { get; }
+            public Vector3 Right { get; }
+            public bool IsPlanetary { get; }
+            public float SurfaceRadius { get; }
+        }
+
+        internal readonly struct CutsceneCameraPose
+        {
+            public CutsceneCameraPose(Vector3 position, Vector3 lookAt, Vector3 up)
+            {
+                Position = position;
+                LookAt = lookAt;
+                Up = up;
+            }
+
+            public Vector3 Position { get; }
+            public Vector3 LookAt { get; }
+            public Vector3 Up { get; }
+        }
+
+        private const float DirectionEpsilon = 0.0001f;
+        private const float SurfaceCameraClearance = 0.25f;
+
         // Checked by Audio.GameplayMusicController before switching away from bossMusic on an
         // area re-evaluation - true from the moment the Stage1->Stage2 cutscene starts, false once
         // the mech (Stage 2) actually dies (see BossMechAI.HandleDeath).
@@ -181,9 +229,11 @@ namespace Enemies
             EnsureFlashImage();
 
             Vector3 spawnPoint = mechRoot.transform.position;
-            float scaleFactor = Mathf.Max(mechTargetScale.x, mechTargetScale.y, mechTargetScale.z);
+            CutsceneSurfaceFrame surfaceFrame = ResolveCutsceneSurfaceFrame(spawnPoint);
+            Vector3 mechWorldTargetScale = GetMechWorldTargetScale();
+            float scaleFactor = LargestAxis(mechWorldTargetScale);
             float scaledDistance = cameraDistance * scaleFactor;
-            float mechWorldHeight = MechLocalHeight * mechTargetScale.y;
+            float mechWorldHeight = MechLocalHeight * Mathf.Abs(mechWorldTargetScale.y);
             float bottomHeight = mechWorldHeight * 0.08f;
             float topHeight = mechWorldHeight * 0.85f;
 
@@ -194,8 +244,13 @@ namespace Enemies
 
             // Phase 1 - Linger: push in on the astronaut while it dissolves, instead of cutting
             // straight to the mech - gives the death itself a beat to read.
-            Vector3 lingerCameraPos = astronautPosition + Vector3.up * astronautLingerHeight
-                + Vector3.back * astronautLingerDistance;
+            float bossWorldScale = LargestAxis(transform.lossyScale);
+            float scaledLingerHeight = astronautLingerHeight * bossWorldScale;
+            float scaledLingerDistance = astronautLingerDistance * bossWorldScale;
+            Vector3 lingerLookAt = astronautPosition + surfaceFrame.Up * scaledLingerHeight;
+            Vector3 lingerCameraPos = KeepCameraOutsideSurface(
+                lingerLookAt - surfaceFrame.Forward * scaledLingerDistance,
+                surfaceFrame);
             float lingerElapsed = 0f;
             while (lingerElapsed < astronautLingerDuration && !_skipRequested)
             {
@@ -205,10 +260,12 @@ namespace Enemies
                 if (_mainCamera != null)
                 {
                     // Slow push-in, not a static hold, so the linger still reads as camera motion.
-                    Vector3 pos = Vector3.Lerp(
-                        lingerCameraPos + Vector3.back * astronautLingerDistance * 0.5f, lingerCameraPos, t);
+                    Vector3 pos = KeepCameraOutsideSurface(Vector3.Lerp(
+                        lingerCameraPos - surfaceFrame.Forward * scaledLingerDistance * 0.5f,
+                        lingerCameraPos,
+                        t), surfaceFrame);
                     _mainCamera.transform.position = pos;
-                    _mainCamera.transform.LookAt(astronautPosition + Vector3.up * astronautLingerHeight);
+                    _mainCamera.transform.rotation = CreateCutsceneLookRotation(pos, lingerLookAt, surfaceFrame.Up);
                 }
 
                 yield return null;
@@ -217,10 +274,13 @@ namespace Enemies
             // Phase 2 - Pan: travel from the astronaut to the mech's spawn point (still invisible
             // at scale 0), landing exactly where the grow spiral's bottom-of-mech framing expects
             // (behind the mech - see cameraStartAngleDegrees).
-            Vector3 spiralStartPos = spawnPoint + Vector3.up * bottomHeight
-                + Quaternion.Euler(0f, cameraStartAngleDegrees, 0f) * new Vector3(0f, 0f, -scaledDistance);
+            CutsceneCameraPose spiralStartPose = CalculateCutsceneOrbitPose(
+                surfaceFrame,
+                bottomHeight,
+                scaledDistance,
+                cameraStartAngleDegrees);
+            Vector3 spiralStartPos = spiralStartPose.Position;
             Vector3 panStartPos = _mainCamera != null ? _mainCamera.transform.position : lingerCameraPos;
-            Quaternion panStartRot = _mainCamera != null ? _mainCamera.transform.rotation : Quaternion.identity;
 
             float panElapsed = 0f;
             while (panElapsed < panToMechDuration && !_skipRequested)
@@ -231,11 +291,10 @@ namespace Enemies
 
                 if (_mainCamera != null)
                 {
-                    Vector3 pos = Vector3.Lerp(panStartPos, spiralStartPos, eased);
-                    Quaternion targetRot = Quaternion.LookRotation(
-                        (spawnPoint + Vector3.up * bottomHeight - pos).normalized, Vector3.up);
+                    Vector3 pos = KeepCameraOutsideSurface(Vector3.Lerp(panStartPos, spiralStartPos, eased), surfaceFrame);
+                    Vector3 lookAt = Vector3.Lerp(lingerLookAt, spiralStartPose.LookAt, eased);
                     _mainCamera.transform.position = pos;
-                    _mainCamera.transform.rotation = Quaternion.Slerp(panStartRot, targetRot, eased);
+                    _mainCamera.transform.rotation = CreateCutsceneLookRotation(pos, lookAt, surfaceFrame.Up);
                 }
 
                 yield return null;
@@ -248,7 +307,7 @@ namespace Enemies
             if (!_skipRequested)
             {
                 StartCoroutine(FlashRoutine());
-                SpawnBurstParticles();
+                SpawnBurstParticles(surfaceFrame);
             }
 
             float elapsed = 0f;
@@ -263,9 +322,12 @@ namespace Enemies
                 {
                     float angle = cameraStartAngleDegrees + cameraOrbitDegrees * t;
                     float height = Mathf.Lerp(bottomHeight, topHeight, t);
-                    Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, 0f, -scaledDistance);
-                    _mainCamera.transform.position = spawnPoint + Vector3.up * height + offset;
-                    _mainCamera.transform.LookAt(spawnPoint + Vector3.up * height);
+                    CutsceneCameraPose orbitPose = CalculateCutsceneOrbitPose(surfaceFrame, height, scaledDistance, angle);
+                    _mainCamera.transform.position = orbitPose.Position;
+                    _mainCamera.transform.rotation = CreateCutsceneLookRotation(
+                        orbitPose.Position,
+                        orbitPose.LookAt,
+                        orbitPose.Up);
                 }
 
                 mechRoot.transform.localScale = mechTargetScale * EaseOvershoot(t);
@@ -284,9 +346,11 @@ namespace Enemies
             // Phase 4 - Reveal: camera holds framed on the now-fully-grown mech's head while it plays
             // its ground-slam - the same attack the player will see again during the real fight,
             // introduced here as the "and it doing a jump causing the player to stagger" payoff.
-            Vector3 impactCameraPos = spawnPoint + Vector3.up * topHeight
-                + Quaternion.Euler(0f, cameraStartAngleDegrees + cameraOrbitDegrees, 0f) * new Vector3(0f, 0f, -scaledDistance);
-            Vector3 impactLookAt = spawnPoint + Vector3.up * topHeight;
+            CutsceneCameraPose impactPose = CalculateCutsceneOrbitPose(
+                surfaceFrame,
+                topHeight,
+                scaledDistance,
+                cameraStartAngleDegrees + cameraOrbitDegrees);
 
             if (cutsceneLoopHandle.IsValid) AudioManager.Instance.StopLoop(cutsceneLoopHandle);
 
@@ -298,7 +362,7 @@ namespace Enemies
 
             if (!_skipRequested)
             {
-                StartCoroutine(ShakeCameraAt(impactCameraPos, impactLookAt, introSlamCameraShakeDuration));
+                StartCoroutine(ShakeCameraAt(impactPose, surfaceFrame, introSlamCameraShakeDuration));
                 if (mechAi != null)
                 {
                     yield return StartCoroutine(mechAi.PlayIntroSlam());
@@ -350,15 +414,20 @@ namespace Enemies
             Player.UI.CutsceneSkipPromptUI.Hide();
         }
 
-        private IEnumerator ShakeCameraAt(Vector3 basePosition, Vector3 lookAt, float duration)
+        private IEnumerator ShakeCameraAt(CutsceneCameraPose basePose, CutsceneSurfaceFrame surfaceFrame, float duration)
         {
             float elapsed = 0f;
             while (elapsed < duration && _mainCamera != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                Vector3 jitter = Random.insideUnitSphere * introSlamShakeMagnitude;
-                _mainCamera.transform.position = basePosition + jitter;
-                _mainCamera.transform.LookAt(lookAt);
+                Vector2 jitter = Random.insideUnitCircle * introSlamShakeMagnitude;
+                Vector3 position = basePose.Position
+                    + surfaceFrame.Right * jitter.x
+                    + surfaceFrame.Forward * jitter.y
+                    + surfaceFrame.Up * Random.Range(0f, introSlamShakeMagnitude * 0.2f);
+                position = KeepCameraOutsideSurface(position, surfaceFrame);
+                _mainCamera.transform.position = position;
+                _mainCamera.transform.rotation = CreateCutsceneLookRotation(position, basePose.LookAt, surfaceFrame.Up);
                 yield return null;
             }
         }
@@ -430,19 +499,118 @@ namespace Enemies
             return material;
         }
 
+        // Internal rather than a general planet API; the isolated Waves EditMode assembly probes
+        // this pure geometry by reflection, just as its existing navigation coverage does.
+        internal static CutsceneSurfaceFrame CreateCutsceneSurfaceFrame(
+            Vector3 surfacePoint,
+            Vector3 planetCenter,
+            bool hasPlanetGround,
+            Vector3 forwardHint)
+        {
+            Vector3 centerToSurface = surfacePoint - planetCenter;
+            bool isPlanetary = hasPlanetGround && centerToSurface.sqrMagnitude > DirectionEpsilon * DirectionEpsilon;
+            Vector3 up = isPlanetary ? centerToSurface.normalized : Vector3.up;
+            Vector3 forward = GetStableTangentDirection(forwardHint, up);
+            float surfaceRadius = isPlanetary ? centerToSurface.magnitude : 0f;
+            return new CutsceneSurfaceFrame(surfacePoint, planetCenter, up, forward, isPlanetary, surfaceRadius);
+        }
+
+        // This is the one source of truth for all camera-orbit positions used by the transition.
+        internal static CutsceneCameraPose CalculateCutsceneOrbitPose(
+            CutsceneSurfaceFrame surfaceFrame,
+            float radialHeight,
+            float orbitDistance,
+            float orbitDegrees)
+        {
+            Vector3 lookAt = surfaceFrame.SurfacePoint + surfaceFrame.Up * Mathf.Max(0f, radialHeight);
+            Vector3 orbitDirection = Quaternion.AngleAxis(orbitDegrees, surfaceFrame.Up) * -surfaceFrame.Forward;
+            Vector3 position = lookAt + orbitDirection * Mathf.Max(0f, orbitDistance);
+            position = KeepCameraOutsideSurface(position, surfaceFrame);
+            return new CutsceneCameraPose(position, lookAt, surfaceFrame.Up);
+        }
+
+        private CutsceneSurfaceFrame ResolveCutsceneSurfaceFrame(Vector3 spawnPoint)
+        {
+            GameObject planetGround = GameObject.Find("Planet Ground");
+            return CreateCutsceneSurfaceFrame(
+                spawnPoint,
+                planetGround != null ? planetGround.transform.position : Vector3.zero,
+                planetGround != null,
+                mechRoot != null ? mechRoot.transform.forward : Vector3.forward);
+        }
+
+        private static Vector3 GetStableTangentDirection(Vector3 forwardHint, Vector3 up)
+        {
+            Vector3 forward = Vector3.ProjectOnPlane(forwardHint, up);
+            if (forward.sqrMagnitude > DirectionEpsilon * DirectionEpsilon)
+            {
+                return forward.normalized;
+            }
+
+            Vector3[] fallbackAxes = { Vector3.forward, Vector3.right, Vector3.up };
+            foreach (Vector3 axis in fallbackAxes)
+            {
+                forward = Vector3.ProjectOnPlane(axis, up);
+                if (forward.sqrMagnitude > DirectionEpsilon * DirectionEpsilon)
+                {
+                    return forward.normalized;
+                }
+            }
+
+            // A normalized up is guaranteed by CreateCutsceneSurfaceFrame, but keep the final
+            // fallback explicit so malformed external callers cannot produce a zero camera basis.
+            return Vector3.forward;
+        }
+
+        private static Vector3 KeepCameraOutsideSurface(Vector3 position, CutsceneSurfaceFrame surfaceFrame)
+        {
+            if (!surfaceFrame.IsPlanetary)
+            {
+                return position;
+            }
+
+            float minimumRadius = surfaceFrame.SurfaceRadius + SurfaceCameraClearance;
+            Vector3 centerToCamera = position - surfaceFrame.PlanetCenter;
+            if (centerToCamera.sqrMagnitude >= minimumRadius * minimumRadius)
+            {
+                return position;
+            }
+
+            Vector3 radialDirection = centerToCamera.sqrMagnitude > DirectionEpsilon * DirectionEpsilon
+                ? centerToCamera.normalized
+                : surfaceFrame.Up;
+            return surfaceFrame.PlanetCenter + radialDirection * minimumRadius;
+        }
+
+        private static Quaternion CreateCutsceneLookRotation(Vector3 position, Vector3 lookAt, Vector3 up)
+        {
+            Vector3 direction = lookAt - position;
+            if (direction.sqrMagnitude <= DirectionEpsilon * DirectionEpsilon)
+            {
+                direction = Vector3.ProjectOnPlane(Vector3.forward, up);
+                if (direction.sqrMagnitude <= DirectionEpsilon * DirectionEpsilon)
+                {
+                    direction = Vector3.ProjectOnPlane(Vector3.right, up);
+                }
+            }
+
+            return Quaternion.LookRotation(direction.normalized, up);
+        }
+
         // A single clean burst at the reveal moment - prefers the imported effect (real authored
         // VFX art) and only falls back to a procedural one if that asset isn't available. Used to
         // be two procedural systems (an outward burst plus a continuously-emitting rising pillar
         // sustained for the whole ~6.5s grow phase) - the pillar read as sparks that "kept
         // occurring" for no clear reason rather than a single deliberate reveal beat, so it's gone.
-        private void SpawnBurstParticles()
+        private void SpawnBurstParticles(CutsceneSurfaceFrame surfaceFrame)
         {
-            float scaleFactor = Mathf.Max(mechTargetScale.x, mechTargetScale.y, mechTargetScale.z);
-            Vector3 basePosition = mechRoot.transform.position + Vector3.up * scaleFactor;
+            float scaleFactor = LargestAxis(GetMechWorldTargetScale());
+            Vector3 basePosition = mechRoot.transform.position + surfaceFrame.Up * scaleFactor;
+            Quaternion burstRotation = Quaternion.LookRotation(surfaceFrame.Forward, surfaceFrame.Up);
 
             if (importedBurstEffectPrefab != null)
             {
-                var imported = Instantiate(importedBurstEffectPrefab, basePosition, Quaternion.identity);
+                var imported = Instantiate(importedBurstEffectPrefab, basePosition, burstRotation);
                 imported.transform.localScale = Vector3.one * scaleFactor * 0.6f;
                 Vfx.ImportedVfxUtility.FixUrpMaterials(imported);
                 Destroy(imported, 4f);
@@ -451,6 +619,7 @@ namespace Enemies
 
             var burstGo = new GameObject("BossTransitionBurst");
             burstGo.transform.position = basePosition;
+            burstGo.transform.rotation = burstRotation;
 
             var burstPs = burstGo.AddComponent<ParticleSystem>();
             var burstMain = burstPs.main;
@@ -461,7 +630,8 @@ namespace Enemies
             burstMain.startSize = 0.5f * scaleFactor;
             burstMain.startColor = new Color(1f, 0.85f, 0.3f);
             burstMain.simulationSpace = ParticleSystemSimulationSpace.World;
-            burstMain.gravityModifier = 0.15f;
+            // Physics gravity is global-down, so using it would pull the reveal sideways on a sphere.
+            burstMain.gravityModifier = 0f;
 
             var burstEmission = burstPs.emission;
             burstEmission.rateOverTime = 0f;
@@ -481,6 +651,21 @@ namespace Enemies
 
             burstGo.GetComponent<ParticleSystemRenderer>().material = CreateParticleMaterial();
             Destroy(burstGo, 2.5f);
+        }
+
+        private Vector3 GetMechWorldTargetScale()
+        {
+            Transform parent = mechRoot != null ? mechRoot.transform.parent : null;
+            Vector3 parentScale = parent != null ? parent.lossyScale : Vector3.one;
+            return Vector3.Scale(mechTargetScale, new Vector3(
+                Mathf.Abs(parentScale.x),
+                Mathf.Abs(parentScale.y),
+                Mathf.Abs(parentScale.z)));
+        }
+
+        private static float LargestAxis(Vector3 scale)
+        {
+            return Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
         }
     }
 }

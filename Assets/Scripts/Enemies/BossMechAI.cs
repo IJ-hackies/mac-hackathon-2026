@@ -27,9 +27,9 @@ namespace Enemies
         [SerializeField] private float maxRange = 7f;
         [SerializeField] private float wanderSpeed = 2.5f;
         [Tooltip("Used specifically when the player has drifted beyond maxRange, instead of " +
-                 "wanderSpeed - faster than the player's own sprint speed (6.5) so a player who " +
+                 "wanderSpeed so a player who " +
                  "just runs away and never attacks can't keep the mech at arm's length forever.")]
-        [SerializeField] private float chaseSpeed = 7.5f;
+        [SerializeField] private float chaseSpeed = 9f;
         [SerializeField] private float wanderInterval = 4f;
         [SerializeField] private float gravity = -18f;
         [SerializeField] private float groundedStickForce = -2f;
@@ -70,7 +70,7 @@ namespace Enemies
         [SerializeField] private int bulletBurstCount = 80;
         [SerializeField] private float bulletBurstInterval = 0.05f;
         [SerializeField] private float bulletSpeed = 26f;
-        [SerializeField] private float bulletDamage = 6f;
+        [SerializeField] private float bulletDamage = 3f;
         [SerializeField] private float bulletLifetime = 4f;
         [SerializeField] private Color bulletColor = new Color(1f, 0.95f, 0.6f);
 
@@ -131,7 +131,7 @@ namespace Enemies
         private static readonly int JumpParam = Animator.StringToHash("Jump");
 
         private CharacterController _controller;
-        private Vector3 _verticalVelocity;
+        private float _verticalVelocity;
         private PlayerController _playerController;
         private ThirdPersonCameraController _cameraController;
 
@@ -151,6 +151,8 @@ namespace Enemies
         // runs every frame regardless of the coroutine, so without this it would apply falling
         // velocity on top of the coroutine's own ascend/descend motion).
         private bool _manualHeightControl;
+
+        protected override bool StartsAggroed => true;
 
         protected override void Awake()
         {
@@ -210,22 +212,35 @@ namespace Enemies
 
         private void Update()
         {
-            if (isDead) return;
+            if (IsAiLifecycleSuspended) return;
 
-            FacePlayer();
+            if (!CanRunAi())
+            {
+                if (!_manualHeightControl) MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
+                return;
+            }
 
-            if (_manualHeightControl) return;
-
-            ApplyGravity();
+            if (_manualHeightControl)
+            {
+                FacePlayer();
+                return;
+            }
 
             if (_isAttacking)
             {
-                _controller.Move(_verticalVelocity * Time.deltaTime);
+                FacePlayer();
+                MoveGrounded(_controller, Vector3.zero, ref _verticalVelocity, gravity, groundedStickForce);
                 return;
             }
 
             Wander();
             TryAdvanceAttack();
+        }
+
+        protected override void OnFrozen()
+        {
+            _isAttacking = false;
+            _manualHeightControl = false;
         }
 
         // Movement is independent of the player's position beyond keeping distance in
@@ -235,24 +250,25 @@ namespace Enemies
         private void Wander()
         {
             float distance = DistanceToPlayer();
+            float effectiveMinRange = WorldDistance(minRange);
+            float effectiveMaxRange = WorldDistance(maxRange);
 
             if (Time.time >= _nextWanderTime)
             {
                 _nextWanderTime = Time.time + wanderInterval;
                 Vector2 randomCircle = Random.insideUnitCircle;
-                _wanderDirection = new Vector3(randomCircle.x, 0f, randomCircle.y).normalized;
+                _wanderDirection = BuildTangentDirection(SurfaceUp(transform.position), randomCircle);
             }
 
-            Vector3 flatToPlayer = player != null ? player.position - transform.position : Vector3.zero;
-            flatToPlayer.y = 0f;
+            Vector3 flatToPlayer = TangentTowardsPlayer();
 
             Vector3 direction = _wanderDirection;
             float speed = wanderSpeed;
-            if (distance < minRange && flatToPlayer.sqrMagnitude > 0.01f)
+            if (distance < effectiveMinRange && flatToPlayer.sqrMagnitude > 0.01f)
             {
                 direction = -flatToPlayer.normalized;
             }
-            else if (distance > maxRange && flatToPlayer.sqrMagnitude > 0.01f)
+            else if (distance > effectiveMaxRange && flatToPlayer.sqrMagnitude > 0.01f)
             {
                 // Faster catch-up speed specifically here - a player who just runs away and never
                 // attacks shouldn't be able to keep the mech stuck at wanderSpeed forever.
@@ -261,8 +277,13 @@ namespace Enemies
             }
 
             Vector3 posBeforeMove = transform.position;
-            _controller.Move((direction * speed + _verticalVelocity) * Time.deltaTime);
-            animator.SetFloat(SpeedParam, 1f, 0.1f, Time.deltaTime);
+            Vector3 movementDirection = MoveGrounded(
+                _controller, direction * speed,
+                ref _verticalVelocity, gravity, groundedStickForce);
+            if (movementDirection.sqrMagnitude > 0.0001f) FaceMovement(movementDirection);
+            else FacePlayer();
+            animator.SetFloat(SpeedParam, movementDirection.sqrMagnitude > 0.0001f ? 1f : 0f,
+                0.1f, Time.deltaTime);
 
             // Measured against actual displacement this frame, not the intended wander
             // direction/speed - Wander() runs (and issues a Move call) essentially every frame
@@ -294,25 +315,13 @@ namespace Enemies
             AudioManager.Instance.PlaySfx(stepId, transform.position);
         }
 
-        private void ApplyGravity()
-        {
-            if (_controller.isGrounded && _verticalVelocity.y < 0f)
-            {
-                _verticalVelocity.y = groundedStickForce;
-            }
-            else
-            {
-                _verticalVelocity.y += gravity * Time.deltaTime;
-            }
-        }
-
         // Fixed round-robin, gated on cooldown + engage range. Out-of-range simply waits without
         // advancing the sequence, so the same rotation resumes once back in range rather than
         // skipping an attack.
         private void TryAdvanceAttack()
         {
             if (Time.time < _attackReadyTime) return;
-            if (DistanceToPlayer() > attackEngageRange) return;
+            if (DistanceToPlayer() > WorldDistance(attackEngageRange)) return;
 
             StartCoroutine(AttackRoutine(AttackOrder[_attackIndex]));
             _attackIndex = (_attackIndex + 1) % AttackOrder.Length;
@@ -344,7 +353,7 @@ namespace Enemies
                     break;
             }
 
-            yield return new WaitForSeconds(postAttackGap);
+            yield return new WaitForSeconds(AttackInterval(postAttackGap));
             _isAttacking = false;
             _attackReadyTime = Time.time;
         }
@@ -362,7 +371,7 @@ namespace Enemies
             if (player == null) yield break;
 
             Vector3 groundPoint = player.position;
-            groundPoint.y = transform.position.y;
+            if (TryGetSurfacePoint(groundPoint, out Vector3 resolvedGroundPoint, out _)) groundPoint = resolvedGroundPoint;
 
             // SFX moved from cast-time to hit-confirm - it should only be heard when the attack
             // actually connects, not on every telegraph/cast regardless of whether the player
@@ -372,7 +381,7 @@ namespace Enemies
             // groundPoint (boss's own y, used for the hit-check distance below) stays untouched -
             // this is only for where the VFX visually spawns, so a jumping/airborne player doesn't
             // leave the ground-impact effect floating at their feet mid-air.
-            Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(groundPoint);
+            Vector3 vfxPoint = IsPlanetSurfaceRuntime ? groundPoint : TopDownGroundEffect.GroundedPoint(groundPoint);
 
             yield return TopDownGroundEffect.Play(vfxPrefab, vfxPoint, topDownTelegraphDelay,
                 topDownVfxLingerAfterHit, () =>
@@ -381,7 +390,7 @@ namespace Enemies
                     if (Vector3.Distance(player.position, groundPoint) <= topDownHitRadius &&
                         playerHealth != null && !playerHealth.IsDead)
                     {
-                        playerHealth.ApplyDamage(topDownDamage, groundPoint, gameObject, DamageType.Generic);
+                        playerHealth.ApplyDamage(topDownDamage * DamageMultiplier, groundPoint, gameObject, DamageType.Generic);
                         AudioManager.Instance.PlaySfx(hitSfx, groundPoint);
                     }
                 });
@@ -403,7 +412,7 @@ namespace Enemies
             Color color, int burstCount, float burstInterval, ProjectileVisualStyle style)
         {
             animator.SetTrigger(triggerParam);
-            yield return new WaitForSeconds(delay);
+            yield return new WaitForSeconds(AttackInterval(delay));
 
             bool isMachineGunBurst = style == ProjectileVisualStyle.Bullet;
             AudioHandle loopHandle = AudioHandle.Invalid;
@@ -417,7 +426,7 @@ namespace Enemies
             {
                 Transform origin = i % 2 == 0 ? firePointLeft : firePointRight;
                 SpawnProjectile(origin.position, speed, damage, lifetime, false, color, visualRadius, style, 90f, 10f);
-                if (i < burstCount - 1) yield return new WaitForSeconds(burstInterval);
+                if (i < burstCount - 1) yield return new WaitForSeconds(AttackInterval(burstInterval));
             }
 
             if (loopHandle.IsValid) AudioManager.Instance.StopLoop(loopHandle);
@@ -428,7 +437,7 @@ namespace Enemies
         {
             if (player == null) return;
 
-            Vector3 direction = (player.position + Vector3.up - origin).normalized;
+            Vector3 direction = (player.position + SurfaceUp(player.position) - origin).normalized;
             int playerLayer = LayerMask.NameToLayer("Player");
             int mask = playerLayer >= 0 ? 1 << playerLayer : ~0;
 
@@ -453,7 +462,7 @@ namespace Enemies
                     break;
             }
 
-            BossProjectile.Create(origin, direction, player, speed, damage, homing, lifetime, mask,
+            BossProjectile.Create(origin, direction, player, speed * ProjectileSpeedMultiplier, damage * DamageMultiplier, homing, lifetime, mask,
                 color, visualRadius, style, homingTurnDegreesPerSecond, homingRange, visuals,
                 onHit: _ => AudioManager.Instance.PlaySfx(SfxId.Boss2Ricochet, origin));
         }
@@ -476,7 +485,7 @@ namespace Enemies
         {
             animator.SetTrigger(JumpParam);
             _manualHeightControl = true;
-            _verticalVelocity = Vector3.zero;
+            _verticalVelocity = 0f;
 
             float heightOffset = 0f;
             float elapsed = 0f;
@@ -485,7 +494,7 @@ namespace Enemies
                 elapsed += Time.deltaTime;
                 float t = elapsed / jumpAscendDuration;
                 float targetHeight = Mathf.Sin(t * Mathf.PI * 0.5f) * jumpApexHeight;
-                _controller.Move(new Vector3(0f, targetHeight - heightOffset, 0f));
+                _controller.Move(SurfaceUp(transform.position) * (targetHeight - heightOffset));
                 heightOffset = targetHeight;
                 yield return null;
             }
@@ -498,14 +507,14 @@ namespace Enemies
                 elapsed += Time.deltaTime;
                 float t = elapsed / descendDuration;
                 float targetHeight = Mathf.Lerp(apex, 0f, t * t);
-                _controller.Move(new Vector3(0f, targetHeight - heightOffset, 0f));
+                _controller.Move(SurfaceUp(transform.position) * (targetHeight - heightOffset));
                 heightOffset = targetHeight;
                 yield return null;
             }
 
             if (heightOffset != 0f)
             {
-                _controller.Move(new Vector3(0f, -heightOffset, 0f));
+                _controller.Move(-SurfaceUp(transform.position) * heightOffset);
             }
 
             _manualHeightControl = false;

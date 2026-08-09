@@ -47,6 +47,23 @@ namespace Enemies
         public static BossProjectileVisuals None => new BossProjectileVisuals { ImpactEffectScale = 1f };
     }
 
+    /// <summary>Details of a projectile hit after the target has resolved mitigation and overkill.</summary>
+    public readonly struct ProjectileHit
+    {
+        public readonly GameObject HitObject;
+        public readonly IDamageable Damageable;
+        public readonly Vector3 Point;
+        public readonly float AppliedDamage;
+
+        public ProjectileHit(GameObject hitObject, IDamageable damageable, Vector3 point, float appliedDamage)
+        {
+            HitObject = hitObject;
+            Damageable = damageable;
+            Point = point;
+            AppliedDamage = appliedDamage;
+        }
+    }
+
     /// Generic travelling projectile shared by BossMechAI's fireballs (homing, spawned during
     /// Dance), bullets (fast, straight, Shoot_Small), missiles (slow, straight, high-damage,
     /// Shoot_Big) and BossAstronautAI's ranged bolts - one component/factory, several
@@ -73,6 +90,7 @@ namespace Enemies
         private GameObject _impactEffectPrefab;
         private float _impactEffectScale = 1f;
         private Action<GameObject> _onHit;
+        private Action<ProjectileHit> _onDamage;
 
         /// Builds a fully-dressed projectile and launches it in one call. Centralizing this here
         /// means every spawner (BossMechAI's bullets/missiles/fireballs, BossAstronautAI's bolts)
@@ -85,7 +103,8 @@ namespace Enemies
             float projectileSpeed, float projectileDamage, bool isHoming, float lifetimeSeconds,
             LayerMask targetMask, Color color, float visualRadius, ProjectileVisualStyle style,
             float homingTurnDegreesPerSecond = 90f, float homingMaxRange = 10f,
-            BossProjectileVisuals visuals = default, Action<GameObject> onHit = null)
+            BossProjectileVisuals visuals = default, Action<GameObject> onHit = null,
+            Action<ProjectileHit> onDamage = null)
         {
             var go = new GameObject($"Boss{style}");
             go.transform.position = origin;
@@ -189,6 +208,7 @@ namespace Enemies
             projectile._impactEffectPrefab = visuals.ImpactEffectPrefab;
             projectile._impactEffectScale = visuals.ImpactEffectScale > 0f ? visuals.ImpactEffectScale : 1f;
             projectile._onHit = onHit;
+            projectile._onDamage = onDamage;
             projectile.Launch(origin, aimDirection, target, projectileSpeed, projectileDamage,
                 isHoming, lifetimeSeconds, targetMask, homingTurnDegreesPerSecond, homingMaxRange);
 
@@ -464,12 +484,25 @@ namespace Enemies
             var damageable = other.GetComponentInParent<IDamageable>();
             if (damageable != null && !damageable.IsDead)
             {
-                damageable.ApplyDamage(damage, transform.position, gameObject, DamageType.Ranged);
+                float appliedDamage = damageable is Health health
+                    ? health.ApplyDamageAndGetApplied(damage, transform.position, gameObject, DamageType.Ranged)
+                    : ApplyUnknownDamageable(damageable);
+                _onDamage?.Invoke(new ProjectileHit(other.gameObject, damageable, transform.position, appliedDamage));
                 _onHit?.Invoke(other.gameObject);
             }
 
             SpawnImpactEffect();
             Destroy(gameObject);
+        }
+
+        // IDamageable intentionally stays a minimal backwards-compatible interface. Projectiles
+        // can report exact damage for Health (the shared implementation); a third-party
+        // implementation without that API still receives its normal hit and reports the request
+        // as the best available value.
+        private float ApplyUnknownDamageable(IDamageable damageable)
+        {
+            damageable.ApplyDamage(damage, transform.position, gameObject, DamageType.Ranged);
+            return damage;
         }
 
         // Unparented (not a child of this GameObject) since this GameObject is destroyed the same

@@ -7,8 +7,10 @@ owns:
   - "Assets/Scripts/Player/Projectile.cs*"
   - "Assets/Scripts/UI/HealthHudUI.cs*"
   - "Assets/Prefabs/Projectile.prefab*"
+  - "Assets/Tests/EditMode/Player/PlayerCombatFireRateTests.cs*"
+  - "Assets/Tests/EditMode/Player/SpecialCombatSkillTests.cs*"
 related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate, tutorial]
-verifiedAtCommit: 73eb7d644468973196f17f4dc204b6653c5fb8dc
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
@@ -34,7 +36,7 @@ this reuses `BossProjectile` instead of a player-specific component. When no
 instant-hitscan-plus-tracer behavior. Muzzle flash similarly prefers
 `muzzleFlashEffectPrefab` over the procedural flash `Light`. Landed melee
 hits spawn an imported `meleeHitEffectPrefab` (Lana Studio's `Hit_stone`) at
-the actual `OverlapSphere` contact point. Shooting arm poses live on their
+the actual `OverlapCapsule` contact point. Shooting arm poses live on their
 own upper-body-masked `Arms` Animator layer (`BuildArmsLayer`, see
 [player-controller](player-controller.md)) so firing never touches leg/base
 locomotion.
@@ -53,16 +55,17 @@ locomotion.
   should have played (see [enemies](enemies.md) for why the mech doesn't
   actually react anymore).
   - **Melee**: `MeleeDamageWindow` coroutine waits `meleeHitDelay` after the
-    trigger, then `Physics.OverlapSphere` in front of the player using its
-    radial `transform.up`, and damages whatever `IDamageable` it finds
+    trigger, then sweeps `Physics.OverlapCapsule` in front of the player using
+    its radial `transform.up`, and damages whatever `IDamageable` it finds
     (skipping the player's own root), then calls `SpawnMeleeHitEffect` at the
     same `hit.ClosestPoint` used for damage.
-  - **Fire is click-per-shot by default**: `Attack.started` immediately tries
-    one round and raises the masked Arms pose. Quick clicks share the existing
-    `armsStopGrace` pose window instead of restarting the animation every time.
-    Buying Hold to Fire makes the ordinary pistol continue on a wall-clock
-    cadence while Attack remains held. Its progression fire-rate multiplier
-    shortens only that pistol interval; it does not change Ultimate fire rate.
+  - **Fire is click-per-shot by default**: `Attack.started` requests one round
+    and raises the masked Arms pose. Manual clicks and purchased Hold to Fire
+    share one primary-fire cadence gate, so repeated clicks cannot exceed the
+    pistol interval. Quick clicks still share the existing `armsStopGrace` pose
+    window instead of restarting the animation every time. The progression
+    fire-rate multiplier shortens this pistol interval for both input styles;
+    it does not change Ultimate fire rate.
   - Ultimate always supports continuous electric primary fire independently of
     the purchase, including when Ultimate activates while Attack is held.
     `FireProjectile` still aims from the camera/crosshair and spawns the real
@@ -71,23 +74,24 @@ locomotion.
     positioned forward of the body so the flash doesn't render inside the mesh.
   Exposes `IsAttacking` (`_isFiring || Time.time < _attackingUntil`, covering
   the whole held-fire duration) for the emote-interrupt check.
+  Its runtime action set and component references are idempotently restored on
+  enable after Editor assembly reloads; disable remains safe before initialization.
 - `Assets/Scripts/Player/PlayerDeathHandler.cs` - on `Health.Died`, disables
   `PlayerController` and `PlayerCombat` (freezes movement/input, not the
-  camera). `PlayerCombat.OnDisable` zeroes the `Arms` layer weight/`Firing`,
-  otherwise a frozen shoot pose would override `Death`'s base-layer pose.
-- `Assets/Scripts/UI/HealthHudUI.cs` - minimal top-right health readout: one
+  camera), then plays the player-death SFX. `PlayerCombat.OnDisable` zeroes the
+  `Arms` layer weight/`Firing`, otherwise a frozen shoot pose would override
+  `Death`'s base-layer pose.
+- `Assets/Scripts/UI/HealthHudUI.cs` - minimal bottom-center health readout: one
   fixed-red sliced Space Expansion bar with rounded current HP centered
   inside. It has no panel, labels, percent sign, or damage trail. `Bind()`
   stores `Health`; `OnEnable` subscribes after domain reload and falls back
   to the active `PlayerController`'s colocated `Health` when needed.
 
-`CheckShootBeat` now gates each shot behind `Player.PlayerAmmo.
+`TryFireShot` gates each accepted shot behind `Player.PlayerAmmo.
 TryConsumeRound()` before calling `FireProjectile`/`SpawnMuzzleFlash` -
-running dry (with storage left) auto-starts a reload, and a reload in
-progress silently withholds the shot without touching the Shoot animation
-loop. A `Reload` action (`R`) calls
-`PlayerAmmo.StartReload()` directly - see [items](items.md) for
-`PlayerAmmo`/`AmmoHudUI` and the `AmmoPickup` that refills them.
+running dry auto-starts reload when storage remains; reload progress withholds
+shots without touching the Shoot loop. `Reload` (`R`) calls
+`PlayerAmmo.StartReload()`; see [items](items.md) for ammo UI and pickups.
 
 `PlayerCombat.SetUltimateActive(bool)` (called by `Player.PlayerUltimate`)
 switches `FireProjectile`'s primary-fire path from the single dark-magic
@@ -99,14 +103,26 @@ via `Vfx.TopDownGroundEffect.Play`. `Combat.Health` also gained
 `IncomingDamageMultiplier` (used by `PlayerShield` to fully mitigate damage
 while held). Full detail in [ultimate](ultimate.md).
 
-Progression applies keyed ranged/melee/fire-rate multipliers. Health likewise
-composes keyed incoming-damage multipliers so Defense and Shield do not
-overwrite one another; see [progression](progression.md).
+Progression applies keyed fire-rate modifiers plus raw shooting/melee bonuses.
+The shooting bonus is added to pistol, normal secondary, Ultimate bolt, and
+Ultimate lightning base damage before other multipliers/falloff. Health
+composes keyed incoming-damage modifiers so Defense and Shield do not overwrite
+one another; see [progression](progression.md).
 
-`PlayerCombat` also exposes `ShotFired`/`SecondaryFired` events, fired on every successful cast
-regardless of mode. Added purely so [tutorial](tutorial.md)'s practice dummy can tell a light
-(pistol) hit from a heavy (secondary) hit apart - both tag `Combat.DamageType.Ranged`, so
-`DamageType` alone can't distinguish them.
+Ordinary pistol rounds also carry the purchased special-round context through
+their whole impact chain: Headshot! doubles each fourth accepted round, Bullet
+Bounce chooses the nearest distinct living target with line of sight within 15
+units until three total targets have been hit, and Explosive Bullets applies 50%
+of final impact damage in a 3-unit radius while excluding the direct target.
+Minigun applies its raw-damage/capacity/fire-rate profile without changing
+Ultimate cadence or turning click fire into held fire. `Combat.Health` reports
+actual HP removed after mitigation and overkill clamping; Vampire uses that
+value to heal 2% across pistol, bounce/splash, melee, secondary, and Ultimate
+damage rather than healing from attempted damage.
+
+`PlayerCombat` also exposes `ShotFired`/`SecondaryFired` on every successful
+cast. The [tutorial](tutorial.md) dummy uses them to distinguish light pistol
+from heavy secondary hits, since both use `Combat.DamageType.Ranged`.
 
 ## Invariants
 
