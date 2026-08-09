@@ -1,3 +1,4 @@
+using System;
 using Audio;
 using Player.UI;
 using UnityEngine;
@@ -59,6 +60,10 @@ namespace Player
         private bool _mechDanceStepAlternate;
 
         public bool InputSuspended { get; private set; }
+
+        /// Fired whenever a wheel emote actually plays (clip found and triggered), with the same
+        /// index the wheel/labels use (0 = Wave). Used by the tutorial to detect "player waved".
+        public event Action<int> EmoteTriggered;
 
         private void Awake()
         {
@@ -217,6 +222,8 @@ namespace Player
             bool isMechDance = index == DanceIndex && playerUltimate != null && playerUltimate.IsActive;
             _mechDanceAudioActive = isMechDance;
             if (isMechDance) _nextMechDanceStepTime = Time.time;
+
+            EmoteTriggered?.Invoke(index);
 
             return clips[index].length;
         }

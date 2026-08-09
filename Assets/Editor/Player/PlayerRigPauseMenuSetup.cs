@@ -45,18 +45,25 @@ namespace PlayerEditor
                     return;
                 }
 
+                // Close and Controls sit in different rows/columns of this menu (Close is the
+                // small top-right button, Controls is a full-width row), so their positions
+                // aren't comparable as a "row spacing" - place the clone as its own centered row
+                // below Controls instead of deriving an offset from the two.
                 var closeRect = closeButton.GetComponent<RectTransform>();
-                Vector2 rowSpacing = new Vector2(0f, -70f);
+                Vector2 anchoredPosition = new Vector2(0f, -270f);
                 if (controlsButton != null)
                 {
                     var controlsRect = controlsButton.GetComponent<RectTransform>();
-                    rowSpacing = closeRect.anchoredPosition - controlsRect.anchoredPosition;
+                    anchoredPosition = new Vector2(
+                        0f,
+                        controlsRect.anchoredPosition.y - (controlsRect.sizeDelta.y * 0.5f)
+                            - (closeRect.sizeDelta.y * 0.5f) - 20f);
                 }
 
                 var newButtonGo = Object.Instantiate(closeButton.gameObject, closeRect.parent);
                 newButtonGo.name = "MainMenuButton";
                 var newRect = newButtonGo.GetComponent<RectTransform>();
-                newRect.anchoredPosition = closeRect.anchoredPosition + rowSpacing;
+                newRect.anchoredPosition = anchoredPosition;
 
                 var label = newButtonGo.GetComponentInChildren<Text>(true);
                 if (label != null) label.text = "MAIN MENU";

@@ -44,7 +44,7 @@ MonoBehaviour:
   - id: 4
     clip: {fileID: 8300000, guid: 95bbf4ad1bde5464dae59772e857845c, type: 3}
     category: 2
-    volume: 0.38
+    volume: 0.304
     pitchMin: 0.9
     pitchMax: 1.1
     maxConcurrent: 2
@@ -275,7 +275,7 @@ MonoBehaviour:
   - id: 37
     clip: {fileID: 8300000, guid: dd2a668f7cda14b5fa5a8bd5fd7e7ce2, type: 3}
     category: 4
-    volume: 0.4
+    volume: 0.3
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
@@ -289,7 +289,7 @@ MonoBehaviour:
   - id: 39
     clip: {fileID: 8300000, guid: 8ef5737c2b27442f3909a47f7d5c76f3, type: 3}
     category: 4
-    volume: 0.5
+    volume: 0.375
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2

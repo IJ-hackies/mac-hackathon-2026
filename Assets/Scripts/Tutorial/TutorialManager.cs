@@ -1,7 +1,7 @@
 using Player;
+using Player.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
 namespace Tutorial
 {
@@ -39,6 +39,8 @@ namespace Tutorial
         private PlayerUltimate _playerUltimate;
         private PlayerCombat _playerCombat;
         private PlayerAbilityInput _playerAbilityInput;
+        private PlayerEmoteController _playerEmote;
+        private PlayerAmmo _playerAmmo;
         private ThirdPersonCameraController _cameraController;
         private Player.UI.CrosshairUI _crosshair;
 
@@ -56,8 +58,10 @@ namespace Tutorial
 
         private readonly bool[] _wasdPressed = new bool[4];
         private bool _jumped;
+        private bool _waved;
         private bool _dashed;
         private int _lightHits;
+        private bool _reloaded;
         private int _heavyHits;
         private bool _healthCollected;
         private bool _ammoCollected;
@@ -85,6 +89,8 @@ namespace Tutorial
             _playerUltimate = _playerController != null ? _playerController.GetComponent<PlayerUltimate>() : null;
             _playerCombat = _playerController != null ? _playerController.GetComponent<PlayerCombat>() : null;
             _playerAbilityInput = _playerController != null ? _playerController.GetComponent<PlayerAbilityInput>() : null;
+            _playerEmote = _playerController != null ? _playerController.GetComponent<PlayerEmoteController>() : null;
+            _playerAmmo = _playerController != null ? _playerController.GetComponent<PlayerAmmo>() : null;
             _cameraController = FindFirstObjectByType<ThirdPersonCameraController>();
             _crosshair = FindFirstObjectByType<Player.UI.CrosshairUI>();
         }
@@ -98,6 +104,8 @@ namespace Tutorial
             }
             if (shieldTrainer != null) shieldTrainer.DamageMitigated += OnDamageMitigated;
             if (_playerDash != null) _playerDash.DashPerformed += OnDashPerformed;
+            if (_playerEmote != null) _playerEmote.EmoteTriggered += OnEmoteTriggered;
+            if (_playerAmmo != null) _playerAmmo.ReloadStarted += OnReloadStarted;
             if (ui != null) ui.PopupClosed += OnPopupClosed;
         }
 
@@ -110,15 +118,34 @@ namespace Tutorial
             }
             if (shieldTrainer != null) shieldTrainer.DamageMitigated -= OnDamageMitigated;
             if (_playerDash != null) _playerDash.DashPerformed -= OnDashPerformed;
+            if (_playerEmote != null) _playerEmote.EmoteTriggered -= OnEmoteTriggered;
+            if (_playerAmmo != null) _playerAmmo.ReloadStarted -= OnReloadStarted;
             if (ui != null) ui.PopupClosed -= OnPopupClosed;
         }
 
         private const float FallResetHeight = -6f;
         private Vector3 _checkpointPosition;
+        private bool _started;
 
         private void Start()
         {
             if (_playerController != null) _checkpointPosition = _playerController.transform.position;
+
+            // A TutorialOpeningCutscene, if present, holds the player in its own intro shot and
+            // calls BeginTutorial() itself once it hands control back - starting Movement here
+            // too would race it.
+            if (FindFirstObjectByType<TutorialOpeningCutscene>() == null)
+            {
+                BeginTutorial();
+            }
+        }
+
+        /// Enters the Movement stage. Safe to call once; a second call (e.g. if both this and a
+        /// TutorialOpeningCutscene tried to start it) is ignored.
+        public void BeginTutorial()
+        {
+            if (_started) return;
+            _started = true;
             EnterStage(TutorialStage.Movement);
         }
 
@@ -183,6 +210,28 @@ namespace Tutorial
             _dashed = true;
             ui.SetKeyComplete(0, true);
             CompleteStage(TutorialStage.Dash);
+        }
+
+        // Wave is index 0 in both the base and Mech emote-wheel label sets, so this check stays
+        // correct even if the tutorial is ever reached mid-Ultimate.
+        private void OnEmoteTriggered(int index)
+        {
+            if (CurrentStage != TutorialStage.Emote || _waved || index != 0) return;
+            _waved = true;
+            ui.SetKeyComplete(0, true);
+            CompleteStage(TutorialStage.Emote);
+        }
+
+        // PlayerAmmo.ReloadStarted only fires once the magazine has actually room to reload
+        // (see PlayerAmmo.StartReload) - by the time the player reaches this stage they've just
+        // fired the required light-attack shots, so the magazine is no longer full and pressing R
+        // reloads for real.
+        private void OnReloadStarted()
+        {
+            if (CurrentStage != TutorialStage.Reload || _reloaded) return;
+            _reloaded = true;
+            ui.SetKeyComplete(0, true);
+            CompleteStage(TutorialStage.Reload);
         }
 
         private void OnLightHitLanded()
@@ -305,12 +354,16 @@ namespace Tutorial
         {
             switch (justCompleted)
             {
-                case TutorialStage.Movement: gateToJump?.Open(); EnterStage(TutorialStage.Jump); break;
+                // Movement -> Emote happens in the same starting room - only the
+                // instructions/requirement change, no further gate to open.
+                case TutorialStage.Movement: EnterStage(TutorialStage.Emote); break;
+                case TutorialStage.Emote: gateToJump?.Open(); EnterStage(TutorialStage.Jump); break;
                 case TutorialStage.Jump: gateToDash?.Open(); EnterStage(TutorialStage.Dash); break;
                 case TutorialStage.Dash: gateToCombat?.Open(); EnterStage(TutorialStage.LightAttack); break;
-                // LightAttack -> HeavyAttack happens in the same combat room - only the
-                // instructions/requirement change, no further gate to open.
-                case TutorialStage.LightAttack: EnterStage(TutorialStage.HeavyAttack); break;
+                // LightAttack -> Reload -> HeavyAttack all happen in the same combat room - only
+                // the instructions/requirement change, no further gate to open.
+                case TutorialStage.LightAttack: EnterStage(TutorialStage.Reload); break;
+                case TutorialStage.Reload: EnterStage(TutorialStage.HeavyAttack); break;
                 case TutorialStage.HeavyAttack: gateToItems?.Open(); EnterStage(TutorialStage.Items); break;
                 case TutorialStage.Items: gateToOverview?.Open(); EnterStage(TutorialStage.Overview); break;
                 case TutorialStage.Overview: EnterStage(TutorialStage.Complete); break;
@@ -328,6 +381,10 @@ namespace Tutorial
                     ui.ShowStage("Movement", "Use W, A, S, and D to move around. Press every key at least once.");
                     ui.SetKeyPrompts("W", "A", "S", "D");
                     break;
+                case TutorialStage.Emote:
+                    ui.ShowStage("Say Hello", "Hold B to open the emote wheel, aim at WAVE, and release to greet the crew.");
+                    ui.SetKeyPrompts("B");
+                    break;
                 case TutorialStage.Jump:
                     ui.ShowStage("Jump", "Press SPACE to jump across the gap ahead.");
                     ui.SetKeyPrompts("SPACE");
@@ -340,6 +397,10 @@ namespace Tutorial
                     ui.ShowStage("Light Attack", "Left-click to fire your pistol at the training dummy.");
                     ui.SetKeyPrompts("LMB");
                     ui.SetCounter(0, LightAttacksRequired);
+                    break;
+                case TutorialStage.Reload:
+                    ui.ShowStage("Reload", "Press R to reload your pistol before learning the heavy attack.");
+                    ui.SetKeyPrompts("R");
                     break;
                 case TutorialStage.HeavyAttack:
                     ui.ShowStage("Heavy Attack", "Right-click for a heavy strike on the training dummy.");
@@ -358,7 +419,7 @@ namespace Tutorial
                 case TutorialStage.Complete:
                     // No completion screen/button - touching the Exit Zone should return to
                     // MainMenu immediately, not prompt for confirmation.
-                    SceneManager.LoadScene(MainMenuSceneName);
+                    SceneTransitionController.LoadScene(MainMenuSceneName);
                     break;
             }
         }

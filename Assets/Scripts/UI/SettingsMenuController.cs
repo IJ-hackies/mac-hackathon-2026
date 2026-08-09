@@ -40,6 +40,10 @@ namespace Player.UI
         [SerializeField] private global::Player.ThirdPersonCameraController cameraController;
         [SerializeField] private CrosshairUI crosshairUi;
 
+        private const string SingleplayerSceneName = "SampleScene";
+
+        private GameObject _confirmDialog;
+
         private bool _isOpen;
         private bool _restoring;
         private float _timeScaleBeforeMenu = 1f;
@@ -104,7 +108,11 @@ namespace Player.UI
                 return;
             }
 
-            if (controlsPage != null && controlsPage.activeSelf)
+            if (_confirmDialog != null && _confirmDialog.activeSelf)
+            {
+                HideReturnToMainMenuConfirm();
+            }
+            else if (controlsPage != null && controlsPage.activeSelf)
             {
                 ShowMainPage();
             }
@@ -186,18 +194,151 @@ namespace Player.UI
             RestoreGameplayState();
         }
 
+        /// Entry point wired to the button - gates through a "you'll lose your run" confirmation
+        /// while playing SampleScene (the singleplayer run has gold/upgrades/progress to lose).
+        /// Tutorial has no run state, so it leaves immediately without prompting.
+        public void ReturnToMainMenu()
+        {
+            if (SceneManager.GetActiveScene().name == SingleplayerSceneName)
+            {
+                ShowReturnToMainMenuConfirm();
+                return;
+            }
+
+            ReturnToMainMenuConfirmed();
+        }
+
         /// Leaves gameplay entirely rather than just closing the menu - resets time scale/cursor
         /// itself (rather than routing through RestoreGameplayState, which restores to whatever
         /// state gameplay was in before pausing) since a scene load is about to discard all of
         /// that anyway, and MainMenuController.Awake also independently resets both as a backstop.
-        public void ReturnToMainMenu()
+        private void ReturnToMainMenuConfirmed()
         {
             Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
             PersistSettings();
             Time.timeScale = 1f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            SceneManager.LoadScene("MainMenu", LoadSceneMode.Single);
+            SceneTransitionController.LoadScene("MainMenu");
+        }
+
+        private void ShowReturnToMainMenuConfirm()
+        {
+            EnsureConfirmDialog();
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiOpen);
+            _confirmDialog.transform.SetAsLastSibling();
+            _confirmDialog.SetActive(true);
+        }
+
+        private void HideReturnToMainMenuConfirm()
+        {
+            if (_confirmDialog != null) _confirmDialog.SetActive(false);
+        }
+
+        // Self-built the same way TutorialUIController's info popup is (dim full-screen backdrop
+        // + centered panel) - built lazily on first use since it only ever matters for the
+        // singleplayer pause menu, not every scene that shares this prefab.
+        private void EnsureConfirmDialog()
+        {
+            if (_confirmDialog != null) return;
+
+            Transform parent = hudCanvas != null ? hudCanvas.transform : transform;
+            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            _confirmDialog = new GameObject("ReturnToMainMenuConfirm", typeof(RectTransform), typeof(Image));
+            _confirmDialog.transform.SetParent(parent, false);
+            var backdropRect = (RectTransform)_confirmDialog.transform;
+            backdropRect.anchorMin = Vector2.zero;
+            backdropRect.anchorMax = Vector2.one;
+            backdropRect.offsetMin = Vector2.zero;
+            backdropRect.offsetMax = Vector2.zero;
+            _confirmDialog.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.65f);
+
+            var panelGo = new GameObject("Panel", typeof(RectTransform), typeof(Image));
+            panelGo.transform.SetParent(_confirmDialog.transform, false);
+            var panelRect = (RectTransform)panelGo.transform;
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.sizeDelta = new Vector2(560f, 240f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelGo.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.1f, 0.96f);
+
+            var titleGo = new GameObject("Title", typeof(RectTransform), typeof(Text));
+            titleGo.transform.SetParent(panelGo.transform, false);
+            var titleText = titleGo.GetComponent<Text>();
+            titleText.font = font;
+            titleText.fontSize = 24;
+            titleText.fontStyle = FontStyle.Bold;
+            titleText.alignment = TextAnchor.UpperCenter;
+            titleText.color = Color.white;
+            titleText.text = "RETURN TO MAIN MENU?";
+            var titleRect = (RectTransform)titleGo.transform;
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.anchoredPosition = new Vector2(0f, -24f);
+            titleRect.sizeDelta = new Vector2(-40f, 36f);
+
+            var messageGo = new GameObject("Message", typeof(RectTransform), typeof(Text));
+            messageGo.transform.SetParent(panelGo.transform, false);
+            var messageText = messageGo.GetComponent<Text>();
+            messageText.font = font;
+            messageText.fontSize = 18;
+            messageText.alignment = TextAnchor.MiddleCenter;
+            messageText.color = new Color(0.85f, 0.85f, 0.9f, 1f);
+            messageText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            messageText.text = "You will lose all progress in the current run - gold, upgrades, " +
+                "and items will not be saved.";
+            var messageRect = (RectTransform)messageGo.transform;
+            messageRect.anchorMin = new Vector2(0f, 0.32f);
+            messageRect.anchorMax = new Vector2(1f, 0.82f);
+            messageRect.offsetMin = new Vector2(30f, 0f);
+            messageRect.offsetMax = new Vector2(-30f, 0f);
+
+            Button confirmButton = CreateConfirmDialogButton(panelGo.transform, font, "ConfirmButton",
+                "YES, QUIT RUN", new Vector2(-140f, 36f), new Color(0.75f, 0.25f, 0.25f, 0.95f));
+            confirmButton.onClick.AddListener(() =>
+            {
+                HideReturnToMainMenuConfirm();
+                ReturnToMainMenuConfirmed();
+            });
+
+            Button cancelButton = CreateConfirmDialogButton(panelGo.transform, font, "CancelButton",
+                "CANCEL", new Vector2(140f, 36f), new Color(0.25f, 0.3f, 0.35f, 0.95f));
+            cancelButton.onClick.AddListener(HideReturnToMainMenuConfirm);
+
+            _confirmDialog.SetActive(false);
+        }
+
+        private static Button CreateConfirmDialogButton(Transform parent, Font font, string name, string label,
+            Vector2 anchoredPosition, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rect = (RectTransform)go.transform;
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(220f, 56f);
+            rect.anchoredPosition = anchoredPosition;
+            go.GetComponent<Image>().color = color;
+
+            var textGo = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            textGo.transform.SetParent(go.transform, false);
+            var text = textGo.GetComponent<Text>();
+            text.font = font;
+            text.fontSize = 18;
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.text = label;
+            var textRect = (RectTransform)textGo.transform;
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            return go.GetComponent<Button>();
         }
 
         public void ShowMainPage()

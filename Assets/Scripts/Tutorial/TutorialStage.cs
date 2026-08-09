@@ -6,9 +6,11 @@ namespace Tutorial
     public enum TutorialStage
     {
         Movement,
+        Emote,
         Jump,
         Dash,
         LightAttack,
+        Reload,
         HeavyAttack,
         Items,
         Overview,

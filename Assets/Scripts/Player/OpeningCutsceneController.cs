@@ -111,6 +111,12 @@ namespace Player
             EnsureVelocityCurves();
         }
 
+        // Async-loaded scenes (SceneTransitionController) can mark AsyncOperation.isDone before
+        // every object's own Start() coroutine has actually run, so a single resolve attempt on
+        // the very first frame can race the LandingBase/PlayerRig/etc. still finishing their own
+        // setup. Retry across a couple seconds instead of giving up after one try.
+        private const float ResolveRetryTimeout = 2f;
+
         private IEnumerator Start()
         {
             if (!playOnStart)
@@ -118,13 +124,20 @@ namespace Player
                 yield break;
             }
 
-            if (!ResolveReferences())
+            float resolveElapsed = 0f;
+            while (!ResolveReferences())
             {
-                Debug.LogWarning(
-                    $"{nameof(OpeningCutsceneController)} could not resolve the planet, base, " +
-                    "player, camera, and HUD references. The opening was skipped.",
-                    this);
-                yield break;
+                resolveElapsed += Time.unscaledDeltaTime;
+                if (resolveElapsed >= ResolveRetryTimeout)
+                {
+                    Debug.LogWarning(
+                        $"{nameof(OpeningCutsceneController)} could not resolve the planet, base, " +
+                        "player, camera, and HUD references. The opening was skipped.",
+                        this);
+                    yield break;
+                }
+
+                yield return null;
             }
 
             try
@@ -134,11 +147,14 @@ namespace Player
                 {
                     Debug.Log("Opening cutscene: press Escape or Space to skip.", this);
                 }
+                if (allowSkip) Player.UI.CutsceneSkipPromptUI.Show();
 
                 yield return PlaySequence();
             }
             finally
             {
+                Player.UI.CutsceneSkipPromptUI.Hide();
+
                 if (!_completed)
                 {
                     if (CanRestoreCutsceneState())
