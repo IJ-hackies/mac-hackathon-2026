@@ -24,6 +24,7 @@ namespace Tutorial
 
         public event System.Action LightHitLanded;
         public event System.Action HeavyHitLanded;
+        public event System.Action MeleeHitLanded;
 
         public void Configure(PlayerCombat combat)
         {
@@ -70,6 +71,15 @@ namespace Tutorial
         private void HandleTutorialHit(DamageType damageType)
         {
             health.FullyHeal();
+
+            // Melee is its own unambiguous DamageType (unlike light/heavy, which both tag
+            // Ranged) - no timing correlation needed, and checked first so a melee swing can't
+            // get misattributed to a stale light/heavy shot timestamp.
+            if (damageType == DamageType.Melee)
+            {
+                MeleeHitLanded?.Invoke();
+                return;
+            }
 
             bool heavy = _lastSecondaryTime >= _lastShotTime &&
                          Time.time - _lastSecondaryTime <= HitAttributionWindow;

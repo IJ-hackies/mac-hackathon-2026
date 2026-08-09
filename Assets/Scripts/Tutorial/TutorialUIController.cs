@@ -53,7 +53,7 @@ namespace Tutorial
 
         private static readonly string[] StageNames =
         {
-            "Movement", "Wave", "Jump", "Dash", "Light Attack", "Reload", "Heavy Attack",
+            "Movement", "Wave", "Jump", "Dash", "Light Attack", "Reload", "Heavy Attack", "Melee",
             "Power-Ups", "Overview", "Complete",
         };
 

@@ -46,6 +46,7 @@ namespace Audio
         UiClick,
         UiClose,
         UiToggle,
-        UiError
+        UiError,
+        CoinCollect
     }
 }
