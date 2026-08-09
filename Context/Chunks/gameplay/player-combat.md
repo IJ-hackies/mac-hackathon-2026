@@ -10,7 +10,7 @@ owns:
   - "Assets/Tests/EditMode/Player/PlayerCombatFireRateTests.cs*"
   - "Assets/Tests/EditMode/Player/SpecialCombatSkillTests.cs*"
 related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate, tutorial]
-verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 

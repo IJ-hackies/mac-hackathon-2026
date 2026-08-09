@@ -12,7 +12,7 @@ owns:
   - "Assets/Art/Materials/Tutorial/**"
   - "Assets/Art/Textures/ModularSciFi/**"
 related: [system, state, player-controller, player-combat, enemies, items, ultimate, progression, core-loop, world-authoring, main-menu]
-verifiedAtCommit: 73eb7d644468973196f17f4dc204b6653c5fb8dc
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 

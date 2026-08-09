@@ -14,7 +14,7 @@ owns:
   - "Assets/Scripts/UI/AmmoHudUI.cs*"
   - "Assets/Scripts/UI/ReloadIndicatorUI.cs*"
 related: [player-controller, player-combat, progression, wave-system, runtime-art, asset-library, state, ultimate]
-verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 

@@ -14,7 +14,7 @@ owns:
   - "Assets/Editor/Audio.meta"
   - "Assets/Editor/Audio/**"
 related: [asset-library, unity-project, main-menu, progression, player-controller, world-authoring, world-runtime, items, ultimate]
-verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
+verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
 lastVerified: 2026-08-09
 ---
 
