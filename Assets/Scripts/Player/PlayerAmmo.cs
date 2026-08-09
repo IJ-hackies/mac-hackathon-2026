@@ -123,7 +123,7 @@ namespace Player
             ReloadFinished?.Invoke();
         }
 
-        /// Used by AmmoPickup - fully tops up both the magazine and the storage reserve.
+        /// Fully tops up both the magazine and reserve for explicit full-refill effects.
         public void RefillFull()
         {
             if (_reloadRoutine != null)
@@ -137,6 +137,22 @@ namespace Player
             CurrentMagazine = magazineSize;
             CurrentStorage = maxStorage;
             AmmoChanged?.Invoke(CurrentMagazine, CurrentStorage);
+        }
+
+        /// <summary>
+        /// Restores up to <paramref name="amount"/> rounds to the reserve only. The active
+        /// magazine and any reload in progress are left unchanged.
+        /// </summary>
+        /// <returns>The number of reserve rounds actually restored after the capacity clamp.</returns>
+        public int RestoreReserve(int amount)
+        {
+            int availableCapacity = Mathf.Max(0, maxStorage - CurrentStorage);
+            int restored = Mathf.Min(Mathf.Max(0, amount), availableCapacity);
+            if (restored <= 0) return 0;
+
+            CurrentStorage += restored;
+            AmmoChanged?.Invoke(CurrentMagazine, CurrentStorage);
+            return restored;
         }
 
         /// <summary>

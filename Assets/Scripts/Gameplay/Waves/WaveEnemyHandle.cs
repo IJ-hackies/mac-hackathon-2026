@@ -18,7 +18,7 @@ namespace Gameplay.Waves
         [SerializeField] private Health health;
         [SerializeField] private EnemyBase enemy;
         [SerializeField] private bool inCombat;
-        [SerializeField, Min(0f)] private float aggroRadius = 20f;
+        [SerializeField, Min(0f)] private float aggroRadius = 40f;
         [SerializeField, Min(0f)] private float offscreenCombatGraceSeconds = 5f;
         public WaveEnemyType EnemyType => enemyType;
         public bool InCombat { get => inCombat; set { inCombat = value; if (value) _lastCombatActivityAt = Time.time; } }

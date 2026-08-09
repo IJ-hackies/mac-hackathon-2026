@@ -15,6 +15,7 @@ namespace GameplayEditor
         private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
         private const string PlanetRootName = "Planet Ground";
         private const string PerimeterPath = "Perimeter/Poles";
+        private const string EntrancePath = "Perimeter/Entrance";
         private const float DefaultExitPadding = 1.5f;
         private const float LandingBaseSpeedMultiplier = 2f;
 
@@ -146,6 +147,16 @@ namespace GameplayEditor
                     $"'{rootName}/{PerimeterPath}'.");
             }
 
+            Transform entrance = id == GameplayAreaId.LandingBase
+                ? null
+                : root.transform.Find(EntrancePath);
+            if (id != GameplayAreaId.LandingBase && entrance == null)
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay Area Setup requires an arena entrance anchor at " +
+                    $"'{rootName}/{EntrancePath}'.");
+            }
+
             GameplayArea area = root.GetComponent<GameplayArea>();
             if (area == null)
             {
@@ -153,7 +164,12 @@ namespace GameplayEditor
             }
 
             Undo.RecordObject(area, $"Configure {rootName} Gameplay Area");
-            area.Configure(id, planetCenter, poles, DefaultExitPadding);
+            area.Configure(
+                id,
+                planetCenter,
+                poles,
+                DefaultExitPadding,
+                entranceTransform: entrance);
             EditorUtility.SetDirty(area);
             return area;
         }
@@ -184,6 +200,22 @@ namespace GameplayEditor
                 }
 
                 byId.Add(area.AreaId, area);
+            }
+
+            foreach (GameplayAreaId arenaId in new[]
+                     {
+                         GameplayAreaId.Arena1,
+                         GameplayAreaId.Arena2
+                     })
+            {
+                if (byId.TryGetValue(arenaId, out GameplayArea arena) &&
+                    (arena.Entrance == null ||
+                     arena.Entrance != arena.transform.Find(EntrancePath)))
+                {
+                    throw new InvalidOperationException(
+                        $"Gameplay area '{arena.name}' does not reference its authored " +
+                        $"'{EntrancePath}' anchor.");
+                }
             }
 
             foreach (GameplayAreaId id in Enum.GetValues(typeof(GameplayAreaId)))

@@ -38,7 +38,7 @@ namespace Player
                  "gets its own, authored as a child of MechVisual so it scales/positions with it.")]
         [SerializeField] private Transform mechHeadAnchor;
 
-        [SerializeField] private float duration = 40f;
+        [SerializeField] private float duration = 20f;
         [SerializeField] private float mechScale = 1.4f;
         [Tooltip("Added to the camera's normal follow distance while the (larger) mech visual " +
                  "is active, so it doesn't fill the frame.")]

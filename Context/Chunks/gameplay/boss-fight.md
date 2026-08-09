@@ -16,7 +16,7 @@ owns:
   - "Assets/GabrielAguiarProductions/**"
   - "Assets/Lana Studio*"
 related: [enemies, wave-system, player-controller, player-combat, runtime-art, state, ultimate]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -53,7 +53,7 @@ Arena2's 3x wrapper scales each stage's authored movement/combat bands. See [wav
   `topDownHitRadius`.
   The balanced Mech chases at speed 9; its 80-round `Shoot_Small` burst uses
   base damage 3, becoming about 402 raw total at wave 10 after scaling.
-- **`BossFightController`**: four-phase cutscene on `Health.Died` - Linger ->
+- **`BossFightController`**: four-phase, Space/Escape-skippable cutscene with the shared persistent skip prompt on `Health.Died` - Linger ->
   Pan -> Grow (scale `0 -> (4,4,4)`) -> Reveal (mech ground-slam). Its camera
   framing, look rotations, orbit, shake, and reveal VFX use the mech's radial
   planet-surface frame and world target scale. Every pose is clamped outside

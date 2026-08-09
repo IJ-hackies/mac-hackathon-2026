@@ -82,10 +82,10 @@ namespace Player.UI.Progression
         {
             switch (value)
             {
-                case ProgressionStat.MaxHealth: return "+10 HP, then +5 more each level";
+                case ProgressionStat.MaxHealth: return "+20 HP, then +5 more each level";
                 case ProgressionStat.MovementSpeed: return "+3%, then +2 points each level";
                 case ProgressionStat.FireRate: return "+5%, then +2 points each level";
-                case ProgressionStat.ShootingDamage: return "+2 damage, then +2 each level";
+                case ProgressionStat.ShootingDamage: return "+4 damage, then +1 each level";
                 case ProgressionStat.MeleeDamage: return "+3 damage, then +3 each level";
                 case ProgressionStat.Defense: return "+2%, then +1 point each level";
                 default: return "Magazine +2/+3/...  Reserve +5/+10/...";

@@ -369,6 +369,7 @@ namespace WorldEditor
                 }
 
                 EditorUtility.SetDirty(generatedRoot);
+                PlanetPropBakeTool.ClearBakedCategory(scene, GeneratedRootName);
                 EditorSceneManager.MarkSceneDirty(scene);
                 Selection.activeGameObject = generatedRoot;
                 Undo.CollapseUndoOperations(undoGroup);

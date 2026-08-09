@@ -43,7 +43,7 @@ namespace Enemies
 
         [Header("Wave Runtime")]
         [Tooltip("Ordinary wave enemies remain passive until the player enters this radius. Bosses override this to start aggroed.")]
-        [SerializeField, Min(0f)] private float detectionRadius = 20f;
+        [SerializeField, Min(0f)] private float detectionRadius = 40f;
         [Tooltip("The actual crater/planet collider. Leaving this empty auto-discovers the active object named Planet Ground; no such object keeps the flat sandbox behaviour.")]
         [SerializeField] private Collider planetGround;
         [SerializeField] private Transform planetCenter;

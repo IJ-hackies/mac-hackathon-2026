@@ -361,7 +361,7 @@ MonoBehaviour:
   animatorRelay: {fileID: 4881924321977490226}
   emoteController: {fileID: 5360215090925705334}
   mechHeadAnchor: {fileID: 2025055442705454183}
-  duration: 40
+  duration: 20
   mechScale: 1.4
   cameraExtraDistance: 3
   cameraExtraHeight: 1

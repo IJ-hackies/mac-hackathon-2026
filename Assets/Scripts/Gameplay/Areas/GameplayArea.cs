@@ -7,6 +7,7 @@ namespace Gameplay.Areas
     public sealed class GameplayArea : MonoBehaviour
     {
         private const string DefaultPerimeterPath = "Perimeter/Poles";
+        private const string DefaultEntrancePath = "Perimeter/Entrance";
         private const string DefaultPlanetName = "Planet Ground";
 
         [Header("Identity")]
@@ -16,6 +17,7 @@ namespace Gameplay.Areas
         [Header("Perimeter")]
         [SerializeField] private Transform planetCenter;
         [SerializeField] private Transform perimeterPoles;
+        [SerializeField] private Transform entrance;
         [SerializeField, Min(0f)] private float exitPaddingWorldUnits = 1.5f;
 
         private SphericalPerimeterPolygon _perimeter;
@@ -25,6 +27,7 @@ namespace Gameplay.Areas
         public int Priority => priority;
         public Transform PlanetCenter => planetCenter;
         public Transform PerimeterPoles => perimeterPoles;
+        public Transform Entrance => entrance;
         public float ExitPaddingWorldUnits => exitPaddingWorldUnits;
         public bool IsValid => _perimeter != null;
         public string ValidationError => _validationError;
@@ -62,11 +65,13 @@ namespace Gameplay.Areas
             Transform planetCenterTransform,
             Transform perimeterPoleRoot,
             float exitPadding,
-            int overlapPriority = 0)
+            int overlapPriority = 0,
+            Transform entranceTransform = null)
         {
             areaId = id;
             planetCenter = planetCenterTransform;
             perimeterPoles = perimeterPoleRoot;
+            entrance = entranceTransform;
             exitPaddingWorldUnits = Mathf.Max(0f, exitPadding);
             priority = overlapPriority;
             RebuildPerimeter();
@@ -127,6 +132,7 @@ namespace Gameplay.Areas
         private void ResolveDefaults()
         {
             perimeterPoles = transform.Find(DefaultPerimeterPath);
+            entrance = transform.Find(DefaultEntrancePath);
             GameObject planet = GameObject.Find(DefaultPlanetName);
             planetCenter = planet != null ? planet.transform : null;
 
