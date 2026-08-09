@@ -55,7 +55,7 @@ namespace AudioEditor
                 new Row(SfxId.PlayerShootSecondary, $"{SfxRoot}/Weapons/laserLarge_002.ogg", AudioCategory.Weapons, 0.7f, 0.97f, 1.03f, 4),
                 new Row(SfxId.PlayerMelee, $"{SfxRoot}/Weapons/kick.wav", AudioCategory.Weapons, 0.85f, 0.95f, 1.05f, 3),
                 new Row(SfxId.PlayerHitReact, $"{SfxRoot}/Impacts/footstep_carpet_001.ogg", AudioCategory.Impacts, 0.55f, 0.9f, 1.1f, 3),
-                new Row(SfxId.PlayerFootstep, $"{SfxRoot}/Movement/impactMetal_001.ogg", AudioCategory.Movement, 0.2432f, 0.9f, 1.1f, 2),
+                new Row(SfxId.PlayerFootstep, $"{SfxRoot}/Movement/impactMetal_001.ogg", AudioCategory.Movement, 0.19456f, 0.9f, 1.1f, 2),
                 new Row(SfxId.PlayerDash, $"{SfxRoot}/Movement/footstep_grass_000.ogg", AudioCategory.Movement, 0.4f, 1f, 1f, 2),
                 new Row(SfxId.PlayerJump, $"{SfxRoot}/Movement/whoosh_1.wav", AudioCategory.Movement, 0.55f, 0.95f, 1.05f, 1),
                 new Row(SfxId.PlayerLand, $"{SfxRoot}/Impacts/impactSoft_medium_000.ogg", AudioCategory.Impacts, 0.44f, 0.9f, 1.05f, 1),

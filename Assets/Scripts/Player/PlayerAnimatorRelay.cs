@@ -13,16 +13,9 @@ namespace Player
         [SerializeField] private Animator animator;
         [SerializeField] private float speedDampTime = 0.1f;
 
-        [Header("Footsteps")]
-        [Tooltip("Step interval at a walking NormalizedSpeed (~0) - blends down toward " +
-                 "footstepIntervalRun as speed rises toward 1.")]
-        [SerializeField] private float footstepIntervalWalk = 0.35f;
-        [SerializeField] private float footstepIntervalRun = 0.22f;
-
         [SerializeField] private PlayerUltimate playerUltimate;
 
         private PlayerController _controller;
-        private float _nextFootstepTime;
         private bool _wasGrounded;
         private bool _groundStateInitialized;
         private bool _hasJumpParam;
@@ -36,6 +29,22 @@ namespace Player
             }
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
             _hasJumpParam = AnimatorHasParameter(animator, JumpParam);
+            EnsureFootstepEventReceiver();
+        }
+
+        // Footsteps are triggered by "PlayFootstep" Animation Events authored directly on the
+        // walk/run clips (see Assets/Editor/Player/PlayerFootstepEventsSetup.cs) so they land
+        // exactly when each foot's contact frame plays, instead of a speed-scaled timer
+        // approximating the cadence and drifting out of sync with the actual animation. Unity
+        // delivers Animation Events via SendMessage on the Animator's own GameObject, not
+        // upwards to this component's GameObject, so the receiver has to live there instead.
+        private void EnsureFootstepEventReceiver()
+        {
+            if (animator == null) return;
+            if (animator.GetComponent<PlayerFootstepAnimationEvents>() == null)
+            {
+                animator.gameObject.AddComponent<PlayerFootstepAnimationEvents>();
+            }
         }
 
         private static bool AnimatorHasParameter(Animator target, int paramHash)
@@ -57,6 +66,7 @@ namespace Player
         {
             animator = target;
             _hasJumpParam = AnimatorHasParameter(animator, JumpParam);
+            EnsureFootstepEventReceiver();
         }
 
         private void Update()
@@ -80,31 +90,6 @@ namespace Player
             }
             _wasGrounded = _controller.IsGrounded;
             _groundStateInitialized = true;
-
-            UpdateFootsteps();
-        }
-
-        private void UpdateFootsteps()
-        {
-            float normalizedSpeed = Mathf.Clamp01(_controller.NormalizedSpeed);
-            bool moving = _controller.IsGrounded && normalizedSpeed > 0.05f;
-
-            if (!moving)
-            {
-                // Re-arm immediately on the next step after stopping, rather than waiting out
-                // whatever fraction of the previous interval was left.
-                _nextFootstepTime = Time.time;
-                return;
-            }
-
-            if (Time.time < _nextFootstepTime) return;
-
-            float interval = Mathf.Lerp(footstepIntervalWalk, footstepIntervalRun, normalizedSpeed);
-            _nextFootstepTime = Time.time + interval;
-
-            // Player-controlled mech (ultimate) reuses the normal player footstep instead of the
-            // hydraulic mech-leg cues - those are reserved for the boss's mech (BossMechAI).
-            AudioManager.Instance.PlaySfx(SfxId.PlayerFootstep, transform.position);
         }
     }
 }

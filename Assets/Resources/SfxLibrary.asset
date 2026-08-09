@@ -52,7 +52,7 @@ MonoBehaviour:
   - id: 4
     clip: {fileID: 8300000, guid: 95bbf4ad1bde5464dae59772e857845c, type: 3}
     category: 2
-    volume: 0.2432
+    volume: 0.19456
     pitchMin: 0.9
     pitchMax: 1.1
     maxConcurrent: 2
