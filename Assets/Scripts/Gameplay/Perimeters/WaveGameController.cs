@@ -408,13 +408,13 @@ namespace Gameplay.Waves
         {
             ReleaseGameOverOwnership();
             Scene scene = SceneManager.GetActiveScene();
-            SceneManager.LoadScene(scene.buildIndex);
+            SceneTransitionController.LoadScene(scene.name);
         }
 
         private void ReturnToMainMenu()
         {
             ReleaseGameOverOwnership();
-            SceneManager.LoadScene("MainMenu");
+            SceneTransitionController.LoadScene("MainMenu");
         }
 
         private void ReleaseGameOverOwnership()
