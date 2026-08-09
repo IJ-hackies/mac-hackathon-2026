@@ -169,7 +169,7 @@ MonoBehaviour:
   surfaceGravityDegreesPerSecond: 120
   radialAlignmentDegreesPerSecond: 360
   jumpHeight: 4.2
-  gravityAcceleration: 6.5
+  gravityAcceleration: 7.5
   terminalFallSpeed: 30
   groundedStickSpeed: 2
   groundMask:

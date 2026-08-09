@@ -16,6 +16,7 @@ owns:
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/SettingsMenuController.cs*"
   - "Assets/Scripts/UI/CutsceneSkipPromptUI.cs*"
+  - "Assets/Scripts/UI/OpeningGuideController.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Art/Models/Characters/Player.prefab*"
   - "Assets/Prefabs/PlayerRig.prefab*"
@@ -51,7 +52,7 @@ mouse-look suspension while the emote wheel is open. The opening cutscene runs
 terminator-to-NAUT orbit/dolly, NAUT zoom, Wave, then collision-resolved handoff
 with input/HUD suspended. It raises URP shadow distance to 500 temporarily and
 requests all visible-face props, then restores Mobile's 50 shadow range and the
-normal 112.5-unit prop distance.
+normal 112.5-unit prop distance. Its completion event then hands SampleScene to a three-page, mouse-skippable field guide covering base stations, wave start, kill gold, and mandatory fifth-wave arenas before restoring the captured modal state.
 
 ## Key files
 
@@ -73,7 +74,7 @@ normal 112.5-unit prop distance.
   `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
 - `OpeningCutsceneController.cs` - radial/Bezier paths, NAUT framing, async-load retry,
   shared skip prompt, rendering overrides, and safe handoff in `SampleScene`.
-  Its completion state and fixed capture step support [promo-video](../development/promo-video.md) without changing playback.
+  Its completion event opens `OpeningGuideController`; its completion state and fixed capture step support [promo-video](../development/promo-video.md) without changing playback. The guide builds a separate overlay from five `Assets/Art/helper` screenshots and cache-restores movement, combat, abilities, camera/emote input, settings/station interaction, time scale, crosshair, cursor, and EventSystem selection.
 - `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
   and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
   jump, or attack interrupts it. `Configure(labels)` rebuilds for three labels,
@@ -145,6 +146,5 @@ normal 112.5-unit prop distance.
   override before `Start`; `Time.captureFramerate` alone cannot fix unscaled time.
 
 ## How to extend
-
 Keep input ownership local and PC-only; do not add player-index or multiplayer
 authority branches without reopening scope. Extend combat via [player-combat](player-combat.md).

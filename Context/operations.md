@@ -150,6 +150,10 @@ Its planet-wide opening now temporarily bypasses only the instanced-prop distanc
 cull while keeping frustum and horizon culling; runtime and WorldRuntime test
 projects compile with zero warnings/errors. A fixed-step 1080p promo capture
 visually verified the orbit, NAUT reveal, Wave, and gameplay-camera handoff.
+SampleScene's post-cutscene opening guide runtime and Player test sources also
+compile with zero errors against the current Unity Bee compiler responses. Its
+scene/image/WebGL dependency contracts pass; a refreshed-editor Play-mode visual
+smoke of all three pages remains pending.
 
 Promo frame capture is available under `Tools > Promo Video` for the starting
 cutscene, space float, empty-planet emotes, and entity rave. The verified output
