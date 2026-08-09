@@ -14,7 +14,7 @@ owns:
   - "Assets/Scripts/UI/AmmoHudUI.cs*"
   - "Assets/Scripts/UI/ReloadIndicatorUI.cs*"
 related: [player-controller, player-combat, progression, wave-system, runtime-art, asset-library, state, ultimate]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -32,8 +32,9 @@ player before destroying itself. `HealthPickup`/`AmmoPickup` implement
 [ultimate](ultimate.md)) via `Player.PlayerUltimate.ActivateUltimate()` and
 no longer overrides `CollectibleOnContact`.
 
-The pickup payloads remain full heal, full magazine+reserve refill, and a full
-40-second Ultimate refresh. Their special-skill allocation is owned by
+The pickup payloads are a clamped 50-HP heal, two current magazines added to
+reserve without changing the loaded magazine, and a full 20-second Ultimate
+refresh. Their special-skill allocation is owned by
 [wave-system](wave-system.md): regular waves may place 15 Health and 10 Ammo
 pickups around the valid globe outside protected areas, while arena combat may
 place one Thunder at the arena center. Those allocations are cleaned up with

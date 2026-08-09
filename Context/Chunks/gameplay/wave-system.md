@@ -15,7 +15,7 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
 related: [system, state, core-loop, gameplay-areas, progression, enemies, boss-fight, player-controller, items, ultimate, unity-project]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -24,8 +24,8 @@ lastVerified: 2026-08-09
 `WaveDirector` owns one endless run: intermission, regular wave, arena travel,
 arena seal/countdown, arena combat, and game over. `WaveGameController` owns
 the rebindable one-second StartWave hold, protected-area tracking, UI, barrier
-presentation, the intermission-only base recall, scene restart, and main-menu
-return. `Tools > Waves > Configure
+presentation, the intermission-only base recall, and circle-wipe scene restart/
+main-menu return. `Tools > Waves > Configure
 Complete Wave Loop` idempotently wires the prefab and SampleScene; validation
 checks serialized references without changing gameplay.
 The isolated Wave UI rebuild also rewires its six prefab-local controller view
@@ -49,7 +49,7 @@ and base-recall pose when re-enabled after an Editor assembly reload.
 - Regular enemies spawn off-camera near the player at 24-45 surface units,
   clear all area perimeters and physical terrain props using the prospective
   hierarchy's 3x non-trigger collider/`CharacterController` footprint, remain
-  separated from live enemy footprints, detect at 20 units, and retain aggro.
+  separated from live enemy footprints, detect at 40 units, and retain aggro.
   Unsafe samples retry without consuming the spawn request. Off-screen enemies
   farther than 90 units become recyclable after five seconds.
 - Every directly instantiated wave enemy keeps its authored proportions at 3x
@@ -70,16 +70,21 @@ and base-recall pose when re-enabled after an Editor assembly reload.
 - Starting a boss wave locks the base and non-target arena and shows a HUD
   marker. Entering the target seals its perimeter, plays a three-second sweep,
   then starts combat. The target remains locked until completion.
-- Arena travel guidance uses the surface great-circle tangent as a local
-  camera-relative compass bearing. It stays continuous as a target passes
-  behind the camera, retains its chosen route through a 170-to-165-degree
-  antipodal hysteresis band, and refreshes after the gameplay camera.
-- Regular-enemy health scales +10% per wave; Barbara health scales +15% per
-  wave. Both are uncapped. Damage scales +7.5% per wave without a cap. Movement
-  scales +1.5% capped at 2x; attack rate and projectile speed +2% capped at 2x.
-- Small/Flying/Large pay 20/25/30g. Kill rewards add 10% of base per wave,
-  reaching 2x at wave 11 and the 3x cap at wave 21. Arena1 completion pays
-  100g and Arena2 300g; its separate +5%-per-wave multiplier caps at 3x.
+- Arena travel guidance targets each arena's authored `Perimeter/Entrance`
+  anchor at the omitted wall-sheet span, then uses the surface great-circle
+  tangent as a local camera-relative compass bearing. It stays continuous as a
+  target passes behind the camera, retains its chosen route through a
+  170-to-165-degree antipodal hysteresis band, and refreshes after the gameplay
+  camera.
+- With `n = max(0, wave - 1)`, regular-enemy health uses
+  `.10n + 1.05^n` and damage uses `.075n + 1.03^n`; both are uncapped.
+  Barbara retains her separate uncapped `1 + .15n` health curve. Movement
+  remains `1 + .015n` capped at 2x; attack rate and projectile speed remain
+  `1 + .02n` capped at 2x.
+- Small/Flying/Large pay 20/25/30g through
+  `min(1 + ln(max(1, n)), 4)`: waves 1-2 remain at base and the 4x cap starts
+  at wave 22. Arena1 completion pays 200g and Arena2 400g; their separate
+  `1 + .05n` multiplier remains capped at 3x.
   Barbara pays only on final completion. Fortune adds 15% to each regular-wave
   kill award; Fortune II independently adds 15% to every arena kill and
   completion award, with normal per-award integer rounding.
@@ -91,6 +96,10 @@ and base-recall pose when re-enabled after an Editor assembly reload.
   radial center of each arena fight and uses the same cleanup lifecycle.
 - Player death wins same-frame ties. Game over shows wave reached, kills, gold
   earned, and duration; restart reloads SampleScene and replays the opening.
+- The intermission prompt occupies the top-center safe area. Inside a protected
+  area it shows only the leave-area warning; outside it shows the larger
+  `HOLD <binding> TO START WAVE` affordance and switches to percentage feedback
+  while the StartWave binding is held.
 - The persistent wave readout is a transparent bottom-right stack: timer and
   progress line, wave number, then state text. The prefab setup validator keeps
   that corner anchor and vertical order stable across generated UI rebuilds.
@@ -126,5 +135,9 @@ and base-recall pose when re-enabled after an Editor assembly reload.
 - Project arena bearings through the player's radial tangent plane. A raw
   behind-camera screen projection flips at 90 degrees, while an unstabilized
   shortest great-circle tangent flips when the player crosses an antipode.
+- Arena poles are evenly spaced, so their geometry cannot identify the visual
+  entrance. Keep the explicit entrance anchors aligned with the omitted
+  wall-sheet spans; center averaging is only a compatibility fallback when an
+  anchor is absent.
 - Enemy pickup drops, score, local best, and online leaderboard remain absent;
   special-skill pickups are deliberate wave/arena allocations, not enemy drops.

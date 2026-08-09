@@ -4,17 +4,20 @@ title: Audio and visual source asset packs
 owns:
   - "asset packs/**"
 related: [system, runtime-art]
-verifiedAtCommit: 262413a1cda18eaed7a50511bb0aa8f10bcb533a
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
 ## What this is
 
-The repository currently carries seven third-party source packs:
+The repository currently carries eleven third-party source-pack directories:
 
-- Audio: Kenney Impact Sounds, Interface Sounds, and Sci-Fi Sounds.
-- Visuals: Cartoon UI, Space Expansion UI, Modular SciFi MegaKit Standard,
-  and Ultimate Space Kit.
+- Audio: 400 Sounds Pack; Kenney Impact Sounds, Interface Sounds, and Sci-Fi
+  Sounds; Shapeforms Audio Free Sound Effects; and Space Music Pack.
+- Visuals: Cartoon UI, JDSherbert Sci-Fi UI SFX Pack, Space Expansion UI,
+  Modular SciFi MegaKit Standard, and Ultimate Space Kit.
+
+The audio source root also contains one separately sourced freesound heal clip.
 
 The library contains OGG audio plus source and interchange 3D formats including
 Blend, FBX, glTF, OBJ/MTL, textures, and preview images. These files remain the

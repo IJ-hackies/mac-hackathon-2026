@@ -3,7 +3,7 @@ chunk: system
 title: Project identity and current architecture
 owns: []
 related: [control-model, core-loop, wave-system, progression, gameplay-areas, asset-library, runtime-art, unity-project, main-menu, world-authoring, world-runtime, git-collaboration, player-controller, tutorial]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -22,8 +22,9 @@ The project is at early bootstrap stage. The repository root is a Unity
 `6000.3.10f1` Universal 3D project using Universal Render Pipeline `17.3.0` and
 Input System `1.18.0`. WebGL with WebGL2 is the confirmed publication target;
 the build/deployment pipeline has not been selected. The build starts in a
-dedicated mission-console menu with Singleplayer and shared settings, including
-one persisted keyboard/mouse rebind map shared with the in-game pause console.
+dedicated mission-console menu with Singleplayer, Tutorial, Settings, and Quit.
+Scene changes use a persistent circle wipe. One persisted keyboard/mouse rebind
+map is shared with the in-game pause console.
 During wave intermissions, that pause console can also
 recall the astronaut to the authored base spawn. SampleScene now contains the endless tiered-duration wave
 director, planet-surface enemy spawning, protected-area locks, alternating
@@ -51,12 +52,13 @@ The landing crater is now dressed with a project-owned `LandingBase` hierarchy:
 curated structure instances, a pole-and-curved-sheet perimeter with an explicit
 opening, and decoration. This is authored environment art rather than a base
 gameplay or construction system. The rest of the authored crater shell carries
-16,000 oversized orange/dark-orange vegetation instances plus 800 small and
-300 large clustered, collidable rocks; all three walled gameplay areas remain
-clear of rock generation. At runtime, the generated vegetation and rock
-renderers are regrouped into spherical sectors for WebGL2 GPU instancing,
-distance, frustum, and horizon culling. Their source objects and rock colliders
-remain present, while the landing base and arenas stay outside this prop system.
+compact baked data for 16,000 oversized orange/dark-orange vegetation instances
+plus 800 small and 300 large clustered rocks; all three walled gameplay areas
+remain clear of rock generation. At runtime, those records are regrouped into
+spherical sectors for WebGL2 GPU instancing, distance, frustum, and horizon
+culling. Vegetation authoring objects are absent from the runtime scene. The
+1,100 rock objects retain only their static mesh colliders; the landing base and
+arenas stay outside this prop system.
 
 The landing base and both arenas now have reusable gameplay-area membership
 derived from their authored perimeter poles. One tracker follows the
@@ -68,8 +70,9 @@ The LandingBase now also has a run-scoped economy starting at 100g. `Base_Large`
 `GeodesicDome`, and `SolarPanel_Structure` host supply, stat-upgrade, and
 Hold-to-Fire consoles with pause-safe interaction UI; see [progression].
 
-`Tutorial.unity` is a hand-authored, gated onboarding path for movement,
-combat, pickups, Ultimate/Shield, base stations, and the wave loop; see
+`Tutorial.unity` is an enabled build scene with a skippable hand-framed opening
+and a hand-authored, gated onboarding path for movement, combat, pickups,
+Ultimate/Shield, base stations, and the wave loop; see
 [tutorial](gameplay/tutorial.md).
 
 A separate `Player.unity` prototype scene (not yet merged into the planet

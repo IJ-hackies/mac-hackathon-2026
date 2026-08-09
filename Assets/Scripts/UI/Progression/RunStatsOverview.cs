@@ -69,19 +69,20 @@ namespace Player.UI.Progression
                 ProgressionStat stat = Stats[index];
                 int level = progression != null ? progression.GetLevel(stat) : 1;
                 float value = progression != null ? progression.GetPurchasedValue(stat) : 0f;
-                statRows[index].text = stat == ProgressionStat.MaxAmmo
-                    ? Label(stat) + "  LV " + level + "  MAG " + Mathf.RoundToInt(value) + " / RES " +
-                      (progression != null ? progression.GetReserveCapacityAtLevel(level) : 0)
-                    : Label(stat) + "  LV " + level + "  " + Format(stat, value);
+                int reserveCapacity = progression != null ? progression.GetReserveCapacityAtLevel(level) : 0;
+                statRows[index].text = FormatStatRow(stat, level, value, reserveCapacity);
             }
             if (healthRow != null && health != null)
             {
-                healthRow.text = "HP  " + Mathf.CeilToInt(health.CurrentHealth) + " / " + Mathf.CeilToInt(health.MaxHealth);
+                healthRow.text = "CURRENT HEALTH\n<size=22><color=#8BF0BD>" +
+                                 Mathf.CeilToInt(health.CurrentHealth) + " / " +
+                                 Mathf.CeilToInt(health.MaxHealth) + " HP</color></size>";
             }
             if (ammoRow != null && ammo != null)
             {
-                ammoRow.text = ammo.InfiniteAmmo ? "AMMO  INF" :
-                    "AMMO  " + ammo.CurrentMagazine + " / " + ammo.CurrentStorage;
+                ammoRow.text = "CURRENT AMMO\n<size=22><color=#88C8FF>" +
+                               (ammo.InfiniteAmmo ? "INFINITE" : ammo.CurrentMagazine + " / " + ammo.CurrentStorage) +
+                               "</color></size>";
             }
             if (skillsRow != null)
             {
@@ -93,9 +94,9 @@ namespace Player.UI.Progression
                         if (progression.OwnsSpecial(definition.Skill)) ownedNames.Add(definition.Title);
                     }
                 }
-                skillsRow.text = ownedNames.Count == 0
-                    ? "OWNED SKILLS  NONE"
-                    : "OWNED SKILLS  " + string.Join(", ", ownedNames);
+                skillsRow.text = "INSTALLED SYSTEMS\n<size=16><color=#FFC86B>" +
+                                 (ownedNames.Count == 0 ? "NONE" : string.Join("   /   ", ownedNames)) +
+                                 "</color></size>";
             }
         }
 
@@ -108,16 +109,25 @@ namespace Player.UI.Progression
             if (settingsMenu == null) settingsMenu = FindFirstObjectByType<global::Player.UI.SettingsMenuController>();
         }
 
+        private static string FormatStatRow(ProgressionStat stat, int level, float value, int reserveCapacity)
+        {
+            string formattedValue = stat == ProgressionStat.MaxAmmo
+                ? "MAG " + Mathf.RoundToInt(value) + "   RES " + reserveCapacity
+                : Format(stat, value);
+            return Label(stat) + "\n<size=14><color=#718BA2>LEVEL " + level.ToString("00") +
+                   "</color></size>   <color=#DDF7FF>" + formattedValue + "</color>";
+        }
+
         private static string Label(ProgressionStat stat)
         {
             switch (stat)
             {
-                case ProgressionStat.MaxHealth: return "MAX HP";
-                case ProgressionStat.MovementSpeed: return "MOVE";
+                case ProgressionStat.MaxHealth: return "MAX HEALTH";
+                case ProgressionStat.MovementSpeed: return "MOVE SPEED";
                 case ProgressionStat.FireRate: return "FIRE RATE";
-                case ProgressionStat.ShootingDamage: return "SHOT DMG";
-                case ProgressionStat.MeleeDamage: return "MELEE DMG";
-                case ProgressionStat.MaxAmmo: return "MAX AMMO";
+                case ProgressionStat.ShootingDamage: return "SHOT DAMAGE";
+                case ProgressionStat.MeleeDamage: return "MELEE DAMAGE";
+                case ProgressionStat.MaxAmmo: return "AMMO CAPACITY";
                 default: return "DEFENSE";
             }
         }

@@ -13,7 +13,7 @@ namespace Player.UI.Waves
         [SerializeField] private Text messageText;
         [SerializeField] private Text holdText;
         [SerializeField] private Image holdFill;
-        [SerializeField] private string holdMessage = "HOLD F TO START NEXT WAVE";
+        [SerializeField] private string holdMessage = "HOLD F TO START WAVE";
         [SerializeField] private string leaveProtectedMessage = "LEAVE PROTECTED AREA TO START NEXT WAVE";
 
         private string _bindingLabel = "F";
@@ -50,11 +50,16 @@ namespace Player.UI.Waves
             _startAllowed = allowed;
             if (messageText != null)
             {
-                messageText.text = allowed ? holdMessage : leaveProtectedMessage;
+                messageText.text = leaveProtectedMessage;
+                messageText.gameObject.SetActive(!allowed);
             }
 
             if (holdText != null) holdText.gameObject.SetActive(allowed);
-            if (holdFill != null) holdFill.gameObject.SetActive(allowed);
+            if (holdFill != null)
+            {
+                Transform track = holdFill.transform.parent;
+                (track != null ? track.gameObject : holdFill.gameObject).SetActive(allowed);
+            }
             if (!allowed) SetHoldProgress(0f, false);
         }
 
@@ -65,8 +70,7 @@ namespace Player.UI.Waves
         public void SetBindingLabel(string bindingLabel)
         {
             _bindingLabel = string.IsNullOrWhiteSpace(bindingLabel) ? "F" : bindingLabel.Trim().ToUpperInvariant();
-            holdMessage = "HOLD " + _bindingLabel + " TO START NEXT WAVE";
-            if (_startAllowed && messageText != null) messageText.text = holdMessage;
+            holdMessage = "HOLD " + _bindingLabel + " TO START WAVE";
             SetHoldProgress(_holdProgress, _isHolding);
         }
 
@@ -85,7 +89,7 @@ namespace Player.UI.Waves
             {
                 holdText.text = holding
                     ? $"{_bindingLabel}  {Mathf.RoundToInt(progress * 100f)}%"
-                    : $"HOLD {_bindingLabel}  1.0s";
+                    : holdMessage;
             }
         }
     }

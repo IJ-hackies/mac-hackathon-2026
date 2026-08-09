@@ -15,7 +15,7 @@ owns:
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Scenes/SampleScene.unity*"
 related: [system, state, core-loop, wave-system, progression, player-controller, unity-project, world-authoring]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -24,7 +24,9 @@ lastVerified: 2026-08-09
 `LandingBase`, `Arena1`, and `Arena2` expose reusable runtime membership. Each
 scene root owns a `GameplayArea` whose boundary comes from its direct
 `Perimeter/Poles` children. No radius, physics trigger, or center marker defines
-gameplay membership. The first consumer doubles locomotion inside LandingBase.
+gameplay membership. Arena1 and Arena2 additionally expose an authored
+`Perimeter/Entrance` anchor for wave-travel guidance; it does not affect
+membership. The first consumer doubles locomotion inside LandingBase.
 
 `PlayerRig.prefab` owns one `PlayerAreaTracker` that follows the nested shared
 astronaut body. It discovers active areas when its serialized list is empty and
@@ -45,7 +47,7 @@ structure markers; they do not alter or reuse perimeter membership geometry.
 ## Key files
 
 - `GameplayArea.cs` - area identity, overlap priority, perimeter cache,
-  1.5-unit exit padding, validation, and scene gizmos.
+  arena entrance reference, 1.5-unit exit padding, validation, and scene gizmos.
 - `SphericalPerimeterPolygon.cs` - runtime-only gnomonic projection, angular
   pole sorting, point-in-polygon membership, and outward boundary padding.
 - `PlayerAreaTracker.cs` - shared-body evaluation, deterministic overlap
@@ -82,11 +84,13 @@ structure markers; they do not alter or reuse perimeter membership geometry.
 their own `Perimeter/Poles` roots. The checked-in rings currently contain 27
 landing-base poles and 17 poles in each arena. `PlayerRig.prefab` tracks its
 nested Player transform, discovers these scene areas at startup, and carries
-the one 2x landing-base speed consumer.
+the one 2x landing-base speed consumer. Both arenas also reference explicit
+`Perimeter/Entrance` children placed at their unfilled curved-wall spans.
 
 Use `Tools > Gameplay > Configure Area Membership` (`Ctrl+Shift+G`) to repair
 or explicitly wire the active scene, then `Validate Area Membership` to check
-the three unique areas and shared-body tracker. Configuration saves the scene.
+the three unique areas, both arena entrance anchors, and shared-body tracker.
+Configuration saves the scene.
 
 ## Gotchas
 

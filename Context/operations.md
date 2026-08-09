@@ -12,8 +12,8 @@ projectRoot: ./
 The repository root is also the Unity project root; open
 `mac-hackathon-2026/` directly in Unity Hub. It uses the Universal Render
 Pipeline with separate template PC and mobile renderer assets, Force Text asset
-serialization, and the new Input System. `Assets/Scenes/MainMenu.unity` and
-`SampleScene.unity` are enabled build scenes 0 and 1.
+serialization, and the new Input System. `Assets/Scenes/MainMenu.unity`,
+`SampleScene.unity`, and `Tutorial.unity` are enabled build scenes 0, 1, and 2.
 
 WebGL with WebGL2 is the confirmed publication target, but no repeatable
 project-level WebGL build, browser test, or deployment command has been
@@ -45,8 +45,8 @@ Scene` command for that repair.
 
 The serialized MainMenu scene, PlayerRig settings console, and Progression UI/
 station layouts are authoritative. Their former broad rebuild/configure tools
-were removed because they could overwrite hand-authored work. MainMenu remains
-Singleplayer-only at build index 0, with SampleScene at index 1. Use targeted
+were removed because they could overwrite hand-authored work. MainMenu stays at
+build index 0, with SampleScene at 1 and Tutorial at 2. Use targeted
 tools for repairs and previews. `Configure PC-Only Input` retains only the
 Keyboard&Mouse scheme and regenerates `InputSystem_Actions.cs`;
 `PcUiInputBinding` replaces Unity's cross-platform default menu actions.
@@ -70,10 +70,13 @@ Ultimate without rebuilding unrelated prefab UI. During this merge all four
 refreshes and the return-button addition completed successfully in Unity.
 
 `dotnet build Progression.Contracts.Tests.csproj --no-restore` is the current
-compile-only progression check. The Special System viewport must retain
-`RectMask2D`; a sprite-less `Image + Mask` hides its cards. Previous live QA
-verified supply, purchases, upgrade effects, Tab overview, and in-range `E`
-opening. Run the EditMode assembly in Unity for execution coverage.
+compile-only progression check. Its balance contracts cover the 460-HP and
+87-pistol-damage Archive endpoints plus the 400g/600g/800g pickup-skill prices.
+All three station catalogs use `RectMask2D`
+viewports and `SmoothStationScrollRect`; its wheel impulses decay through
+ScrollRect's unscaled-time inertia while station menus pause gameplay. Previous
+live QA verified supply, purchases, upgrade effects, Tab overview, and in-range
+`E` opening. Run the EditMode assembly in Unity for execution coverage.
 
 `Tools > Waves > Configure Complete Wave Loop` idempotently rebuilds only the
 PlayerRig `HUD Canvas/Wave UI` subtree, attaches the progression adapter, wires
@@ -86,7 +89,8 @@ The current top-center arena objective and Barbara HP-bar rebuild passes
 checks. The standalone rebuild also reconnects all six `WaveGameController` UI
 references before saving the prefab. Arena navigation now has compiled EditMode
 coverage for cardinal camera-relative bearings, continuity across the rear-camera
-seam, and retained great-circle direction through the antipodal hysteresis band.
+seam, retained great-circle direction through the antipodal hysteresis band,
+and preference for each arena's authored entrance over its perimeter center.
 
 Wave contracts compile with `dotnet build Waves.Tests.csproj --no-restore`.
 The current SampleScene wave configurator validation also confirms non-null
@@ -94,10 +98,12 @@ Health, Ammo, and Thunder pickup prefabs. Compile-only coverage now includes
 the 15/10 pickup allocation and scene references; the player tests cover actual
 fourth-round double damage plus explosive direct-target exclusion and Vampire
 healing from actual splash damage.
-The balance boundary coverage includes 30/25/20-second duration tiers, 2x/3x
-kill-gold milestones, the 2x movement cap, enemy prefab base stats, Barbara
-Stage 1's 300 base/705 wave-10 HP under Barbara's dedicated +15%-per-wave
-health curve, and the approximately 402-damage wave-10 small burst. Spawn-safety coverage
+The balance boundary coverage includes 30/25/20-second duration tiers, the
+natural-log kill-gold curve and 4x cap, 200g/400g arena bases, hybrid
+regular-enemy HP/damage curves, the unchanged 2x movement cap, 40-unit
+regular-enemy aggro, enemy prefab base stats, Barbara Stage 1's 300 base/705
+wave-10 HP under her dedicated +15%-per-wave health curve, and the approximately
+475.15-damage wave-10 small burst. Spawn-safety coverage
 also checks full 3x physical footprints and that arena surface selection ignores
 closer props in favor of the configured planet hierarchy even when boundary poles
 are far above the ground. The latest runtime and wave-test assembly compile checks
@@ -140,6 +146,10 @@ the Ultimate's fixed primary-fire interval.
 
 The opening cutscene passed both generated-project builds and was exercised in
 the live wave smoke: its completion/skip restored gameplay camera, input, and HUD.
+Its planet-wide opening now temporarily bypasses only the instanced-prop distance
+cull while keeping frustum and horizon culling; runtime and WorldRuntime test
+projects compile with zero warnings/errors. An updated live opening-shot visual
+check remains pending because the interactive editor owns the project.
 
 Gameplay-area runtime and editor sources also compile with zero warnings via
 `dotnet build Gameplay.Areas.csproj --no-restore` followed by the editor build
@@ -156,12 +166,14 @@ wires `LandingBase`, `Arena1`, and `Arena2` to their direct perimeter poles and
 configures the shared astronaut tracker and its 2x LandingBase speed consumer.
 `Validate Area Membership` checks that full contract without changing it.
 
-A 2026-08-08 interactive Play-mode smoke test verified the planet prop runtime:
-it captured 17,100 generated vegetation/rock renderers into 288 spherical
-sectors and 4,082 instanced draw batches, with a 112.5-unit maximum prop
-distance. Both generated C# projects compiled with zero warnings and errors.
-This verifies Editor runtime initialization, not an exported WebGL player;
-browser memory, frame timing, and final build size still require a WebGL build.
+A 2026-08-09 interactive Play-mode smoke test verified the compact planet-prop
+runtime: it captured all 17,100 baked vegetation/rock records into 288 spherical
+sectors and 4,082 instanced draw batches, with a 112.5-unit maximum distance.
+SampleScene fell from 60.34 MiB to 4.54 MiB and its two binary datasets total
+about 0.73 MiB. Runtime, editor, and WorldRuntime test projects compile with zero
+warnings/errors. Unity EditMode execution passes 2/2 tests. This is not an
+exported WebGL player; browser memory, physics, frame timing, and build size
+still require a representative WebGL build.
 
 A 2026-08-08 batch import attempt at current `HEAD` was blocked during initial
 package resolution with `The "path" argument must be of type string. Received
@@ -217,6 +229,16 @@ plants. The former red material is GUID-preservingly migrated to orange.
 Unity also binds `Ctrl+Shift+V` to Paste as Child; if its shortcut-conflict
 dialog appears, select `Regenerate Planet Vegetation`, or invoke it from the
 `Tools > Planet Design` menu.
+
+After the final vegetation/rock regeneration, save SampleScene and run
+`Tools > Planet Design > Bake Planet Props for Runtime`. The scene must be clean.
+The command writes binary `SampleScene_Vegetation.asset` and
+`SampleScene_Rocks.asset`, assigns them to the scene's planet instance, removes
+the vegetation hierarchy, and keeps a collider-only 1,100-object rock hierarchy.
+Run `Validate Baked Planet Props` to check the compact scene contract. Either
+scatter command clears only its category's baked assignment, so rebake after a
+reroll. Execute the `WorldRuntime.Tests` EditMode assembly for dataset and scene
+contract coverage.
 
 For a closed landing-base wall, select at least three top-level wall instances
 and open `Tools > Planet Design > Wall Ring Builder`. Use `Fit Radius

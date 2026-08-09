@@ -408,13 +408,13 @@ namespace Gameplay.Waves
         {
             ReleaseGameOverOwnership();
             Scene scene = SceneManager.GetActiveScene();
-            SceneManager.LoadScene(scene.buildIndex);
+            SceneTransitionController.LoadScene(scene.name);
         }
 
         private void ReturnToMainMenu()
         {
             ReleaseGameOverOwnership();
-            SceneManager.LoadScene("MainMenu");
+            SceneTransitionController.LoadScene("MainMenu");
         }
 
         private void ReleaseGameOverOwnership()
@@ -435,6 +435,14 @@ namespace Gameplay.Waves
                 var targetObject = new GameObject("Arena Guidance Target (Runtime)");
                 _guidanceTarget = targetObject.transform;
                 _guidanceTarget.SetParent(transform, true);
+            }
+
+            if (arena.Entrance != null)
+            {
+                _guidanceTarget.SetPositionAndRotation(
+                    arena.Entrance.position,
+                    arena.Entrance.rotation);
+                return _guidanceTarget;
             }
 
             Transform poles = arena.PerimeterPoles;

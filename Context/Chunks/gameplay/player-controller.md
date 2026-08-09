@@ -15,13 +15,14 @@ owns:
   - "Assets/Scripts/UI/EmoteWheelUI.cs*"
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/SettingsMenuController.cs*"
+  - "Assets/Scripts/UI/CutsceneSkipPromptUI.cs*"
   - "Assets/Editor/Player/**"
   - "Assets/Art/Models/Characters/Player.prefab*"
   - "Assets/Prefabs/PlayerRig.prefab*"
   - "Assets/Tests/EditMode/Player.meta"
   - "Assets/Tests/EditMode/Player/**"
 related: [control-model, core-loop, wave-system, gameplay-areas, progression, unity-project, main-menu, runtime-art, world-authoring, state, ultimate]
-verifiedAtCommit: a539eb47b10120f7c92bc827a06381aa5eb80fa7
+verifiedAtCommit: 5880217f80f1e06cbc5b770ce9d0b680dcccf6f9
 lastVerified: 2026-08-09
 ---
 
@@ -49,7 +50,8 @@ strafe and backpedal; camera keeps shoulder offset, collision pull-in, and
 mouse-look suspension while the emote wheel is open. The opening cutscene runs
 terminator-to-NAUT orbit/dolly, NAUT zoom, Wave, then collision-resolved handoff
 with input/HUD suspended. It raises URP shadow distance to 500 temporarily and
-always restores the captured gameplay value (Mobile is 50).
+requests all visible-face props, then restores Mobile's 50 shadow range and the
+normal 112.5-unit prop distance.
 
 ## Key files
 
@@ -69,9 +71,9 @@ always restores the captured gameplay value (Mobile is 50).
   `SphereCast` collision, smoothing, mouse look, boss shake, and cutscene
   follow pose. Its clamped `MouseSensitivity` API is the settings hook;
   `SetExtraDistance`/`SetExtraHeight` are Mech camera hooks from [ultimate].
-- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT
-  framing, temporary shadow range, and safe handoff; it belongs to `SampleScene`,
-  not `PlayerRig.prefab`.
+- `OpeningCutsceneController.cs` - radial/Bezier paths and beat curves, NAUT framing,
+  async-load retry, shared skip prompt, temporary shadow/prop visibility, and safe handoff; it belongs to
+  `SampleScene`, not `PlayerRig.prefab`.
 - `PlayerAnimatorRelay.cs` writes `Speed`/`Grounded`/`Jump`. `PlayerEmoteController`
   and `EmoteWheelUI` provide the locked-cursor virtual-joystick wheel; movement,
   jump, or attack interrupts it. `Configure(labels)` rebuilds for three labels,
@@ -84,8 +86,7 @@ always restores the captured gameplay value (Mobile is 50).
   the top UI sibling, wires menu SFX, and restores only state it acquired.
   `ControlsRebindingUI` drives 13 two-column rows with Escape-cancel, duplicate
   rejection, and Reset Defaults. `ReturnToMainMenu()` resets time/cursor and
-  loads `MainMenu`; the targeted `Add Return To Main Menu Button` tool clones
-  Close so both `SampleScene` and `Tutorial.unity` inherit the same control.
+  transitions to `MainMenu`; `Add Return To Main Menu Button` clones Close so both scenes inherit it.
 - `PlayerInputBindings.cs` is the factory/registry for every independent
   `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
   accepted rebind out to live copies while preserving map enablement, and
@@ -138,10 +139,9 @@ always restores the captured gameplay value (Mobile is 50).
   the rig. For planet-scale changes, move top-level scene `PlayerRig` by the same
   center-relative factor with radial-snap (alignment off, heading preserved), and
   keep its short outward startup cast clear of roofs/other `groundMask` art.
-- The cutscene wide path is spherical around `Planet Ground`; its top shot uses
-  art-bounds radial up and true N-to-T screen-right, not `BaseCenter`. Missing
-  contracts must skip safely and every exit must restore gameplay, presentation,
-  and shadow distance.
+- The cutscene wide path is spherical around `Planet Ground`; its top shot uses art-bounds
+  radial up and true N-to-T screen-right, not `BaseCenter`. Missing contracts must skip
+  safely and every exit must restore gameplay, presentation, shadow, and prop visibility.
 
 ## How to extend
 

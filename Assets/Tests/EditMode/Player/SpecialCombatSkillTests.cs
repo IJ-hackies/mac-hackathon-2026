@@ -143,6 +143,31 @@ namespace Player.Tests
         }
 
         [Test]
+        public void RestoreReserve_ClampsWithoutChangingTheActiveMagazine()
+        {
+            InvokePublic(_ammo, "SetCapacities", 15, 50, false);
+            InvokePublic(_ammo, "SetCapacities", 15, 100, false);
+            Assert.That(ReadIntProperty(_ammo, "CurrentStorage"), Is.EqualTo(50));
+
+            Assert.That(InvokePublic(_ammo, "RestoreReserve", 30), Is.EqualTo(30));
+            Assert.That(ReadIntProperty(_ammo, "CurrentMagazine"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(_ammo, "CurrentStorage"), Is.EqualTo(80));
+
+            Assert.That(InvokePublic(_ammo, "RestoreReserve", 30), Is.EqualTo(20));
+            Assert.That(ReadIntProperty(_ammo, "CurrentMagazine"), Is.EqualTo(15));
+            Assert.That(ReadIntProperty(_ammo, "CurrentStorage"), Is.EqualTo(100));
+        }
+
+        [Test]
+        public void Ultimate_DefaultDuration_IsTwentySeconds()
+        {
+            Component ultimate = Track(new GameObject("Ultimate Duration Test Player"))
+                .AddComponent(RequireType("Player.PlayerUltimate, Assembly-CSharp"));
+
+            Assert.That(ReadFloatProperty(ultimate, "Duration"), Is.EqualTo(20f));
+        }
+
+        [Test]
         public void HealthReporting_ReturnsPostMitigationActualDamageWithoutOverkillCredit()
         {
             var targetObject = new GameObject("Health Target");

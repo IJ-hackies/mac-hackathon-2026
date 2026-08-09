@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
+using WorldRuntime;
 
 namespace Player
 {
@@ -30,6 +31,7 @@ namespace Player
         [SerializeField] private Camera cinematicCamera;
         [SerializeField] private Animator playerAnimator;
         [SerializeField] private Canvas hudCanvas;
+        [SerializeField] private SphericalPropInstancingRenderer planetPropRenderer;
 
         [Header("Playback")]
         [SerializeField] private bool playOnStart = true;
@@ -97,6 +99,7 @@ namespace Player
         private UniversalRenderPipelineAsset _shadowPipelineAsset;
         private float _previousShadowDistance;
         private bool _shadowDistanceOverridden;
+        private IDisposable _fullPlanetVisibilityRequest;
 
         private void Awake()
         {
@@ -161,7 +164,7 @@ namespace Player
                     else
                     {
                         _playing = false;
-                        RestoreShadowDistance();
+                        RestoreRenderingOverrides();
                     }
                 }
             }
@@ -182,7 +185,7 @@ namespace Player
 
         private void OnDisable()
         {
-            RestoreShadowDistance();
+            RestoreRenderingOverrides();
 
             if (_playing && !_completed)
             {
@@ -190,7 +193,7 @@ namespace Player
                 if (!CanRestoreCutsceneState())
                 {
                     _playing = false;
-                    RestoreShadowDistance();
+                    RestoreRenderingOverrides();
                     return;
                 }
 
@@ -202,14 +205,14 @@ namespace Player
                 {
                     // Scene/domain teardown can destroy child Transforms before this component.
                     _playing = false;
-                    RestoreShadowDistance();
+                    RestoreRenderingOverrides();
                 }
             }
         }
 
         private void OnDestroy()
         {
-            RestoreShadowDistance();
+            RestoreRenderingOverrides();
         }
 
         private bool CanRestoreCutsceneState()
@@ -265,6 +268,10 @@ namespace Player
             }
 
             if (cinematicCamera == null) cinematicCamera = Camera.main;
+            if (planetPropRenderer == null && planetCenter != null)
+            {
+                planetPropRenderer = planetCenter.GetComponent<SphericalPropInstancingRenderer>();
+            }
             if (hudCanvas == null && playerController != null)
             {
                 hudCanvas = playerController.transform.root.GetComponentInChildren<Canvas>(true);
@@ -289,6 +296,7 @@ namespace Player
             _hudWasEnabled = hudCanvas.enabled;
             _gameplayFieldOfView = cinematicCamera.fieldOfView;
             OverrideShadowDistance();
+            OverridePlanetPropDistance();
 
             playerController.enabled = false;
             playerCombat.enabled = false;
@@ -467,7 +475,7 @@ namespace Player
 
         private void CompleteCutscene(bool skipped)
         {
-            RestoreShadowDistance();
+            RestoreRenderingOverrides();
 
             if (_completed)
             {
@@ -517,6 +525,22 @@ namespace Player
             _previousShadowDistance = pipelineAsset.shadowDistance;
             pipelineAsset.shadowDistance = Mathf.Max(_previousShadowDistance, cutsceneShadowDistance);
             _shadowDistanceOverridden = true;
+        }
+
+        private void OverridePlanetPropDistance()
+        {
+            if (_fullPlanetVisibilityRequest == null && planetPropRenderer != null)
+            {
+                _fullPlanetVisibilityRequest =
+                    planetPropRenderer.RequestFullPlanetVisibility();
+            }
+        }
+
+        private void RestoreRenderingOverrides()
+        {
+            RestoreShadowDistance();
+            _fullPlanetVisibilityRequest?.Dispose();
+            _fullPlanetVisibilityRequest = null;
         }
 
         private void RestoreShadowDistance()
