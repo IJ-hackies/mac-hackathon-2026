@@ -687,7 +687,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1000000000, guid: 99229824af30418ea836f28168ec740c, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1000000001, guid: 99229824af30418ea836f28168ec740c, type: 3}
       propertyPath: m_LocalPosition.x
@@ -756,6 +756,7 @@ GameObject:
   m_Component:
   - component: {fileID: 101633993}
   - component: {fileID: 101633992}
+  - component: {fileID: 101633994}
   m_Layer: 0
   m_Name: 'Main Menu [Generated v6]'
   m_TagString: Untagged
@@ -812,6 +813,19 @@ Transform:
   - {fileID: 1784102711}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &101633994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101633991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 848b8326551ea42518805e12492e5f61, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.UI.Leaderboard.MainMenuLeaderboardEntryPoint
+  menuCanvas: {fileID: 0}
 --- !u!1001 &114285042
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7589,7 +7603,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1101476322
 RectTransform:
   m_ObjectHideFlags: 0
