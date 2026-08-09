@@ -89,7 +89,7 @@ namespace Player.UI.Progression
                 "FOUR!", "Every fourth ordinary pistol round deals double damage."),
             new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Minigun, "minigun", 4000,
                 "pew pew haha", "Pistol: +30 mag, +200 reserve, -20 damage, and 2x fire rate."),
-            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Secret, "???", 10000,
+            new ProgressionSpecialSkillDefinition(ProgressionSpecialSkill.Secret, "???", 15000,
                 "how'd you get here?", string.Empty, true),
         };
 

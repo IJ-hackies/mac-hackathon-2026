@@ -47,7 +47,7 @@ namespace Player.Tests
             InvokePublic(_combat, "SetMinigunEnabled", true);
             InvokePublic(_combat, "SetRangedDamageModifier", this, 3f);
 
-            Assert.That(ReadFloatProperty(_combat, "EffectivePistolDamage"), Is.EqualTo(15f).Within(0.0001f));
+            Assert.That(ReadFloatProperty(_combat, "EffectivePistolDamage"), Is.EqualTo(30f).Within(0.0001f));
 
             InvokePublic(_combat, "RemoveRangedDamageBonus", this);
             InvokePublic(_combat, "RemoveRangedDamageModifier", this);
@@ -96,8 +96,8 @@ namespace Player.Tests
             for (int index = 0; index < 4; index++)
                 Assert.That(InvokeTryFireShot(), Is.True);
 
-            // Three ordinary 15-damage rounds plus one 30-damage fourth round.
-            Assert.That(ReadFloatProperty(targetHealth, "CurrentHealth"), Is.EqualTo(25f).Within(.0001f));
+            // Three ordinary 20-damage rounds plus one 40-damage fourth round.
+            Assert.That(ReadFloatProperty(targetHealth, "CurrentHealth"), Is.EqualTo(0f).Within(.0001f));
         }
 
         [Test]

@@ -26911,7 +26911,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: G 10,000
+  m_Text: G 300
 --- !u!1 &6620329944687903323
 GameObject:
   m_ObjectHideFlags: 0
@@ -28108,7 +28108,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: GOLD  10,000
+  m_Text: GOLD  300
 --- !u!1 &6929104573123453818
 GameObject:
   m_ObjectHideFlags: 0
@@ -31795,7 +31795,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: G 10,000
+  m_Text: G 300
 --- !u!1 &8121095156550945144
 GameObject:
   m_ObjectHideFlags: 0
@@ -33512,7 +33512,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 10000 G
+  m_Text: 15000 G
 --- !u!1 &8423957271256423203
 GameObject:
   m_ObjectHideFlags: 0

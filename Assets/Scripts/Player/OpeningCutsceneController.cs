@@ -100,6 +100,22 @@ namespace Player
         private float _previousShadowDistance;
         private bool _shadowDistanceOverridden;
         private IDisposable _fullPlanetVisibilityRequest;
+        private float _captureDeltaTimeOverride;
+
+        /// <summary>True while the authored opening sequence owns the gameplay camera.</summary>
+        public bool IsPlaying => _playing;
+
+        /// <summary>True after the authored opening has restored gameplay presentation.</summary>
+        public bool IsCompleted => _completed;
+
+        /// <summary>
+        /// Uses a deterministic unscaled step for offline promo capture. Passing zero restores
+        /// the normal real-time clock; gameplay never calls this method.
+        /// </summary>
+        public void SetCaptureDeltaTimeOverride(float seconds)
+        {
+            _captureDeltaTimeOverride = Mathf.Max(0f, seconds);
+        }
 
         private void Awake()
         {
@@ -127,7 +143,7 @@ namespace Player
             float resolveElapsed = 0f;
             while (!ResolveReferences())
             {
-                resolveElapsed += Time.unscaledDeltaTime;
+                resolveElapsed += SequenceDeltaTime;
                 if (resolveElapsed >= ResolveRetryTimeout)
                 {
                     Debug.LogWarning(
@@ -461,7 +477,7 @@ namespace Player
 
             while (elapsed < safeDuration && !_skipRequested)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += SequenceDeltaTime;
                 float normalizedTime = Mathf.Clamp01(elapsed / safeDuration);
                 apply(Evaluate(velocity, normalizedTime));
                 yield return null;
@@ -685,6 +701,9 @@ namespace Player
         {
             return Mathf.Clamp01(curve != null ? curve.Evaluate(Mathf.Clamp01(t)) : t);
         }
+
+        private float SequenceDeltaTime =>
+            _captureDeltaTimeOverride > 0f ? _captureDeltaTimeOverride : Time.unscaledDeltaTime;
 
         private static bool TryGetRendererBounds(Transform root, out Bounds bounds)
         {

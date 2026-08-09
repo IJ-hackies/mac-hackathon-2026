@@ -24,7 +24,7 @@ lastVerified: 2026-08-09
 ## What this is
 
 `PlayerProgression` owns single-run gold and purchased upgrades. A fresh run
-starts with 100 gold; nothing persists between runs. Enemy kills and completed
+starts with 300 gold; nothing persists between runs. Enemy kills and completed
 arena contracts award gold through [wave-system](wave-system.md). The HUD shows a gold icon/value beside health, and the ammo bar
 shows `magazine / reserve` while its fill continues to represent the magazine.
 
@@ -42,14 +42,14 @@ and labels above their roofs. Entering a zone shows an `E - INTERACT` prompt:
   cost. Hold to Fire costs 50g; the other cards are Bullet Bounce (750),
   Fortune (500), Fortune II (500), Med Kit (400), Ammo Kit
   (600), Ultimate! (800), Quickdraw (1200), Vampire (2000), Explosive
-  Bullets (750), Headshot! (800), Minigun (4000), and `???` (10000).
+  Bullets (750), Headshot! (800), Minigun (4000), and `???` (15000).
 
 ## Upgrade contract
 
 - Max HP purchases add 20/25/.../60 (100 -> 460) and grant new capacity as HP.
 - Movement purchases add 3/5/.../19 percentage points (1x -> 1.99x); fire rate
   adds 5/7/.../21 points (1x -> 2.17x).
-- Shooting adds raw 4/5/.../12 (pistol 15 -> 87), shared by pistol, normal
+- Shooting adds raw 4/5/.../12 (pistol 20 -> 92), shared by pistol, normal
   secondary, Ultimate bolts, and Ultimate lightning. Melee adds raw 3/6/.../27
   (20 -> 155).
 - Defense adds 2/3/.../10 percentage points (0% -> 54%) through a keyed
@@ -74,7 +74,7 @@ and labels above their roofs. Entering a zone shows an `E - INTERACT` prompt:
   max HP. Med Kit scatters 50-HP pickups, Ammo Kit scatters reserve-only pickups
   worth two current magazines, and Ultimate! enables the 20-second Thunder
   allocation documented by [wave-system](wave-system.md).
-- `???` always shows its title, 10000g price, and `"how'd you get here?"` flavor,
+- `???` always shows its title, 15000g price, and `"how'd you get here?"` flavor,
   but never reveals its effect in the shop. Ownership permanently triples the
   seven archive stat families (including later upgrades and Minigun-modified
   ammo/fire values); defense remains capped at 90%.

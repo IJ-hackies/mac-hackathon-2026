@@ -71,7 +71,7 @@ refreshes and the return-button addition completed successfully in Unity.
 
 `dotnet build Progression.Contracts.Tests.csproj --no-restore` is the current
 compile-only progression check. Its balance contracts cover the 460-HP and
-87-pistol-damage Archive endpoints plus the 400g/600g/800g pickup-skill prices.
+92-pistol-damage Archive endpoints plus the 400g/600g/800g pickup-skill prices.
 All three station catalogs use `RectMask2D`
 viewports and `SmoothStationScrollRect`; its wheel impulses decay through
 ScrollRect's unscaled-time inertia while station menus pause gameplay. Previous
@@ -133,7 +133,7 @@ Unity Test Runner because the interactive editor still owns the project,
 blocking a batch runner, and Waves has no in-editor test command. A live SampleScene probe started
 wave 1 from outside the base, confirmed Regular phase with about 25 seconds
 remaining, three spawned enemies, all three area locks, timed cleanup back to
-intermission, and the 100g HUD. The only red Console item during that check was
+intermission, and the then-current 100g HUD. The only red Console item during that check was
 the pre-existing Package Manager `path ... undefined` error documented below.
 
 Player movement EditMode tests live at `Assets/Tests/EditMode/Player`.
@@ -148,8 +148,18 @@ The opening cutscene passed both generated-project builds and was exercised in
 the live wave smoke: its completion/skip restored gameplay camera, input, and HUD.
 Its planet-wide opening now temporarily bypasses only the instanced-prop distance
 cull while keeping frustum and horizon culling; runtime and WorldRuntime test
-projects compile with zero warnings/errors. An updated live opening-shot visual
-check remains pending because the interactive editor owns the project.
+projects compile with zero warnings/errors. A fixed-step 1080p promo capture
+visually verified the orbit, NAUT reveal, Wave, and gameplay-camera handoff.
+
+Promo frame capture is available under `Tools > Promo Video` for the starting
+cutscene, space float, empty-planet emotes, and entity rave. The verified output
+is silent 1920x1080 RGB PNG at 30 fps under `Recordings/Promo/frames/<shot>/`;
+each command replaces only its own frame directory and does not save scene
+changes. Encode a sequence with FFmpeg 8 using
+`ffmpeg -framerate 30 -i frame_%06d.png -c:v libx264 -crf 17 -preset medium
+-pix_fmt yuv420p -movflags +faststart output.mp4`. The four current captures
+and their concatenated reel verify as H.264, yuv420p, 1920x1080, constant 30 fps.
+See [promo-video](Chunks/development/promo-video.md).
 
 Gameplay-area runtime and editor sources also compile with zero warnings via
 `dotnet build Gameplay.Areas.csproj --no-restore` followed by the editor build

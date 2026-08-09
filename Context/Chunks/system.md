@@ -66,7 +66,7 @@ astronaut body and publishes transitions. A separate consumer doubles movement
 speed while that body is inside the landing base; other area-specific effects
 remain undecided.
 
-The LandingBase now also has a run-scoped economy starting at 100g. `Base_Large`,
+The LandingBase now also has a run-scoped economy. Fresh runs start at 300g. `Base_Large`,
 `GeodesicDome`, and `SolarPanel_Structure` host supply, stat-upgrade, and
 Hold-to-Fire consoles with pause-safe interaction UI; see [progression].
 
@@ -101,8 +101,8 @@ removed during this work — see [asset-library](assets/asset-library.md) and
   construction phase or building mechanic.
 - Enemy waves are time-based, with enemies spawning around the planet.
 - The pistol is the sole player weapon used to defeat enemies.
-- Progression is run-scoped. Runs start at 100g; basic kills and completed arena
-  contracts award scaled gold. Pickup drops remain deferred.
+- Progression is run-scoped. Fresh runs start at 300g; basic kills and
+  completed arena contracts award scaled gold. Pickup drops remain deferred.
 - Regular waves lock all protected areas and last 30 seconds through wave 10,
   25 seconds on waves 11-20, then 20 seconds; every fifth wave is an untimed,
   mandatory arena contract. The run ends only on death.
