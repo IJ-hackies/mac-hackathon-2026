@@ -14374,7 +14374,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -350, y: -28}
+  m_AnchoredPosition: {x: -20, y: -20}
   m_SizeDelta: {x: 210, y: 42}
   m_Pivot: {x: 1, y: 1}
 --- !u!222 &5250856237831792330
@@ -14430,6 +14430,13 @@ MonoBehaviour:
   progression: {fileID: 6853456202571909894}
   valueText: {fileID: 8724717293023845397}
   prefix: 'G '
+  panelRect: {fileID: 0}
+  popDuration: 0.28
+  popScale: 0.22
+  confettiCount: 7
+  confettiSpeed: 90
+  confettiDuration: 0.55
+  confettiColor: {r: 1, g: 0.85, b: 0.25, a: 1}
 --- !u!1 &3707359271492879997
 GameObject:
   m_ObjectHideFlags: 0
@@ -15066,7 +15073,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8302142918100176059}
   - component: {fileID: 722241300886558775}
-  - component: {fileID: 4584520094635124960}
+  - component: {fileID: 1035839392031853438}
+  - component: {fileID: 7149897260211048870}
   m_Layer: 0
   m_Name: CoinIcon
   m_TagString: Untagged
@@ -15101,7 +15109,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3777863091218982073}
   m_CullTransparentMesh: 1
---- !u!114 &4584520094635124960
+--- !u!114 &1035839392031853438
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -15110,27 +15118,42 @@ MonoBehaviour:
   m_GameObject: {fileID: 3777863091218982073}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.78, b: 0.2, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: fb45483e109397447b5e6700d79628dc, type: 3}
-  m_Type: 0
-  m_PreserveAspect: 1
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+--- !u!114 &7149897260211048870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3777863091218982073}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 185cbffb327c741e8821305daee2463f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.UI.Coin3DIconRenderer
+  coinModelPrefab: {fileID: 4009716325937776529, guid: bddde96586ad17d4490632b9a89409b2, type: 3}
+  textureSize: 128
+  spinSpeed: 45
+  cameraDistance: 3
+  modelScale: 0.72
+  orthographicSize: 0.75
 --- !u!1 &3783237738294229498
 GameObject:
   m_ObjectHideFlags: 0

@@ -133,6 +133,11 @@ namespace Player
         // apply VFX + damage in the same frame as the click - "instant vfx and damage."
         [SerializeField] private float secondaryTelegraphDelay = 0f;
         [SerializeField] private float secondaryHitRadius = 3.2f;
+        [Tooltip("Number of nearest enemies the base (non-ultimate) secondary hits at once - " +
+                 "extra targets beyond the live enemy count retarget the closest enemies " +
+                 "round-robin, same as the Ultimate's lightning circles.")]
+        [SerializeField, Min(1)] private int secondaryTargetCount = 2;
+        [SerializeField] private float secondaryVfxScale = 2f;
 
         [Header("Ultimate Secondary - Lightning Circles")]
         [SerializeField] private GameObject lightningCirclePrefab;
@@ -949,26 +954,31 @@ namespace Player
             else FireSingleTopDownBeam();
         }
 
-        // Base (non-ultimate) secondary: one top-down beam-dot-purple on the single nearest
-        // live enemy.
+        // Base (non-ultimate) secondary: top-down beam-dot-purple, doubled in size, on the
+        // secondaryTargetCount nearest live enemies at once. Extra targets beyond the live enemy
+        // count retarget the closest enemies round-robin, same pattern as the Ultimate's
+        // lightning circles below.
         private void FireSingleTopDownBeam()
         {
-            var nearest = FindNearestEnemies(transform.position, 1);
+            var nearest = FindNearestEnemies(transform.position, Mathf.Max(1, secondaryTargetCount));
             if (nearest.Count == 0) return;
 
-            EnemyBase target = nearest[0];
-            Vector3 point = target.transform.position;
-            // skipFraction 0.99 - seeks the VFX's own particle timeline 99% of the way forward
-            // before it ever renders, cutting the pack's authored "charging" portion without
-            // hiding the beam-strike visual itself (see TopDownGroundEffect.FastForward).
-            // The VFX itself spawns at the raycasted ground point below the target (so it doesn't
-            // hang in midair under a flying enemy) - the damage check below still uses the
-            // target's real position (`point`), unchanged, so hit detection isn't affected by this
-            // purely visual placement fix.
-            Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(point);
-            StartCoroutine(TopDownGroundEffect.Play(topDownBeamDotPurplePrefab, vfxPoint,
-                secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, EffectiveSecondaryDamage, SfxId.PlayerShootSecondary),
-                skipFraction: 0.99f));
+            for (int i = 0; i < secondaryTargetCount; i++)
+            {
+                EnemyBase target = nearest[i % nearest.Count];
+                Vector3 point = target.transform.position;
+                // skipFraction 0.99 - seeks the VFX's own particle timeline 99% of the way forward
+                // before it ever renders, cutting the pack's authored "charging" portion without
+                // hiding the beam-strike visual itself (see TopDownGroundEffect.FastForward).
+                // The VFX itself spawns at the raycasted ground point below the target (so it
+                // doesn't hang in midair under a flying enemy) - the damage check below still uses
+                // the target's real position (`point`), unchanged, so hit detection isn't affected
+                // by this purely visual placement fix.
+                Vector3 vfxPoint = TopDownGroundEffect.GroundedPoint(point);
+                StartCoroutine(TopDownGroundEffect.Play(topDownBeamDotPurplePrefab, vfxPoint,
+                    secondaryTelegraphDelay, 1f, () => DamageIfStillNear(target, point, secondaryHitRadius, EffectiveSecondaryDamage, SfxId.PlayerShootSecondary),
+                    skipFraction: 0.99f, vfxScale: secondaryVfxScale));
+            }
         }
 
         // Ultimate secondary: lightningCircleCount circles targeting the N nearest live enemies.

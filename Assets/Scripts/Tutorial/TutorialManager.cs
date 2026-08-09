@@ -17,6 +17,7 @@ namespace Tutorial
     {
         private const int LightAttacksRequired = 5;
         private const int HeavyAttacksRequired = 1;
+        private const int MeleeHitsRequired = 1;
         private const float MitigatedDamageRequired = 30f;
         // Effectively forever - Thunder's own ItemPickup.ApplyEffect already activates Ultimate
         // with its normal (finite) duration, so the shield-training requirement can't be missed
@@ -63,6 +64,7 @@ namespace Tutorial
         private int _lightHits;
         private bool _reloaded;
         private int _heavyHits;
+        private int _meleeHits;
         private bool _healthCollected;
         private bool _ammoCollected;
         private bool _thunderCollected;
@@ -101,6 +103,7 @@ namespace Tutorial
             {
                 dummy.LightHitLanded += OnLightHitLanded;
                 dummy.HeavyHitLanded += OnHeavyHitLanded;
+                dummy.MeleeHitLanded += OnMeleeHitLanded;
             }
             if (shieldTrainer != null) shieldTrainer.DamageMitigated += OnDamageMitigated;
             if (_playerDash != null) _playerDash.DashPerformed += OnDashPerformed;
@@ -115,6 +118,7 @@ namespace Tutorial
             {
                 dummy.LightHitLanded -= OnLightHitLanded;
                 dummy.HeavyHitLanded -= OnHeavyHitLanded;
+                dummy.MeleeHitLanded -= OnMeleeHitLanded;
             }
             if (shieldTrainer != null) shieldTrainer.DamageMitigated -= OnDamageMitigated;
             if (_playerDash != null) _playerDash.DashPerformed -= OnDashPerformed;
@@ -250,6 +254,14 @@ namespace Tutorial
             if (_heavyHits >= HeavyAttacksRequired) CompleteStage(TutorialStage.HeavyAttack);
         }
 
+        private void OnMeleeHitLanded()
+        {
+            if (CurrentStage != TutorialStage.Melee) return;
+            _meleeHits++;
+            ui.SetCounter(_meleeHits, MeleeHitsRequired);
+            if (_meleeHits >= MeleeHitsRequired) CompleteStage(TutorialStage.Melee);
+        }
+
         public void NotifyItemCollected(TutorialPickupWatcher.Kind kind)
         {
             if (CurrentStage != TutorialStage.Items) return;
@@ -360,11 +372,12 @@ namespace Tutorial
                 case TutorialStage.Emote: gateToJump?.Open(); EnterStage(TutorialStage.Jump); break;
                 case TutorialStage.Jump: gateToDash?.Open(); EnterStage(TutorialStage.Dash); break;
                 case TutorialStage.Dash: gateToCombat?.Open(); EnterStage(TutorialStage.LightAttack); break;
-                // LightAttack -> Reload -> HeavyAttack all happen in the same combat room - only
-                // the instructions/requirement change, no further gate to open.
+                // LightAttack -> Reload -> HeavyAttack -> Melee all happen in the same combat
+                // room - only the instructions/requirement change, no further gate to open.
                 case TutorialStage.LightAttack: EnterStage(TutorialStage.Reload); break;
                 case TutorialStage.Reload: EnterStage(TutorialStage.HeavyAttack); break;
-                case TutorialStage.HeavyAttack: gateToItems?.Open(); EnterStage(TutorialStage.Items); break;
+                case TutorialStage.HeavyAttack: EnterStage(TutorialStage.Melee); break;
+                case TutorialStage.Melee: gateToItems?.Open(); EnterStage(TutorialStage.Items); break;
                 case TutorialStage.Items: gateToOverview?.Open(); EnterStage(TutorialStage.Overview); break;
                 case TutorialStage.Overview: EnterStage(TutorialStage.Complete); break;
             }
@@ -406,6 +419,11 @@ namespace Tutorial
                     ui.ShowStage("Heavy Attack", "Right-click for a heavy strike on the training dummy.");
                     ui.SetKeyPrompts("RMB");
                     ui.SetCounter(0, HeavyAttacksRequired);
+                    break;
+                case TutorialStage.Melee:
+                    ui.ShowStage("Melee", "Press V to melee the training dummy up close.");
+                    ui.SetKeyPrompts("V");
+                    ui.SetCounter(0, MeleeHitsRequired);
                     break;
                 case TutorialStage.Items:
                     ui.ShowStage("Power-Ups", "Collect the HEALTH pack, the AMMO crate, and the THUNDER icon ahead.");

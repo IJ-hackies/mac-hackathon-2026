@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Combat;
 using Enemies;
 using Gameplay.Areas;
+using Items;
 using Player.UI.Progression;
 using UnityEngine;
 
@@ -41,6 +42,18 @@ namespace Gameplay.Waves
         [SerializeField] private GameObject ammoPickupPrefab;
         [SerializeField] private GameObject thunderPickupPrefab;
         [SerializeField] private WavePickupSpawner pickupSpawner = new WavePickupSpawner();
+
+        [Header("Coin VFX")]
+        [Tooltip("Purely cosmetic - the gold amount is already added instantly by AwardGold. " +
+                 "Null = no coin burst, kills still award gold silently.")]
+        [SerializeField] private GameObject coinPickupPrefab;
+        [SerializeField, Range(1, 10)] private int minCoinsPerDrop = 2;
+        [SerializeField, Range(1, 10)] private int maxCoinsPerDrop = 6;
+        [Tooltip("How much gold one visual coin represents, for scaling burst count with reward.")]
+        [SerializeField, Min(1)] private int goldPerCoin = 10;
+        [Tooltip("Fixed, larger burst for the Arena 2 boss kill specifically - a bigger fireworks " +
+                 "moment than a regular enemy's reward-scaled burst.")]
+        [SerializeField, Range(4, 24)] private int bossCoinCount = 16;
 
         [Header("Recycling")]
         [SerializeField, Min(20f)] private float recycleDistance = 90f;
@@ -190,6 +203,14 @@ namespace Gameplay.Waves
         {
             if (Phase != WavePhase.ArenaCombat || CurrentKind != WaveKind.Arena2 || _arenaObjectivesRemaining <= 0) return;
             Kills++;
+            // Boss doesn't carry a WaveEnemyHandle (see spawn setup), so it never runs through
+            // HandleEnemyKilled's per-kill coin burst - fire a bigger, fixed-size one here
+            // instead. Still cosmetic only: the actual gold comes from FinishArenaWave's arena
+            // completion reward, same as before.
+            if (_arenaBossStageTwoHealth != null && coinPickupPrefab != null && player != null)
+            {
+                SpawnCoins(_arenaBossStageTwoHealth.transform.position, bossCoinCount);
+            }
             NotifyArenaObjectiveCleared();
         }
         public void NotifyArenaEntered(GameplayArea enteredArena)
@@ -300,8 +321,32 @@ namespace Gameplay.Waves
             bool useFortune = CurrentKind == WaveKind.Regular
                 ? OwnsSpecial(ProgressionSpecialSkill.Fortune)
                 : OwnsSpecial(ProgressionSpecialSkill.FortuneII);
-            AwardGold(WaveRules.GoldWithSpecialBonus(WaveRules.KillGold(enemy.EnemyType, CurrentWave), useFortune));
+            int reward = WaveRules.GoldWithSpecialBonus(WaveRules.KillGold(enemy.EnemyType, CurrentWave), useFortune);
+            AwardGold(reward);
+            SpawnCoinBurst(enemy.transform.position, reward);
             if (Phase == WavePhase.ArenaCombat) NotifyArenaObjectiveCleared();
+        }
+
+        // Cosmetic only - reward has already been added to the run total via AwardGold above.
+        // Coin count scales with the reward but is clamped so a big multi-kill wave doesn't spawn
+        // dozens of homing coins at once.
+        private void SpawnCoinBurst(Vector3 position, int reward)
+        {
+            if (coinPickupPrefab == null || reward <= 0 || player == null) return;
+
+            int count = Mathf.Clamp(
+                Mathf.CeilToInt((float)reward / goldPerCoin), minCoinsPerDrop, maxCoinsPerDrop);
+            SpawnCoins(position, count);
+        }
+
+        private void SpawnCoins(Vector3 position, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                GameObject coinGo = Instantiate(coinPickupPrefab, position, Quaternion.identity);
+                CoinPickup coin = coinGo.GetComponent<CoinPickup>();
+                if (coin != null) coin.Launch(position, player);
+            }
         }
         private void HandleEnemyRemoved(WaveEnemyHandle enemy) { RemoveEnemy(enemy); }
         private bool RemoveEnemy(WaveEnemyHandle enemy)

@@ -12,6 +12,7 @@ namespace Tutorial
         LightAttack,
         Reload,
         HeavyAttack,
+        Melee,
         Items,
         Overview,
         Complete,

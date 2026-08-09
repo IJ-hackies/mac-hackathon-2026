@@ -21,7 +21,7 @@ namespace Audio
             }
         }
 
-        [SerializeField, Range(0f, 1f)] private float musicVolume = 0.13f;
+        [SerializeField, Range(0f, 1f)] private float musicVolume = 0.1105f;
         [SerializeField, Range(0f, 1f)] private float duckAmount = 0.5f;
         [SerializeField] private float duckRelease = 0.35f;
 

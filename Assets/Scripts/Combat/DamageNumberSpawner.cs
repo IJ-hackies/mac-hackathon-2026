@@ -12,9 +12,9 @@ namespace Combat
         private const float RiseHeight = 0.8f;
         private const float Lifetime = 0.75f;
         private const float BounceDuration = 0.12f;
-        private const float CharacterSize = 0.11f;
+        private const float CharacterSize = 0.22f;
         private const int FontSize = 32;
-        private const float OutlineOffset = 0.03f;
+        private const float OutlineOffset = 0.06f;
 
         private static readonly Vector2[] OutlineDirections =
         {
@@ -23,7 +23,7 @@ namespace Combat
             new Vector2(-1f, 1f), new Vector2(0f, 1f), new Vector2(1f, 1f),
         };
 
-        private static readonly Color DefaultColor = new Color(1f, 0.06f, 0.04f);
+        private static readonly Color DefaultColor = new Color(1f, 0.02f, 0f);
 
         public static void Spawn(Vector3 worldPosition, float amount, Color? color = null)
         {

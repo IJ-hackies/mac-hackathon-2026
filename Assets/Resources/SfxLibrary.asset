@@ -20,6 +20,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 6
+    minDistance: 8
+    maxDistance: 180
   - id: 1
     clip: {fileID: 8300000, guid: a4caa198f8f594e53b06a812bc9f4eb5, type: 3}
     category: 0
@@ -27,6 +29,8 @@ MonoBehaviour:
     pitchMin: 0.97
     pitchMax: 1.03
     maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180
   - id: 2
     clip: {fileID: 8300000, guid: be84562242ca54ad2996175ccfbacf34, type: 3}
     category: 0
@@ -34,6 +38,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 3
     clip: {fileID: 8300000, guid: f88705dd460eb4c6c87a4a74ad002154, type: 3}
     category: 1
@@ -41,13 +47,17 @@ MonoBehaviour:
     pitchMin: 0.9
     pitchMax: 1.1
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 4
     clip: {fileID: 8300000, guid: 95bbf4ad1bde5464dae59772e857845c, type: 3}
     category: 2
-    volume: 0.304
+    volume: 0.19456
     pitchMin: 0.9
     pitchMax: 1.1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 5
     clip: {fileID: 8300000, guid: 4b6f0ef20c0744976b66394b2a31cb70, type: 3}
     category: 2
@@ -55,6 +65,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 6
     clip: {fileID: 8300000, guid: 8e981016373bb41e4be00d9bdc53d965, type: 3}
     category: 2
@@ -62,13 +74,17 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 7
     clip: {fileID: 8300000, guid: 4fd05c23117ed44fa829a631b8d47d13, type: 3}
     category: 1
-    volume: 0.55
+    volume: 0.44
     pitchMin: 0.9
     pitchMax: 1.05
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 8
     clip: {fileID: 8300000, guid: e854158d73a0548778d01a164b79195f, type: 3}
     category: 3
@@ -76,6 +92,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 9
     clip: {fileID: 8300000, guid: b271d3cc7ec7241e1b3be492f0741fda, type: 3}
     category: 0
@@ -83,6 +101,8 @@ MonoBehaviour:
     pitchMin: 0.5
     pitchMax: 0.5
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 10
     clip: {fileID: 8300000, guid: 42aa0cf71f57d4c83b977bcefd0c6c18, type: 3}
     category: 0
@@ -90,6 +110,8 @@ MonoBehaviour:
     pitchMin: 0.97
     pitchMax: 1.03
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 11
     clip: {fileID: 8300000, guid: fe2fd5288ee124e79b08e5dd2c6e58d4, type: 3}
     category: 1
@@ -97,6 +119,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 12
     clip: {fileID: 8300000, guid: 1c9c600aa84da470fa1ceeaa8b8d09b7, type: 3}
     category: 2
@@ -104,6 +128,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 13
     clip: {fileID: 8300000, guid: cdc297c7b66c04ea3ab2921f12e4d6f6, type: 3}
     category: 2
@@ -111,6 +137,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 14
     clip: {fileID: 8300000, guid: 45c8c40f2b2bf4f1381ab7e8ae64a345, type: 3}
     category: 0
@@ -118,6 +146,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 15
     clip: {fileID: 8300000, guid: 0c4306ec876c048d3ad3f7cb7711442d, type: 3}
     category: 0
@@ -125,6 +155,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.1
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 16
     clip: {fileID: 8300000, guid: 5a370475671194cf1ae5525060bf84a0, type: 3}
     category: 1
@@ -132,6 +164,8 @@ MonoBehaviour:
     pitchMin: 0.9
     pitchMax: 1.15
     maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180
   - id: 17
     clip: {fileID: 8300000, guid: 94065811daeae4dd2bf7e3fe62c3b3f5, type: 3}
     category: 1
@@ -139,6 +173,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 18
     clip: {fileID: 8300000, guid: 2fb0f08b401314c99b993243e507f2d4, type: 3}
     category: 0
@@ -146,6 +182,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180
   - id: 19
     clip: {fileID: 8300000, guid: 5a370475671194cf1ae5525060bf84a0, type: 3}
     category: 1
@@ -153,6 +191,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 20
     clip: {fileID: 8300000, guid: b48fa9edbe7944b87b683510d98e3114, type: 3}
     category: 3
@@ -160,6 +200,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 21
     clip: {fileID: 8300000, guid: 0c8b9013275804f078678546dcb6d29c, type: 3}
     category: 3
@@ -167,6 +209,8 @@ MonoBehaviour:
     pitchMin: 0.85
     pitchMax: 0.95
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 22
     clip: {fileID: 8300000, guid: 421eb1f99b04046fa960c6e1b6514b47, type: 3}
     category: 0
@@ -174,6 +218,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 23
     clip: {fileID: 8300000, guid: 91f067773c2c54139a91ff7fbe6cebea, type: 3}
     category: 1
@@ -181,6 +227,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.1
     maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180
   - id: 24
     clip: {fileID: 8300000, guid: b8bb8645fe7624a8d92ce1ef4240e5bf, type: 3}
     category: 0
@@ -188,6 +236,8 @@ MonoBehaviour:
     pitchMin: 0.97
     pitchMax: 1.03
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 25
     clip: {fileID: 8300000, guid: f7424afb1c46b4f628da95805f94aaed, type: 3}
     category: 0
@@ -195,6 +245,8 @@ MonoBehaviour:
     pitchMin: 0.97
     pitchMax: 1.03
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 26
     clip: {fileID: 8300000, guid: efc5b81ee4e0b48a897f6db1329fc9e8, type: 3}
     category: 1
@@ -202,6 +254,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 27
     clip: {fileID: 8300000, guid: 1c9c600aa84da470fa1ceeaa8b8d09b7, type: 3}
     category: 2
@@ -209,6 +263,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 28
     clip: {fileID: 8300000, guid: cdc297c7b66c04ea3ab2921f12e4d6f6, type: 3}
     category: 2
@@ -216,6 +272,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 29
     clip: {fileID: 8300000, guid: 0b93f9af63befa2478916a5396131fff, type: 3}
     category: 3
@@ -223,6 +281,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 30
     clip: {fileID: 8300000, guid: 1fd31868d68903d4f9e2c4a3b7ef98f3, type: 3}
     category: 3
@@ -230,6 +290,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 31
     clip: {fileID: 8300000, guid: e03661536f41749f3ae594d3074fa306, type: 3}
     category: 4
@@ -237,6 +299,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 32
     clip: {fileID: 8300000, guid: 376e397cf20a74d038634f568f358fd1, type: 3}
     category: 4
@@ -244,6 +308,8 @@ MonoBehaviour:
     pitchMin: 0.95
     pitchMax: 1.05
     maxConcurrent: 3
+    minDistance: 8
+    maxDistance: 180
   - id: 33
     clip: {fileID: 8300000, guid: f35e425c2ed43444eb795a09fb081139, type: 3}
     category: 4
@@ -251,6 +317,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 34
     clip: {fileID: 8300000, guid: 5168220e9eeb149a39895917d2ec9773, type: 3}
     category: 4
@@ -258,6 +326,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 35
     clip: {fileID: 8300000, guid: ea10747a1f7b142c0a7458832f8f82b3, type: 3}
     category: 0
@@ -265,6 +335,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 1
+    minDistance: 8
+    maxDistance: 180
   - id: 36
     clip: {fileID: 8300000, guid: 5faf1f78425284c1dbafd46456503875, type: 3}
     category: 0
@@ -272,6 +344,8 @@ MonoBehaviour:
     pitchMin: 0.55
     pitchMax: 0.65
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 37
     clip: {fileID: 8300000, guid: dd2a668f7cda14b5fa5a8bd5fd7e7ce2, type: 3}
     category: 4
@@ -279,6 +353,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 38
     clip: {fileID: 8300000, guid: b0af0d167a65e440abac1942745beb38, type: 3}
     category: 4
@@ -286,6 +362,8 @@ MonoBehaviour:
     pitchMin: 0.98
     pitchMax: 1.02
     maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180
   - id: 39
     clip: {fileID: 8300000, guid: 8ef5737c2b27442f3909a47f7d5c76f3, type: 3}
     category: 4
@@ -293,6 +371,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 40
     clip: {fileID: 8300000, guid: e6b019ea7badb476baa86d5800ad3418, type: 3}
     category: 4
@@ -300,6 +380,8 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
   - id: 41
     clip: {fileID: 8300000, guid: c5554043d87cd4f35a1b14c4a768f165, type: 3}
     category: 4
@@ -307,3 +389,14 @@ MonoBehaviour:
     pitchMin: 1
     pitchMax: 1
     maxConcurrent: 2
+    minDistance: 8
+    maxDistance: 180
+  - id: 42
+    clip: {fileID: 8300000, guid: e4e4ed5278144ead970794ba1743cb2b, type: 3}
+    category: 4
+    volume: 0.18
+    pitchMin: 0.97
+    pitchMax: 1.05
+    maxConcurrent: 4
+    minDistance: 8
+    maxDistance: 180

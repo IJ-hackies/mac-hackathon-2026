@@ -69,7 +69,7 @@ namespace Enemies
                  "longer shooting\").")]
         [SerializeField] private int bulletBurstCount = 80;
         [SerializeField] private float bulletBurstInterval = 0.05f;
-        [SerializeField] private float bulletSpeed = 26f;
+        [SerializeField] private float bulletSpeed = 52f;
         [SerializeField] private float bulletDamage = 3f;
         [SerializeField] private float bulletLifetime = 4f;
         [SerializeField] private Color bulletColor = new Color(1f, 0.95f, 0.6f);

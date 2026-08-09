@@ -101,7 +101,17 @@ namespace Audio
         {
             source.rolloffMode = AudioRolloffMode.Linear;
             source.minDistance = 8f;
-            source.maxDistance = 45f;
+            source.maxDistance = 180f;
+        }
+
+        // Re-applied per play (not just once at pool build) so each SfxDefinition's own
+        // minDistance/maxDistance can override the general default - pooled sources are shared
+        // across every SfxId, so whatever the previous clip needed would otherwise leak forward.
+        private static void ConfigureRolloff(AudioSource source, SfxDefinition definition)
+        {
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = definition.minDistance;
+            source.maxDistance = definition.maxDistance;
         }
 
         public void SetMasterVolume(float value)
@@ -132,6 +142,7 @@ namespace Audio
             }
 
             ClearDynamicFilters(source);
+            ConfigureRolloff(source, definition);
 
             source.clip = definition.clip;
             source.loop = false;
@@ -211,6 +222,7 @@ namespace Audio
             if (source == null) return AudioHandle.Invalid;
 
             ClearDynamicFilters(source);
+            ConfigureRolloff(source, definition);
             source.clip = definition.clip;
             source.pitch = definition.pitchMin;
             source.spatialBlend = followTarget != null ? 1f : 0f;
