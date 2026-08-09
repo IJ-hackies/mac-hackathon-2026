@@ -109,6 +109,13 @@ namespace Player
         public bool IsCompleted => _completed;
 
         /// <summary>
+        /// Raised after every captured gameplay and presentation state has been restored.
+        /// Scene-only onboarding overlays can safely take ownership from this point onward.
+        /// The argument is true when the player skipped the cinematic.
+        /// </summary>
+        public event Action<bool> Completed;
+
+        /// <summary>
         /// Uses a deterministic unscaled step for offline promo capture. Passing zero restores
         /// the normal real-time clock; gameplay never calls this method.
         /// </summary>
@@ -522,6 +529,8 @@ namespace Player
             {
                 Debug.Log("Opening cutscene skipped; gameplay camera and controls restored.", this);
             }
+
+            Completed?.Invoke(skipped);
         }
 
         private void OverrideShadowDistance()
