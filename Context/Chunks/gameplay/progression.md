@@ -99,15 +99,13 @@ still closes normally.
 
 ## Authoring and verification
 
-`Tools > Progression > Configure All` rebuilds only the generated Progression
-UI subtree, repairs the three radial station markers, saves the prefab/scene,
-and validates ground placement, footprint radius, roof beacon placement, world
-scale, labels, and serialized references. The visual shell uses selected
-Cartoon UI and Space Expansion UI copies under the owned texture folder; vendor
-packs remain untouched. `Run Progression Contract Tests` executes the targeted
-EditMode assembly. Runtime preview menu items open each console or hold/release
-the Tab overview; QA approach commands can place the player in each station's
-normal proximity range.
+The serialized `PlayerRig.prefab` Progression UI and SampleScene station
+markers are authoritative. The former broad configurator/preview tools were
+removed because they could overwrite hand-authored scene work. The visual shell
+uses selected Cartoon UI and Space Expansion copies under the owned texture
+folder; vendor packs remain untouched. Compile contracts with
+`dotnet build Progression.Contracts.Tests.csproj --no-restore`; run the EditMode
+assembly in Unity when execution coverage is required.
 
 ## Gotchas
 

@@ -391,6 +391,74 @@ namespace PlayerEditor
             Debug.Log($"PlayerSceneSetup: refreshed the blue ammo HUD in {PlayerRigPrefabPath}.");
         }
 
+        [MenuItem("Tools/Player Prototype/Refresh Ability HUD")]
+        public static void RefreshPlayerRigAbilityHud()
+        {
+            GameObject rigRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+                Player.UI.AbilityHudUI existingHud =
+                    RequireComponentInChildren<Player.UI.AbilityHudUI>(hudCanvas.gameObject);
+                int siblingIndex = existingHud.transform.GetSiblingIndex();
+
+                Object.DestroyImmediate(existingHud.gameObject);
+                Player.UI.AbilityHudUI replacementHud = BuildAbilityHud(hudCanvas);
+                replacementHud.transform.SetSiblingIndex(siblingIndex);
+                replacementHud.Bind(
+                    RequireComponentInChildren<PlayerDash>(rigRoot),
+                    RequireComponentInChildren<PlayerShield>(rigRoot),
+                    RequireComponentInChildren<PlayerCombat>(rigRoot),
+                    RequireComponentInChildren<PlayerUltimate>(rigRoot));
+
+                if (PrefabUtility.SaveAsPrefabAsset(rigRoot, PlayerRigPrefabPath) == null)
+                {
+                    throw new System.InvalidOperationException(
+                        $"PlayerSceneSetup: failed to save {PlayerRigPrefabPath}.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rigRoot);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log($"PlayerSceneSetup: refreshed the ability HUD in {PlayerRigPrefabPath}.");
+        }
+
+        [MenuItem("Tools/Player Prototype/Refresh Ultimate HUD")]
+        public static void RefreshPlayerRigUltimateHud()
+        {
+            GameObject rigRoot = PrefabUtility.LoadPrefabContents(PlayerRigPrefabPath);
+            try
+            {
+                Transform hudCanvas = RequireDirectChild(rigRoot.transform, "HUD Canvas");
+                Player.UI.UltimateHudUI existingHud =
+                    RequireComponentInChildren<Player.UI.UltimateHudUI>(hudCanvas.gameObject);
+                int siblingIndex = existingHud.transform.GetSiblingIndex();
+
+                Object.DestroyImmediate(existingHud.gameObject);
+                Player.UI.UltimateHudUI replacementHud = BuildUltimateHud(hudCanvas);
+                replacementHud.transform.SetSiblingIndex(siblingIndex);
+                replacementHud.Bind(RequireComponentInChildren<PlayerUltimate>(rigRoot));
+
+                if (PrefabUtility.SaveAsPrefabAsset(rigRoot, PlayerRigPrefabPath) == null)
+                {
+                    throw new System.InvalidOperationException(
+                        $"PlayerSceneSetup: failed to save {PlayerRigPrefabPath}.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rigRoot);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(PlayerRigPrefabPath, ImportAssetOptions.ForceUpdate);
+            Debug.Log($"PlayerSceneSetup: refreshed the ultimate HUD in {PlayerRigPrefabPath}.");
+        }
+
         private static Transform RequireDirectChild(Transform parent, string childName)
         {
             Transform child = parent.Find(childName);
@@ -1743,12 +1811,12 @@ namespace PlayerEditor
             return (wheelUi, crosshairUi, healthHudUi, abilityHudUi, ultimateHudUi, ammoHudUi, canvasGo);
         }
 
-        /// Minimal blue Space Expansion ammo module placed directly below the health bar.
+        /// Blue Space Expansion ammo module, bottom-right corner of the screen.
         private static Player.UI.AmmoHudUI BuildAmmoHud(Transform parent)
         {
             const float barWidth = 304f;
             const float barHeight = 36f;
-            var topRight = new Vector2(1f, 1f);
+            var bottomRight = new Vector2(1f, 0f);
 
             Sprite trackSprite = LoadHudSprite(
                 HealthBarTrackPath,
@@ -1759,7 +1827,7 @@ namespace PlayerEditor
             Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
 
             var root = CreateUiRect("AmmoHud", parent, new Vector2(barWidth, barHeight),
-                new Vector2(-28f, -72f), topRight);
+                new Vector2(-28f, 28f), bottomRight);
             var hud = root.gameObject.AddComponent<Player.UI.AmmoHudUI>();
 
             Image track = CreateStretchImage("Track", root, trackSprite);
@@ -1788,12 +1856,15 @@ namespace PlayerEditor
         }
 
         /// Bottom-left ability cooldowns (Dash/Shield + secondary attack). Same generated-rect
-        /// convention as BuildHealthHud, anchored to the opposite corner.
+        /// convention as BuildHealthHud, anchored to the opposite corner, and now the same
+        /// sliced track/fill bar sprite + utility font as the health/ammo bars so all HUD bars
+        /// read as one visual system. No panel backdrop - the two bars sit directly on the HUD.
         private static Player.UI.AbilityHudUI BuildAbilityHud(Transform parent)
         {
-            const float panelWidth = 220f;
-            const float panelHeight = 64f;
-            const float barHeight = 14f;
+            const float panelWidth = 260f;
+            const float barHeight = 34f;
+            const float gap = 10f;
+            const float panelHeight = barHeight * 2f + gap;
 
             var bottomLeft = new Vector2(0f, 0f);
 
@@ -1801,119 +1872,115 @@ namespace PlayerEditor
                 new Vector2(24f, 24f), bottomLeft);
             var hud = root.gameObject.AddComponent<Player.UI.AbilityHudUI>();
 
-            var backdrop = CreateUiRect("Backdrop", root, new Vector2(panelWidth, panelHeight), Vector2.zero, bottomLeft);
-            backdrop.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.05f, 0.08f, 0.55f);
-
-            var (slotAFill, slotALabel) = BuildAbilitySlot(root, "SlotA", new Vector2(8f, panelHeight - 26f),
-                panelWidth - 16f, barHeight, "DASH", new Color(0.6f, 0.85f, 1f));
-            var (slotBFill, slotBLabel) = BuildAbilitySlot(root, "SlotB", new Vector2(8f, panelHeight - 26f - barHeight - 8f),
-                panelWidth - 16f, barHeight, "BEAM", new Color(0.75f, 0.5f, 1f));
+            var (slotAFill, slotALabel) = BuildAbilitySlot(root, "SlotA", new Vector2(0f, barHeight + gap),
+                panelWidth, barHeight, "DASH", new Color(0.35f, 0.66f, 1f, 1f));
+            var (slotBFill, slotBLabel) = BuildAbilitySlot(root, "SlotB", Vector2.zero,
+                panelWidth, barHeight, "BEAM", new Color(0.62f, 0.32f, 1f, 1f));
 
             hud.SetWidgets(slotAFill, slotALabel, slotBFill, slotBLabel);
             return hud;
-        }
-
-        private static Sprite _solidSprite;
-
-        // Wraps Unity's built-in 1x1 white texture as a Sprite - Image.Type.Filled silently
-        // renders as an unclipped full rect when Image.sprite is null (the built-in white
-        // texture fallback a bare Image uses doesn't support fill clipping), so every filled
-        // progress-bar Image in this file needs an explicit sprite even though it's just a
-        // plain color. Cached/shared since it's the same tiny sprite everywhere it's used.
-        private static Sprite GetOrCreateSolidSprite()
-        {
-            if (_solidSprite != null) return _solidSprite;
-            var texture = Texture2D.whiteTexture;
-            _solidSprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
-            return _solidSprite;
         }
 
         private static (Image fill, Text label) BuildAbilitySlot(Transform parent, string name,
             Vector2 anchoredPosition, float width, float height, string labelText, Color fillColor)
         {
             var bottomLeft = new Vector2(0f, 0f);
+
+            // Same bar art as HealthHudUI/AmmoHudUI, at a shallower vertical border so the
+            // rounded track/fill caps read correctly at this bar's height without squishing.
+            Sprite trackSprite = LoadHudSprite(HealthBarTrackPath, new Vector4(24f, 10f, 24f, 10f));
+            Sprite fillSprite = LoadHudSprite(HealthBarFillPath, new Vector4(24f, 10f, 24f, 10f));
+            Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
+
             var slotRect = CreateUiRect(name, parent, new Vector2(width, height), anchoredPosition, bottomLeft);
 
-            var track = CreateUiRect("Track", slotRect, new Vector2(width, height), Vector2.zero, bottomLeft);
-            track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+            Image track = CreateStretchImage("Track", slotRect, trackSprite);
+            track.type = Image.Type.Sliced;
+            track.color = new Color(0.03f, 0.05f, 0.08f, 0.85f);
 
-            var fillRect = CreateUiRect("Fill", slotRect, new Vector2(width, height), Vector2.zero, bottomLeft);
-            var fill = fillRect.gameObject.AddComponent<Image>();
-            fill.sprite = GetOrCreateSolidSprite(); // Image.Type.Filled needs a real sprite - a
-            // null sprite renders as a plain unclipped rect regardless of fillAmount, which is
-            // why these bars looked "always full" no matter what PlayerDash/PlayerShield/
-            // PlayerCombat's cooldown values actually were.
+            // Fill is resized via its RectTransform's anchorMax (see AbilityHudUI.ApplyFraction)
+            // rather than Image.Type.Filled, so the sliced border scales cleanly at any fraction
+            // instead of the fill sprite's rounded caps clipping/distorting.
+            Image fill = CreateStretchImage("Fill", slotRect, fillSprite);
+            fill.type = Image.Type.Sliced;
             fill.color = fillColor;
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillAmount = 1f;
-            fill.raycastTarget = false;
 
-            var labelRect = CreateUiRect("Label", slotRect, new Vector2(width - 8f, height), new Vector2(4f, 0f), bottomLeft);
+            var labelRect = CreateUiRect("Label", slotRect, new Vector2(width - 24f, height), new Vector2(16f, 0f), bottomLeft);
             var label = labelRect.gameObject.AddComponent<Text>();
             label.text = labelText;
             label.alignment = TextAnchor.MiddleLeft;
             label.color = Color.white;
-            label.fontSize = 11;
+            label.fontSize = 18;
             label.fontStyle = FontStyle.Bold;
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = utilityFont;
             label.raycastTarget = false;
+            var labelOutline = labelRect.gameObject.AddComponent<Outline>();
+            labelOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            labelOutline.effectDistance = new Vector2(1f, -1f);
 
             return (fill, label);
         }
 
-        /// Top-left ultimate time-remaining bar, hidden unless PlayerUltimate.IsActive.
+        /// Top-left ultimate time-remaining bar, hidden unless PlayerUltimate.IsActive. Same
+        /// sliced track/fill bar sprite, size, and "label inside the bar" treatment as the
+        /// bottom-left ability bars, so all three read as one consistent bar style.
         private static Player.UI.UltimateHudUI BuildUltimateHud(Transform parent)
         {
             const float panelWidth = 260f;
-            const float panelHeight = 36f;
+            const float barHeight = 34f;
 
             var topLeft = new Vector2(0f, 1f);
+
+            // Same shallower vertical border as BuildAbilitySlot - keeps the rounded caps from
+            // squishing at this bar height.
+            Sprite trackSprite = LoadHudSprite(HealthBarTrackPath, new Vector4(24f, 10f, 24f, 10f));
+            Sprite fillSprite = LoadHudSprite(HealthBarFillPath, new Vector4(24f, 10f, 24f, 10f));
+            Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
 
             // The UltimateHudUI component lives on this always-active host, separate from the
             // "panel" GameObject it toggles - a component can't stay subscribed/updating once
             // its own GameObject is deactivated, so the hideable visuals must be a child instead.
-            var host = CreateUiRect("UltimateHud", parent, new Vector2(panelWidth, panelHeight),
+            var host = CreateUiRect("UltimateHud", parent, new Vector2(panelWidth, barHeight),
                 new Vector2(24f, -24f), topLeft);
             var hud = host.gameObject.AddComponent<Player.UI.UltimateHudUI>();
 
-            var panel = CreateUiRect("Panel", host, new Vector2(panelWidth, panelHeight), Vector2.zero, topLeft);
+            var panel = CreateUiRect("Panel", host, new Vector2(panelWidth, barHeight), Vector2.zero, topLeft);
 
-            var backdrop = CreateUiRect("Backdrop", panel, new Vector2(panelWidth, panelHeight), Vector2.zero, topLeft);
-            backdrop.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.03f, 0.08f, 0.6f);
+            Image track = CreateStretchImage("Track", panel, trackSprite);
+            track.type = Image.Type.Sliced;
+            track.color = new Color(0.06f, 0.03f, 0.1f, 0.9f);
 
-            var track = CreateUiRect("Track", panel, new Vector2(panelWidth - 16f, 12f), new Vector2(8f, -8f), topLeft);
-            track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+            // Fill is resized via its RectTransform's anchorMax (see UltimateHudUI.ApplyFraction)
+            // rather than Image.Type.Filled - same reasoning as BuildAbilitySlot.
+            Image fill = CreateStretchImage("Fill", panel, fillSprite);
+            fill.type = Image.Type.Sliced;
+            fill.color = new Color(0.72f, 0.32f, 1f, 1f);
 
-            var fillRect = CreateUiRect("Fill", panel, new Vector2(panelWidth - 16f, 12f), new Vector2(8f, -8f), topLeft);
-            var fill = fillRect.gameObject.AddComponent<Image>();
-            fill.sprite = GetOrCreateSolidSprite(); // see BuildAbilitySlot's comment on this
-            fill.color = new Color(0.85f, 0.4f, 1f);
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillAmount = 1f;
-            fill.raycastTarget = false;
-
-            var textRect = CreateUiRect("Time", panel, new Vector2(panelWidth - 16f, 16f), new Vector2(8f, -22f), topLeft);
+            var textRect = CreateUiRect("Time", panel, new Vector2(panelWidth - 24f, barHeight), new Vector2(16f, 0f), new Vector2(0f, 0.5f));
             var text = textRect.gameObject.AddComponent<Text>();
+            text.text = "ULTIMATE";
             text.alignment = TextAnchor.MiddleLeft;
             text.color = new Color(0.95f, 0.85f, 1f);
-            text.fontSize = 12;
+            text.fontSize = 18;
             text.fontStyle = FontStyle.Bold;
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = utilityFont;
             text.raycastTarget = false;
+            var textOutline = textRect.gameObject.AddComponent<Outline>();
+            textOutline.effectColor = new Color(0.06f, 0f, 0.1f, 0.9f);
+            textOutline.effectDistance = new Vector2(1f, -1f);
 
             hud.SetWidgets(panel.gameObject, fill, text);
             return hud;
         }
 
-        /// Minimal Space Expansion UI health module: one red bar with current HP centered in it.
+        /// Space Expansion UI health module: one long red bar with current HP centered in it,
+        /// bottom-center of the screen.
         private static HealthHudUI BuildHealthHud(Transform parent)
         {
-            const float barWidth = 304f;
-            const float barHeight = 36f;
+            const float barWidth = 480f;
+            const float barHeight = 40f;
 
-            var topRight = new Vector2(1f, 1f);
+            var bottomCenter = new Vector2(0.5f, 0f);
 
             Sprite trackSprite = LoadHudSprite(
                 HealthBarTrackPath,
@@ -1924,7 +1991,7 @@ namespace PlayerEditor
             Font utilityFont = RequireAsset<Font>(HudUtilityFontPath);
 
             var root = CreateUiRect("HealthHud", parent, new Vector2(barWidth, barHeight),
-                new Vector2(-28f, -28f), topRight);
+                new Vector2(0f, 28f), bottomCenter);
             var hud = root.gameObject.AddComponent<HealthHudUI>();
 
             Image track = CreateStretchImage("Track", root, trackSprite);

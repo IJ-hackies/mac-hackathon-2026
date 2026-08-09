@@ -9,7 +9,7 @@ owns:
   - "Assets/Prefabs/Projectile.prefab*"
   - "Assets/Tests/EditMode/Player/PlayerCombatFireRateTests.cs*"
   - "Assets/Tests/EditMode/Player/SpecialCombatSkillTests.cs*"
-related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate]
+related: [player-controller, progression, enemies, runtime-art, state, boss-fight, items, ultimate, tutorial]
 verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
@@ -81,7 +81,7 @@ locomotion.
   camera), then plays the player-death SFX. `PlayerCombat.OnDisable` zeroes the
   `Arms` layer weight/`Firing`, otherwise a frozen shoot pose would override
   `Death`'s base-layer pose.
-- `Assets/Scripts/UI/HealthHudUI.cs` - minimal top-right health readout: one
+- `Assets/Scripts/UI/HealthHudUI.cs` - minimal bottom-center health readout: one
   fixed-red sliced Space Expansion bar with rounded current HP centered
   inside. It has no panel, labels, percent sign, or damage trail. `Bind()`
   stores `Health`; `OnEnable` subscribes after domain reload and falls back
@@ -89,11 +89,9 @@ locomotion.
 
 `TryFireShot` gates each accepted shot behind `Player.PlayerAmmo.
 TryConsumeRound()` before calling `FireProjectile`/`SpawnMuzzleFlash` -
-running dry (with storage left) auto-starts a reload, and a reload in
-progress silently withholds the shot without touching the Shoot animation
-loop. A `Reload` action (`R`) calls
-`PlayerAmmo.StartReload()` directly - see [items](items.md) for
-`PlayerAmmo`/`AmmoHudUI` and the `AmmoPickup` that refills them.
+running dry auto-starts reload when storage remains; reload progress withholds
+shots without touching the Shoot loop. `Reload` (`R`) calls
+`PlayerAmmo.StartReload()`; see [items](items.md) for ammo UI and pickups.
 
 `PlayerCombat.SetUltimateActive(bool)` (called by `Player.PlayerUltimate`)
 switches `FireProjectile`'s primary-fire path from the single dark-magic
@@ -121,6 +119,10 @@ Ultimate cadence or turning click fire into held fire. `Combat.Health` reports
 actual HP removed after mitigation and overkill clamping; Vampire uses that
 value to heal 2% across pistol, bounce/splash, melee, secondary, and Ultimate
 damage rather than healing from attempted damage.
+
+`PlayerCombat` also exposes `ShotFired`/`SecondaryFired` on every successful
+cast. The [tutorial](tutorial.md) dummy uses them to distinguish light pistol
+from heavy secondary hits, since both use `Combat.DamageType.Ranged`.
 
 ## Invariants
 

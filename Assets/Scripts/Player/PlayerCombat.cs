@@ -212,6 +212,13 @@ namespace Player
         public bool VampireEnabled => _vampireEnabled;
         public int OrdinaryPistolRoundsFired => _ordinaryPistolRoundsFired;
         public event System.Action SecondaryCooldownChanged;
+        // Tutorial hook (Assets/Scripts/Tutorial/TutorialDummyAI.cs): both fire and Attack2 tag
+        // their Combat.ApplyDamage calls as DamageType.Ranged, so DamageType alone can't tell a
+        // light (pistol) hit from a heavy (secondary) hit on a target. These two events give the
+        // tutorial dummy a timestamp to correlate against Health.Hit instead of guessing from
+        // damage amount. Fired on every successful cast, gameplay-mode-agnostic.
+        public event System.Action ShotFired;
+        public event System.Action SecondaryFired;
 
         /// Called by PlayerUltimate on activate/end - swaps which attack profile FireProjectile/
         /// OnSecondaryPerformed use. Does not touch anything else (visual swap, shield reset,
@@ -252,6 +259,12 @@ namespace Player
         private void Awake()
         {
             EnsureRuntimeState();
+
+            if (playerAmmo != null)
+            {
+                playerAmmo.ReloadStarted += OnReloadStarted;
+                UI.ReloadIndicatorUI.EnsureFor(playerAmmo);
+            }
         }
 
         private void EnsureRuntimeState()
@@ -264,6 +277,11 @@ namespace Player
             if (playerAmmo == null) playerAmmo = GetComponent<PlayerAmmo>();
             if (playerUltimate == null) playerUltimate = GetComponent<PlayerUltimate>();
             if (_playerHealth == null) _playerHealth = GetComponent<Health>();
+        }
+
+        private void OnReloadStarted()
+        {
+            AudioManager.Instance.PlaySfx(SfxId.PlayerReload, muzzle != null ? muzzle.position : transform.position);
         }
 
         private void OnEnable()
@@ -302,6 +320,7 @@ namespace Player
 
         private void OnDestroy()
         {
+            if (playerAmmo != null) playerAmmo.ReloadStarted -= OnReloadStarted;
             PlayerInputBindings.ReleaseActions(_actions);
             _actions = null;
         }
@@ -542,7 +561,19 @@ namespace Player
 
         private bool TryFireShot()
         {
-            if (playerAmmo != null && !playerAmmo.TryConsumeRound()) return false;
+            if (playerAmmo != null && !playerAmmo.TryConsumeRound())
+            {
+                // Every failed trigger pull with an empty magazine gets the dry-click, even the
+                // one that simultaneously auto-starts a reload (TryConsumeRound already flips
+                // IsReloading true before returning here) - that first click is exactly the
+                // "pulled the trigger, nothing happened" moment the sound is for.
+                if (playerAmmo.CurrentMagazine <= 0)
+                {
+                    AudioManager.Instance.PlaySfx(SfxId.PlayerDryFire,
+                        muzzle != null ? muzzle.position : transform.position);
+                }
+                return false;
+            }
 
             // A Headshot round is determined only after a real ordinary pistol round is consumed.
             // Ultimate beats consume no normal ammunition and therefore never advance this count.
@@ -551,6 +582,7 @@ namespace Player
 
             FireProjectile(headshot);
             SpawnMuzzleFlash();
+            ShotFired?.Invoke();
             return true;
         }
 
@@ -909,6 +941,7 @@ namespace Player
 
             _secondaryCooldownEndsAt = Time.time + SecondaryCooldownDuration;
             SecondaryCooldownChanged?.Invoke();
+            SecondaryFired?.Invoke();
 
             // SFX no longer fires on cast - moved to DamageIfStillNear so it only plays once the
             // hit actually lands on an enemy, not on every cast regardless of outcome.

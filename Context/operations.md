@@ -43,74 +43,37 @@ command for relinking and validating `PlayerRig.prefab`, including its camera
 shadows, post-processing, and FXAA. Do not use the destructive `Build Test
 Scene` command for that repair.
 
-`Tools > Player Prototype > Configure Settings Menu` (`Ctrl+Shift+U`)
-idempotently imports/configures the selected Cartoon UI and Space Expansion UI
-sprites and rebuilds the rig-owned Escape settings console, including all 13
-configurable keyboard/mouse rows and the intermission-only Teleport to Base
-action. `Configure PC-Only Input` removes non-PC
-bindings from every action map, retains only the Keyboard&Mouse scheme, and
-regenerates `InputSystem_Actions.cs`; `PcUiInputBinding` also replaces Unity's
-cross-platform default menu actions at runtime.
-In Play mode,
-`Preview Settings Menu` (`Ctrl+Shift+O`) opens it for visual inspection. The
-current dark-header/high-contrast pass compiled through
-`Assembly-CSharp-Editor.csproj` with zero warnings/errors and was checked in
-the live Game view.
-
-`Tools > Main Menu > Rebuild Main Menu Scene` imports its Cartoon UI icons,
-regenerates `MainMenu.unity`, and restores MainMenu/SampleScene as enabled build
-scenes 0/1. It safely replaces an already-open generated MainMenu scene and
-builds a deterministic 61-prop menu-only planet vignette against the exact
-crater collider. `Validate Main Menu Scene` checks page references,
-Singleplayer's SampleScene target, settings controls, build order, the dressing
-hierarchy, and disabled presentation colliders. The home page contains only
-Singleplayer and Settings, with its title and console directly over the space
-background. The earlier alignment/dressing pass was checked in the live
-2560x1440 Game view; the current no-overlay, single-player-only rebuild passes
-both generated assembly compile checks with zero warnings/errors.
+The serialized MainMenu scene, PlayerRig settings console, and Progression UI/
+station layouts are authoritative. Their former broad rebuild/configure tools
+were removed because they could overwrite hand-authored work. MainMenu remains
+Singleplayer-only at build index 0, with SampleScene at index 1. Use targeted
+tools for repairs and previews. `Configure PC-Only Input` retains only the
+Keyboard&Mouse scheme and regenerates `InputSystem_Actions.cs`;
+`PcUiInputBinding` replaces Unity's cross-platform default menu actions.
 
 `Tools > Player Prototype > Refresh Health HUD` (`Ctrl+Shift+H`) replaces only
 the rig's `HealthHud` child with the minimal red Space Expansion bar and
 preserves the other prefab UI. Runtime/editor builds pass with zero warnings/
 errors; a live SampleScene handoff verified the centered raw HP value, absence
-of labels/panel, imported sprites, and top-right placement.
+of labels/panel, imported sprites, and bottom-center placement.
 
 `Tools > Player Prototype > Refresh Ammo HUD` (`Ctrl+Shift+Alt+A`) replaces
-only the rig's `AmmoHud` child with a matching blue Space Expansion bar directly
-below health. Its centered value and fill show current magazine rounds rather
-than reserve storage; the text shows `magazine / reserve`. Runtime/editor builds pass with zero warnings/errors; a
+only the rig's `AmmoHud` child with a matching blue Space Expansion bar at
+bottom-right. Its centered value/fill show magazine rounds and the text shows
+`magazine / reserve`. Runtime/editor builds pass with zero warnings/errors; a
 live SampleScene smoke test verified the initial `12`, then `10` with a
 proportionally shorter fill after sustained fire consumed two shot beats.
 
-`Tools > Progression > Configure All` (`Ctrl+Shift+Alt+P`) copies only the
-selected Cartoon UI/Space Expansion UI sprites into the project-owned
-Progression texture folder, rebuilds only `HUD Canvas/Progression UI` in
-`PlayerRig.prefab`, repairs the three SampleScene station markers, saves, and
-runs strict serialized-reference, radial ground-placement, footprint-radius,
-roof-beacon, label, and world-scale validation. `Validate Sample Scene` is
-read-only. In Play mode the Preview submenu opens Supply, Skill Archive, or
-Special System directly, can hold/release the Run Overview, and provides QA
-approach commands for each station.
+The targeted `Add Return To Main Menu Button` tool updates the settings console,
+while the four `Refresh ... HUD` commands update Health, Ammo, Ability, or
+Ultimate without rebuilding unrelated prefab UI. During this merge all four
+refreshes and the return-button addition completed successfully in Unity.
 
-`Tools > Progression > Run Progression Contract Tests`
-(`Ctrl+Shift+Alt+T`) executes the `Progression.Contracts.Tests` EditMode
-assembly in the active editor and logs failures plus a final count. The latest
-run passed all 17 tests, including the 13-skill catalog, upgrade/special stat
-composition, reset behavior, supply healing/ammo capacity, world-distance
-proximity, prompt visibility,
-in-range menu opening, and the opening-frame close-input guard. `dotnet build Progression.Contracts.Tests.csproj
---no-restore` is the corresponding compile-only check. Runtime, editor, and
-test assemblies all build with zero warnings/errors. The latest Configure All
-run regenerated three Supply cards and the 13-card scrolling Special System,
-then passed its station/UI validator. The live Special System preview verified
-that its `RectMask2D` viewport renders both card columns; do not restore the
-former sprite-less `Image + Mask`, which hid every card while leaving the shell
-visible. Live SampleScene QA previously verified the gold HUD/coin,
-FULL supply state, aligned
-three console layouts, a 500g Hold-to-Fire purchase becoming OWNED, a 100g HP
-upgrade updating gold/level/live max HP, and the non-pausing Tab overview. A
-Unity Input System `E` pulse at the in-range Supply Console also verified that
-the menu opens and remains visible after the input frame.
+`dotnet build Progression.Contracts.Tests.csproj --no-restore` is the current
+compile-only progression check. The Special System viewport must retain
+`RectMask2D`; a sprite-less `Image + Mask` hides its cards. Previous live QA
+verified supply, purchases, upgrade effects, Tab overview, and in-range `E`
+opening. Run the EditMode assembly in Unity for execution coverage.
 
 `Tools > Waves > Configure Complete Wave Loop` idempotently rebuilds only the
 PlayerRig `HUD Canvas/Wave UI` subtree, attaches the progression adapter, wires
@@ -276,6 +239,19 @@ the full ring before generating. Undo removes the scene hierarchy, while the
 unique mesh asset remains in
 `Assets/Art/Generated/LandingBaseWalls` until explicitly deleted from the
 Project window.
+
+`Tools > Tutorial > Import Modular Kit Assets` copies the entire Modular SciFi MegaKit pack
+(~190 FBXs across Walls/Platforms/Columns/Props/Decals/Aliens, plus its full texture set) into
+`Assets/Art/Models/Environment/ModularSciFi/<Category>/` and builds their shared trim materials,
+so every piece is available to drag into the scene and already matches. There is no automated
+scene builder anymore - two scripted passes (a white one-tile/one-band tube, then a scripted
+three-tile/three-band modular assembly) were both discarded as too rough without live visual
+feedback, and the room is now hand-built in the editor. `Tools > Tutorial > Strip Scene For
+Manual Build` was a one-shot cleanup that removed the discarded auto-builder's generated hierarchy
+from `Assets/Scenes/Tutorial.unity`, keeping only the `Sun Light` and a `PlayerRig` reference
+instance; delete that script once no longer needed. The tutorial's gameplay scripts
+(`TutorialManager` and friends, `Assets/Scripts/Tutorial/`) are unaffected by any of this and get
+wired to the hand-built room's gates/zones/pickups via the Inspector.
 
 To move the planetary player spawn, exit Play mode, move the top-level
 `PlayerRig` scene instance roughly above the intended location, then use the

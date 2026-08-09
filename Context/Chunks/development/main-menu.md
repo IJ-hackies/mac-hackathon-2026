@@ -7,6 +7,9 @@ owns:
   - "Assets/Scripts/UI/MainMenuController.cs*"
   - "Assets/Scripts/UI/ControlsRebindingUI.cs*"
   - "Assets/Scripts/UI/PcUiInputBinding.cs*"
+  - "Assets/Scripts/UI/ButtonHoverEffect.cs*"
+  - "Assets/Scripts/UI/MenuButtonSfx.cs*"
+  - "Assets/Scripts/UI/UiSfxWirer.cs*"
   - "Assets/Editor/MainMenu.meta"
   - "Assets/Editor/MainMenu/**"
   - "ProjectSettings/EditorBuildSettings.asset"
@@ -43,9 +46,8 @@ the in-game pause console.
   [player-controller](../gameplay/player-controller.md).
 - `PcUiInputBinding.cs` - replaces Unity's cross-platform default UI actions
   with the project's keyboard/mouse-only UI action map.
-- `MainMenuSceneSetup.cs` - revisioned/idempotent scene generation, runtime icon
-  copies, sprite imports, deterministic planet dressing, build order, and
-  contract validation.
+- `ButtonHoverEffect.cs`, `MenuButtonSfx.cs`, and `UiSfxWirer.cs` provide the
+  shared menu hover/click feedback without scene-specific audio wiring.
 - `MainMenuPreviewCapture.cs` - optional isolated 1920x1080 preview render.
 
 ## Invariants
@@ -72,8 +74,9 @@ the in-game pause console.
 
 ## Gotchas
 
-`Rebuild Main Menu Scene` replaces the generated scene. Make layout changes in
-the setup tool or preserve them there before rebuilding. Runtime copies belong
+`MainMenu.unity` is authoritative; the former broad scene generator was removed
+because it could overwrite hand-authored work. Preserve its Singleplayer-only
+layout and use targeted tools such as preview capture. Runtime copies belong
 under `Assets/Art/`; never reference `asset packs/` from the scene. Do not call
-the gameplay vegetation/rock generators for this scene: they require gameplay
-roots and would destroy the menu's lightweight budget.
+the gameplay vegetation/rock generators here: they require gameplay roots and
+would destroy the menu's lightweight budget.

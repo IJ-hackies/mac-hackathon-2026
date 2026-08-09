@@ -57,7 +57,10 @@ approach 4, Flying wander 1.5/approach 2.25, and Large walk 2/run 4.5.
   can pick `HitRecieve_1`/`_2`. Reduces `CurrentHealth`, fires
   `HealthChanged` and `Hit(DamageType)` (amount first scaled by composed,
   source-keyed incoming-damage modifiers used by progression Defense and
-  [ultimate](ultimate.md)'s Shield), then fires `HitReact`/`Death`
+  [ultimate](ultimate.md)'s Shield). If that scaling reduces a real (>0) hit to
+  zero, `MitigatedDamage(float)` fires instead with the pre-scaled amount -
+  `PlayerShield` uses this for its permanent blue "damage blocked" popup; a
+  fully-blocked hit fires `MitigatedDamage`, not `Hit`. Then fires `HitReact`/`Death`
   Animator triggers **fire-and-forget** - never blocks its own caller; `Died`
   is the hook other scripts use to stop something (`EnemyBase.HandleDeath`,
   `PlayerDeathHandler`). `SuppressHitReact` skips `HitReact` while still
@@ -121,10 +124,9 @@ approach 4, Flying wander 1.5/approach 2.25, and Large walk 2/run 4.5.
   BuildTestScene`, which wipes the scene and would otherwise drop these.
 - `Assets/Editor/ModelAnimationUtility.cs` - clip-lookup/looping/layer
   helpers shared with `PlayerSceneSetup`.
-- World-space health bars are retired for regular enemies and both boss stages.
-  Their legacy prefab children remain inactive, and the enemy/boss setup tools
-  no longer add new ones. Arena2 still presents boss health in the separate
-  top-center arena objective HUD.
+- World-space health bars are retired for regular enemies and both boss stages;
+  legacy prefab children remain inactive. Arena2 presents boss health only in
+  the top-center arena objective HUD.
 
 ## Invariants
 
@@ -143,8 +145,6 @@ approach 4, Flying wander 1.5/approach 2.25, and Large walk 2/run 4.5.
   enemies until `EnemySceneSetup` is re-run.
 
 ## Gotchas
-
-- Wave-spawned AI must be configured through `EnemyWaveScaling`; direct prefab
-  stat edits bypass endless-wave scaling and reward/removal semantics.
-- See [player-controller](player-controller.md) Gotchas for the iCloud-Drive
-  " 2"/" 3" duplicate-file pattern - affects the whole `Assets/` tree.
+- Configure wave-spawned AI through `EnemyWaveScaling`; direct prefab edits
+  bypass endless-wave scaling and reward/removal semantics. The iCloud " 2"/
+  " 3" duplicate-file warning in [player-controller] applies across `Assets/`.

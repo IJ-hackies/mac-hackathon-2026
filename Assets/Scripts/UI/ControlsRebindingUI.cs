@@ -198,6 +198,7 @@ namespace Player.UI
             if (!PlayerInputBindings.IsSupportedPcButton(candidatePath))
             {
                 RestorePreviousOverride(action, bindingIndex);
+                Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiError);
                 Finish($"{row.Definition.DisplayName}: KEYBOARD OR MOUSE BUTTONS ONLY");
                 return;
             }
@@ -209,17 +210,20 @@ namespace Player.UI
                     out string conflictName))
             {
                 RestorePreviousOverride(action, bindingIndex);
+                Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiError);
                 Finish($"INPUT ALREADY USED BY {conflictName}");
                 return;
             }
 
             PlayerInputBindings.SaveAndApply(_actions);
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiToggle);
             Finish($"{row.Definition.DisplayName} UPDATED");
         }
 
         private void FinishCancelled()
         {
             _escapeConsumedFrame = Time.frameCount;
+            Audio.AudioManager.Instance.PlaySfx(Audio.SfxId.UiClose);
             Finish("REBIND CANCELLED");
         }
 

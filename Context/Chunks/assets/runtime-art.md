@@ -6,6 +6,13 @@ owns:
   - "Assets/Art/**"
   - "Assets/Scripts/Presentation.meta"
   - "Assets/Scripts/Presentation/**"
+  - "Assets/Audio.meta"
+  - "Assets/Audio/**"
+  - "Assets/Resources/SfxLibrary.asset*"
+  - "Assets/Scripts/Audio.meta"
+  - "Assets/Scripts/Audio/**"
+  - "Assets/Editor/Audio.meta"
+  - "Assets/Editor/Audio/**"
 related: [asset-library, unity-project, main-menu, progression, player-controller, world-authoring, world-runtime, items, ultimate]
 verifiedAtCommit: e4caa898457d6a2d25ff205625898ecf4fbe2635
 lastVerified: 2026-08-09
@@ -17,6 +24,8 @@ lastVerified: 2026-08-09
 preserved vendor packs under `asset packs/`, organized by type and gameplay role
 rather than vendor. Main menu uses the same planet/runtime-art system as gameplay
 for its menu-only vignette; see [main-menu].
+Project-owned UI and weapon clips are catalogued by `SfxLibrary` and played
+through the runtime audio service, keeping callers on stable `SfxId` values.
 
 ## Key files
 
@@ -78,6 +87,9 @@ for its menu-only vignette; see [main-menu].
 - `Resources/S_WaveEnergyBarrier.shader` is the WebGL-safe transparent lock
   field used by `WaveAreaBarrier`. Its explicit blend/depth state and direct
   Resources reference avoid the opaque runtime-URP setup and shader stripping.
+- `Resources/SfxLibrary.asset`, `Scripts/Audio/`, and `Editor/Audio/` provide
+  the centralized SFX catalog/runtime and its targeted library builder. Source
+  clips live under `Assets/Audio/SFX/`.
 
 ## Invariants
 

@@ -12,6 +12,7 @@ owns:
   - "Assets/Art/Materials/Items/**"
   - "Assets/Scripts/Player/PlayerAmmo.cs*"
   - "Assets/Scripts/UI/AmmoHudUI.cs*"
+  - "Assets/Scripts/UI/ReloadIndicatorUI.cs*"
 related: [player-controller, player-combat, progression, wave-system, runtime-art, asset-library, state, ultimate]
 verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
@@ -46,7 +47,9 @@ Regeneration_health_loop`, Ammo -> `States/Aura_acceleration`, Thunder ->
 This also introduced the project's first ammo/reload system:
 `Player.PlayerAmmo` (magazine/reserve storage/reload timer, `TryConsumeRound`/
 `StartReload`/`RefillFull`) and `Player.UI.AmmoHudUI` (a sliced blue bar
-directly below health, with `magazine / reserve` centered inside).
+at bottom-right, with `magazine / reserve` centered inside). A separate
+`ReloadIndicatorUI` shows reload progress while weapon SFX report dry fire and
+reload start.
 Its fill tracks `CurrentMagazine / MagazineSize`; Ultimate's infinite-ammo
 state shows a full bar and infinity symbol. `PlayerCombat.CheckShootBeat` gates
 `FireProjectile` behind `playerAmmo.TryConsumeRound()` (see

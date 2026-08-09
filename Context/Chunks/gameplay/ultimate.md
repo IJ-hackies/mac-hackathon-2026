@@ -58,7 +58,10 @@ wedges. Mech uses a separate four-clip timing array (Wave/Yes/No/Dance); Dance
 - `PlayerShield` resets its per-Ultimate energy budget on activation. Holding it
   drains faster than released regeneration, preventing permanent uptime; active
   Shield sets `Health.IncomingDamageMultiplier = 0`, then restores `1` on
-  release/depletion. It uses a keyed Health modifier, so progression Defense
+  release/depletion. Every fully-blocked hit also pops a permanent blue
+  `Combat.DamageNumberSpawner` number at the player via `Health.MitigatedDamage`
+  (fired whenever an incoming-damage modifier reduces a real hit to zero) - this
+  is game-wide feedback, not tutorial-specific. It uses a keyed Health modifier, so progression Defense
   remains present after shield release. Its `Shields/Shield_electric` VFX is parented to Mech.
   Shield audio is runtime-only so EditMode contracts do not lazily create a
   persistent audio manager.
@@ -86,9 +89,9 @@ nonzero dodge window.
 - Generated `AbilityHudUI` (bottom-left) shows Dash cooldown or Shield energy
   in slot A, and secondary cooldown in B; it relabels B as Beam/Lightning.
   `UltimateHudUI` (top-left) is hidden out of Ultimate and shows fill plus
-  `ULTIMATE Ns`. Every filled `Image` needs a solid sprite
-  (`GetOrCreateSolidSprite` wrapping `Texture2D.whiteTexture`): null sprites
-  ignore `fillAmount` and look permanently full.
+  `ULTIMATE Ns`. Both HUDs use sliced Space Expansion track/fill sprites and
+  resize the fill through its `RectTransform.anchorMax`; do not switch the
+  sliced fill to `Image.fillAmount`.
 - Ultimate components may interact with `PlayerController` only through
   `Dash`, `GetCameraRelativeTangentDirection`, and `SetMovementSpeedModifier`;
   use `IncomingDamageMultiplier`, never attacker-side invulnerability checks.

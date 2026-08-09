@@ -2,7 +2,7 @@
 chunk: system
 title: Project identity and current architecture
 owns: []
-related: [control-model, core-loop, wave-system, progression, gameplay-areas, asset-library, runtime-art, unity-project, main-menu, world-authoring, world-runtime, git-collaboration, player-controller]
+related: [control-model, core-loop, wave-system, progression, gameplay-areas, asset-library, runtime-art, unity-project, main-menu, world-authoring, world-runtime, git-collaboration, player-controller, tutorial]
 verifiedAtCommit: 51dd8f3150f2f142886af2218c43c4d0c0875e41
 lastVerified: 2026-08-09
 ---
@@ -68,6 +68,10 @@ The LandingBase now also has a run-scoped economy starting at 100g. `Base_Large`
 `GeodesicDome`, and `SolarPanel_Structure` host supply, stat-upgrade, and
 Hold-to-Fire consoles with pause-safe interaction UI; see [progression].
 
+`Tutorial.unity` is a hand-authored, gated onboarding path for movement,
+combat, pickups, Ultimate/Shield, base stations, and the wave loop; see
+[tutorial](gameplay/tutorial.md).
+
 A separate `Player.unity` prototype scene (not yet merged into the planet
 scene) now carries a working single-player third-person controller with
 melee/hitscan combat, health/death, three fightable basic enemy AI types, and
@@ -115,6 +119,7 @@ defined before concurrent implementation begins.
 
 Repository metadata, `Context/**`, `.agents/**`, and `.claude/**` are context
 infrastructure rather than product-source ownership. Unity and IDE caches,
-logs, user settings, generated solutions, and build outputs excluded by the
-root `.gitignore` are also intentionally unowned. Add new product files to an
+logs, user settings, generated solution metadata (including the tracked root
+`.slnx`), and build outputs excluded by the root `.gitignore` are also
+intentionally unowned. Add new product files to an
 existing chunk or explicitly classify them during context maintenance.

@@ -66,6 +66,12 @@ namespace Combat
         // single generic reaction, and this event lets it pick without Health knowing about
         // per-enemy animator param names.
         public event Action<DamageType> Hit;
+        // Fired when an incoming-damage modifier (e.g. Player.PlayerShield's full block) reduces
+        // an otherwise-real hit to zero, carrying the amount that would have landed. Distinct
+        // from Hit, which never fires for a fully-blocked amount at all - this is the hook for
+        // "you blocked N damage" feedback (see Player.PlayerShield) without Health needing to
+        // know anything about shields, UI, or who's listening.
+        public event Action<float> MitigatedDamage;
 
         private void Awake()
         {
@@ -92,8 +98,13 @@ namespace Combat
         {
             if (IsDead || amount <= 0f) return 0f;
 
+            float originalAmount = amount;
             amount *= EffectiveIncomingDamageMultiplier;
-            if (amount <= 0f) return 0f;
+            if (amount <= 0f)
+            {
+                MitigatedDamage?.Invoke(originalAmount);
+                return 0f;
+            }
 
             if (_currentHealth < 0f) _currentHealth = maxHealth;
 

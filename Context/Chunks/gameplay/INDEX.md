@@ -11,3 +11,4 @@
 - [boss-fight](boss-fight.md) - Barbara the Bee two-stage boss fight (Astronaut -> Mech)
 - [items](items.md) - Health/Ammo/Thunder power-up pickups and the ammo/reload system
 - [ultimate](ultimate.md) - Thunder-activated Mech mode, Dash/Shield abilities, secondary attacks
+- [tutorial](tutorial.md) - Overwatch-style gated onboarding tutorial (Tutorial.unity)

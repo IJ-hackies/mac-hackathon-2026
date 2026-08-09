@@ -80,11 +80,12 @@ always restores the captured gameplay value (Mobile is 50).
 - `SettingsMenuController.cs` owns the rig's Escape settings console: it toggles
   pause, input/cursor/look and crosshair ownership, persists `GameSettings`
   master volume and `MouseSensitivity`, opens the live Controls page, and offers
-  an intermission-only Teleport to Base action through [wave-system].
-  `ControlsRebindingUI` drives its 13 two-column binding rows, including
-  StartWave, with Escape-cancel,
-  duplicate rejection, and Reset Defaults. Closing restores the main page and
-  only state it acquired, including `PlayerAbilityInput` enablement.
+  intermission-only Teleport to Base through [wave-system]. It raises itself to
+  the top UI sibling, wires menu SFX, and restores only state it acquired.
+  `ControlsRebindingUI` drives 13 two-column rows with Escape-cancel, duplicate
+  rejection, and Reset Defaults. `ReturnToMainMenu()` resets time/cursor and
+  loads `MainMenu`; the targeted `Add Return To Main Menu Button` tool clones
+  Close so both `SampleScene` and `Tutorial.unity` inherit the same control.
 - `PlayerInputBindings.cs` is the factory/registry for every independent
   `InputSystem_Actions` copy. It loads one PlayerPrefs override JSON, fans an
   accepted rebind out to live copies while preserving map enablement, and
@@ -93,9 +94,9 @@ always restores the captured gameplay value (Mobile is 50).
   `OnEnable`, so an Editor assembly reload cannot leave restored scene objects
   with null input state.
 - `PlayerRig.prefab` contains nested radial `Player.prefab`, area tracker,
-  LandingBase effect, camera pivot, and UI. Health and ammo are matching sliced
-  bars in the top-right stack; `Refresh Health HUD` and `Refresh Ammo HUD`
-  replace only their own rig children. `Repair Player Rig Prefab` safely
+  LandingBase effect, camera pivot, and UI. Its sliced bars place Health at
+  bottom-center and Ammo at bottom-right; the targeted refresh commands replace
+  only their own rig children. `Repair Player Rig Prefab` safely
   rewires/validates the rig; destructive `Build Test Scene` recreates sandbox
   artifacts including ammo/ability/ultimate HUDs (see [items]/[ultimate]).
 - The rig also owns the always-active progression UI/controller host. Station
