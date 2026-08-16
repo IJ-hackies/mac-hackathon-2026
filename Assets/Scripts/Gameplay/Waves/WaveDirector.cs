@@ -82,6 +82,7 @@ namespace Gameplay.Waves
         public int Kills { get; private set; }
         public int GoldEarned { get; private set; }
         public int Gold => progression != null ? progression.Gold : WaveRules.StartingGold + GoldEarned;
+        public int Score => ScoreRules.Score(CurrentWave, Kills, GoldEarned);
         public int ActiveSpecialPickupCount => pickupSpawner != null ? pickupSpawner.ActiveCount : 0;
         public float RunDuration => Mathf.Max(0f, Time.time - _runStartedAt);
         public float PhaseRemaining => _phaseRemaining;
@@ -186,7 +187,7 @@ namespace Gameplay.Waves
             _playerDead = true; _regularExpiryPending = false; _arenaCompletionPending = false;
             pickupSpawner?.Cleanup();
             SetAreaLocks(false, false, false); SetPhase(WavePhase.GameOver);
-            RunEnded?.Invoke(new WaveRunResult { WaveReached = CurrentWave, Kills = Kills, GoldEarned = GoldEarned, Duration = RunDuration });
+            RunEnded?.Invoke(new WaveRunResult { WaveReached = CurrentWave, Kills = Kills, GoldEarned = GoldEarned, Duration = RunDuration, Score = Score });
         }
         public void RegisterEnemy(WaveEnemyHandle enemy)
         {

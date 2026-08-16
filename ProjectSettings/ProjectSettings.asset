@@ -928,11 +928,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 1
   windowsGamepadBackendHint: 0
-  cloudProjectId: 6749062f-f5b6-41c9-ac75-4b15d7fd893c
+  cloudProjectId: b7486fb3-1008-42ab-930d-06d2bc3ef157
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: MAC-gamejam
-  organizationId: elytride
+  organizationId: iden0605
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

@@ -174,7 +174,7 @@ namespace Waves.Editor
         {
             if (area == null) throw new InvalidOperationException("Cannot configure a missing GameplayArea.");
             WaveAreaBarrier barrier = area.GetComponent<WaveAreaBarrier>() ?? area.gameObject.AddComponent<WaveAreaBarrier>();
-            barrier.Configure(area, color, 8f);
+            barrier.Configure(area, color, 16f);
             return barrier;
         }
 

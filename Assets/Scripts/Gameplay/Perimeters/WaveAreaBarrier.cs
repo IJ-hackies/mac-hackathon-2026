@@ -16,7 +16,7 @@ namespace Gameplay.Waves
 
         [SerializeField] private GameplayArea area;
         [SerializeField] private Color barrierColor = new Color(0.52f, 0.85f, 1f, 1f);
-        [SerializeField, Min(2f)] private float height = 8f;
+        [SerializeField, Min(2f)] private float height = 16f;
         [SerializeField, Min(0.1f)] private float thickness = 0.55f;
         [SerializeField, Min(0.5f)] private float maximumSegmentLength = 4f;
         [SerializeField] private bool locked;
@@ -72,7 +72,7 @@ namespace Gameplay.Waves
             DestroyRuntimeResources();
         }
 
-        public void Configure(GameplayArea configuredArea, Color color, float configuredHeight = 8f)
+        public void Configure(GameplayArea configuredArea, Color color, float configuredHeight = 16f)
         {
             area = configuredArea;
             barrierColor = color;

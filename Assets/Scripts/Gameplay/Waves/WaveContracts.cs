@@ -45,6 +45,7 @@ namespace Gameplay.Waves
         public int Kills;
         public int GoldEarned;
         public float Duration;
+        public int Score;
     }
 
     /// <summary>Numerical rules deliberately live outside the director so UI and tests can use the exact same contract.</summary>
@@ -108,5 +109,15 @@ namespace Gameplay.Waves
         }
 
         private static int BaseGold(WaveEnemyType type) => type == WaveEnemyType.Flying ? 25 : type == WaveEnemyType.Large ? 30 : type == WaveEnemyType.Small ? 20 : 0;
+    }
+
+    /// <summary>Score formula lives outside WaveDirector so UI and tests can share the exact contract, matching WaveRules.</summary>
+    public static class ScoreRules
+    {
+        private const int KillPoints = 10;
+        private const int WavePoints = 100;
+
+        public static int Score(int waveReached, int kills, int goldEarned) =>
+            Mathf.Max(0, kills) * KillPoints + Mathf.Max(0, goldEarned) + Mathf.Max(0, waveReached) * WavePoints;
     }
 }

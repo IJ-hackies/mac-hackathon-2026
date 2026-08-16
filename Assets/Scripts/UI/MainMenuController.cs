@@ -14,12 +14,14 @@ namespace Player.UI
         [Header("Navigation")]
         [SerializeField] private string singleplayerScene = "SampleScene";
         [SerializeField] private string tutorialScene = "Tutorial";
+        [SerializeField] private string leaderboardScene = "Leaderboard";
         [SerializeField] private GameObject homePage;
         [SerializeField] private GameObject settingsPage;
         [SerializeField] private GameObject controlsPage;
         [SerializeField] private Button singleplayerButton;
         [FormerlySerializedAs("multiplayerButton")]
         [SerializeField] private Button tutorialButton;
+        [SerializeField] private Button leaderboardButton;
         [SerializeField] private Button settingsButton;
         [SerializeField] private Button settingsBackButton;
         [SerializeField] private Button controlsButton;
@@ -150,6 +152,13 @@ namespace Player.UI
             SceneTransitionController.LoadScene(tutorialScene);
         }
 
+        public void LoadLeaderboard()
+        {
+            SaveSettings();
+            Time.timeScale = 1f;
+            SceneTransitionController.LoadScene(leaderboardScene);
+        }
+
         public void QuitGame()
         {
             SaveSettings();
@@ -201,6 +210,7 @@ namespace Player.UI
         {
             if (singleplayerButton != null) singleplayerButton.onClick.AddListener(LoadSingleplayer);
             if (tutorialButton != null) tutorialButton.onClick.AddListener(LoadTutorial);
+            if (leaderboardButton != null) leaderboardButton.onClick.AddListener(LoadLeaderboard);
             if (settingsButton != null) settingsButton.onClick.AddListener(ShowSettings);
             if (settingsBackButton != null) settingsBackButton.onClick.AddListener(ShowHome);
             if (controlsButton != null) controlsButton.onClick.AddListener(ShowControls);
@@ -217,6 +227,7 @@ namespace Player.UI
         {
             if (singleplayerButton != null) singleplayerButton.onClick.RemoveListener(LoadSingleplayer);
             if (tutorialButton != null) tutorialButton.onClick.RemoveListener(LoadTutorial);
+            if (leaderboardButton != null) leaderboardButton.onClick.RemoveListener(LoadLeaderboard);
             if (settingsButton != null) settingsButton.onClick.RemoveListener(ShowSettings);
             if (settingsBackButton != null) settingsBackButton.onClick.RemoveListener(ShowHome);
             if (controlsButton != null) controlsButton.onClick.RemoveListener(ShowControls);

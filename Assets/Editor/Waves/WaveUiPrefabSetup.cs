@@ -62,7 +62,9 @@ namespace Waves.Editor
                 BuildArenaNavigation(root, displayFont, utilityFont, playerCamera);
                 BuildArenaObjective(root, displayFont, utilityFont);
                 BuildSealSweep(root);
-                BuildGameOver(root, displayFont, utilityFont);
+                Text scoreHudText = BuildScoreHud(root, displayFont);
+                GameOverMissionSummaryView gameOverView = BuildGameOver(root, displayFont, utilityFont);
+                LeaderboardSubmitPanel submitPanel = BuildLeaderboardSubmitPanel(root, displayFont, utilityFont);
 
                 WaveGameController controller = rigRoot.GetComponent<WaveGameController>();
                 if (controller == null)
@@ -75,7 +77,11 @@ namespace Waves.Editor
                     root.GetComponentInChildren<ArenaNavigationView>(true),
                     root.GetComponentInChildren<ArenaSealSweepView>(true),
                     root.GetComponentInChildren<ArenaObjectiveView>(true),
-                    root.GetComponentInChildren<GameOverMissionSummaryView>(true));
+                    gameOverView);
+                SerializedObject controllerSerialized = new SerializedObject(controller);
+                controllerSerialized.FindProperty("scoreHudText").objectReferenceValue = scoreHudText;
+                controllerSerialized.FindProperty("leaderboardSubmitPanel").objectReferenceValue = submitPanel;
+                controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(controller);
 
                 ValidatePrefabContents(rigRoot, displayFont, utilityFont);
@@ -214,7 +220,7 @@ namespace Waves.Editor
             root.gameObject.AddComponent<ArenaSealSweepView>().Configure(group, cyan, amber, red);
         }
 
-        private static void BuildGameOver(RectTransform parent, Font display, Font utility)
+        private static GameOverMissionSummaryView BuildGameOver(RectTransform parent, Font display, Font utility)
         {
             RectTransform root = CreateRect("Game Over", parent, Vector2.zero, Vector2.zero);
             Stretch(root);
@@ -224,18 +230,71 @@ namespace Waves.Editor
             group.blocksRaycasts = false;
             AddImage(root.gameObject, new Color(Void.r, Void.g, Void.b, .89f), true);
 
-            RectTransform panel = CreateRect("Mission Summary", root, new Vector2(680f, 600f), Vector2.zero);
+            RectTransform panel = CreateRect("Mission Summary", root, new Vector2(680f, 660f), Vector2.zero);
             AddImage(panel.gameObject, Glass, false);
-            AddRail(panel, new Vector2(-326f, 0f), new Vector2(8f, 508f), ArenaRed);
-            AddText("Eyebrow", panel, "MISSION CONCLUSION", utility, 18, ArenaRed, TextAnchor.MiddleCenter, new Vector2(0f, 235f), new Vector2(560f, 28f));
-            AddText("Title", panel, "RUN ENDED", display, 48, Ice, TextAnchor.MiddleCenter, new Vector2(0f, 176f), new Vector2(600f, 60f));
-            Text wave = AddText("Wave Reached", panel, "WAVE REACHED  --", utility, 25, Ice, TextAnchor.MiddleLeft, new Vector2(-228f, 83f), new Vector2(460f, 35f));
-            Text kills = AddText("Kills", panel, "KILLS  --", utility, 25, Ice, TextAnchor.MiddleLeft, new Vector2(-228f, 28f), new Vector2(460f, 35f));
-            Text gold = AddText("Gold Earned", panel, "GOLD EARNED  --", utility, 25, ArenaAmber, TextAnchor.MiddleLeft, new Vector2(-228f, -27f), new Vector2(460f, 35f));
-            Text duration = AddText("Duration", panel, "RUN TIME  --:--", utility, 25, Cyan, TextAnchor.MiddleLeft, new Vector2(-228f, -82f), new Vector2(460f, 35f));
-            Button restart = CreateButton("Restart", panel, "RESTART", Cyan, display, new Vector2(-118f, -190f));
-            Button mainMenu = CreateButton("Main Menu", panel, "MAIN MENU", ArenaRed, display, new Vector2(118f, -190f));
-            root.gameObject.AddComponent<GameOverMissionSummaryView>().Configure(group, wave, kills, gold, duration, restart, mainMenu);
+            AddRail(panel, new Vector2(-326f, 0f), new Vector2(8f, 568f), ArenaRed);
+            AddText("Eyebrow", panel, "MISSION CONCLUSION", utility, 18, ArenaRed, TextAnchor.MiddleCenter, new Vector2(0f, 265f), new Vector2(560f, 28f));
+            AddText("Title", panel, "RUN ENDED", display, 48, Ice, TextAnchor.MiddleCenter, new Vector2(0f, 206f), new Vector2(600f, 60f));
+            Text score = AddText("Score", panel, "SCORE  --", display, 27, ArenaAmber, TextAnchor.MiddleLeft, new Vector2(-228f, 138f), new Vector2(460f, 38f));
+            Text wave = AddText("Wave Reached", panel, "WAVE REACHED  --", utility, 22, Ice, TextAnchor.MiddleLeft, new Vector2(-228f, 92f), new Vector2(460f, 32f));
+            Text kills = AddText("Kills", panel, "KILLS  --", utility, 22, Ice, TextAnchor.MiddleLeft, new Vector2(-228f, 47f), new Vector2(460f, 32f));
+            Text gold = AddText("Gold Earned", panel, "GOLD EARNED  --", utility, 22, ArenaAmber, TextAnchor.MiddleLeft, new Vector2(-228f, 2f), new Vector2(460f, 32f));
+            Text duration = AddText("Duration", panel, "RUN TIME  --:--", utility, 22, Cyan, TextAnchor.MiddleLeft, new Vector2(-228f, -43f), new Vector2(460f, 32f));
+            Button restart = CreateButton("Restart", panel, "RETRY", Cyan, display, new Vector2(-118f, -170f));
+            Button mainMenu = CreateButton("Main Menu", panel, "MAIN MENU", ArenaRed, display, new Vector2(118f, -170f));
+            Button addToLeaderboard = CreateButton("Add To Leaderboard", panel, "ADD TO LEADERBOARD", ArenaAmber, display, new Vector2(0f, -252f));
+            GameOverMissionSummaryView view = root.gameObject.AddComponent<GameOverMissionSummaryView>();
+            view.Configure(group, wave, kills, gold, duration, score, restart, mainMenu, addToLeaderboard);
+            return view;
+        }
+
+        private static Text BuildScoreHud(RectTransform parent, Font display)
+        {
+            RectTransform root = CreateRect("Score HUD", parent, new Vector2(320f, 40f), new Vector2(-40f, 182f), new Vector2(1f, 0f));
+            root.pivot = new Vector2(1f, 0f);
+            return AddText("Score", root, "SCORE  0", display, 26, ArenaAmber, TextAnchor.MiddleRight, Vector2.zero, new Vector2(320f, 40f));
+        }
+
+        private static LeaderboardSubmitPanel BuildLeaderboardSubmitPanel(RectTransform parent, Font display, Font utility)
+        {
+            RectTransform root = CreateRect("Leaderboard Submit", parent, Vector2.zero, Vector2.zero);
+            Stretch(root);
+            CanvasGroup group = root.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.interactable = false;
+            group.blocksRaycasts = false;
+            AddImage(root.gameObject, new Color(Void.r, Void.g, Void.b, .92f), true);
+
+            RectTransform panel = CreateRect("Popup", root, new Vector2(520f, 340f), Vector2.zero);
+            AddImage(panel.gameObject, Glass, false);
+            AddRail(panel, new Vector2(-252f, 0f), new Vector2(8f, 260f), ArenaAmber);
+            AddText("Title", panel, "ADD TO LEADERBOARD", display, 26, Ice, TextAnchor.MiddleCenter, new Vector2(0f, 118f), new Vector2(460f, 40f));
+            AddText("Hint", panel, "USERNAME (12 CHARACTERS MAX)", utility, 15, Cyan, TextAnchor.MiddleCenter, new Vector2(0f, 74f), new Vector2(460f, 26f));
+
+            RectTransform fieldRoot = CreateRect("Username Field", panel, new Vector2(400f, 52f), new Vector2(0f, 30f));
+            Image fieldImage = AddImage(fieldRoot.gameObject, new Color(Ice.r, Ice.g, Ice.b, .12f), true);
+            InputField field = fieldRoot.gameObject.AddComponent<InputField>();
+            field.targetGraphic = fieldImage;
+            Text placeholder = AddText("Placeholder", fieldRoot, "ENTER USERNAME", utility, 18, Muted, TextAnchor.MiddleLeft, new Vector2(10f, 0f), new Vector2(380f, 40f));
+            Text fieldText = AddText("Text", fieldRoot, "", utility, 18, Ice, TextAnchor.MiddleLeft, new Vector2(10f, 0f), new Vector2(380f, 40f));
+            field.textComponent = fieldText;
+            field.placeholder = placeholder;
+            field.characterLimit = Services.Leaderboards.UsernamePolicy.MaxLength;
+
+            Text status = AddText("Status", panel, "", utility, 16, ArenaAmber, TextAnchor.MiddleCenter, new Vector2(0f, -22f), new Vector2(460f, 26f));
+
+            Button submit = CreateButton("Submit", panel, "SUBMIT", Cyan, display, new Vector2(-118f, -128f));
+            Button cancel = CreateButton("Cancel", panel, "CANCEL", ArenaRed, display, new Vector2(118f, -128f));
+
+            LeaderboardSubmitPanel view = root.gameObject.AddComponent<LeaderboardSubmitPanel>();
+            SerializedObject serialized = new SerializedObject(view);
+            serialized.FindProperty("canvasGroup").objectReferenceValue = group;
+            serialized.FindProperty("usernameField").objectReferenceValue = field;
+            serialized.FindProperty("statusText").objectReferenceValue = status;
+            serialized.FindProperty("submitButton").objectReferenceValue = submit;
+            serialized.FindProperty("cancelButton").objectReferenceValue = cancel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return view;
         }
 
         private static RectTransform CreateSweep(string name, RectTransform parent, float y, Color color)
@@ -353,7 +412,8 @@ namespace Waves.Editor
                 "arenaTitleText", "objectiveText", "detailText", "bossHealthRoot", "bossHealthFill", "bossHealthText"
             }, errors);
             ValidateView<ArenaSealSweepView>(root, "Arena Seal Sweep", new[] { "canvasGroup", "cyanSweep", "amberSweep", "redSweep" }, errors);
-            ValidateView<GameOverMissionSummaryView>(root, "Game Over", new[] { "canvasGroup", "waveReachedText", "killsText", "goldEarnedText", "durationText", "restartButton", "mainMenuButton" }, errors);
+            ValidateView<GameOverMissionSummaryView>(root, "Game Over", new[] { "canvasGroup", "waveReachedText", "killsText", "goldEarnedText", "durationText", "scoreText", "restartButton", "mainMenuButton", "addToLeaderboardButton" }, errors);
+            ValidateView<LeaderboardSubmitPanel>(root, "Leaderboard Submit", new[] { "canvasGroup", "usernameField", "statusText", "submitButton", "cancelButton" }, errors);
             ValidateControllerViews(rigRoot.GetComponent<WaveGameController>(), errors);
 
             if (root != null)
@@ -495,7 +555,8 @@ namespace Waves.Editor
             SerializedObject serialized = new SerializedObject(controller);
             foreach (string propertyName in new[]
             {
-                "waveHud", "intermissionPrompt", "arenaNavigation", "arenaSeal", "arenaObjective", "gameOver"
+                "waveHud", "intermissionPrompt", "arenaNavigation", "arenaSeal", "arenaObjective", "gameOver",
+                "scoreHudText", "leaderboardSubmitPanel"
             })
             {
                 SerializedProperty property = serialized.FindProperty(propertyName);

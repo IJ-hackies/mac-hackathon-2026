@@ -5,6 +5,7 @@ using Gameplay.Interaction;
 using Player;
 using Player.UI;
 using Player.UI.Waves;
+using Services.Leaderboards;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -38,6 +39,8 @@ namespace Gameplay.Waves
         [SerializeField] private ArenaSealSweepView arenaSeal;
         [SerializeField] private ArenaObjectiveView arenaObjective;
         [SerializeField] private GameOverMissionSummaryView gameOver;
+        [SerializeField] private LeaderboardSubmitPanel leaderboardSubmitPanel;
+        [SerializeField] private UnityEngine.UI.Text scoreHudText;
 
         private InputSystem_Actions _actions;
         private InputAction _startWaveAction;
@@ -213,7 +216,9 @@ namespace Gameplay.Waves
             {
                 gameOver.RestartRequested += RestartRun;
                 gameOver.MainMenuRequested += ReturnToMainMenu;
+                gameOver.AddToLeaderboardRequested += OnAddToLeaderboardRequested;
             }
+            if (leaderboardSubmitPanel != null) leaderboardSubmitPanel.Submitted += OnLeaderboardSubmitted;
             PlayerInputBindings.BindingsChanged += RefreshBindingLabel;
         }
 
@@ -231,14 +236,22 @@ namespace Gameplay.Waves
             {
                 gameOver.RestartRequested -= RestartRun;
                 gameOver.MainMenuRequested -= ReturnToMainMenu;
+                gameOver.AddToLeaderboardRequested -= OnAddToLeaderboardRequested;
             }
+            if (leaderboardSubmitPanel != null) leaderboardSubmitPanel.Submitted -= OnLeaderboardSubmitted;
             PlayerInputBindings.BindingsChanged -= RefreshBindingLabel;
         }
 
         private void InitializePresentation()
         {
-            waveHud?.SetVisible(true);
-            intermissionPrompt?.SetIntermissionVisible(true);
+            // PlayerRig.prefab is shared by every scene, but only SampleScene actually configures
+            // a WaveDirector. Without one there is no wave loop to prompt for, so the whole
+            // wave-loop HUD (this "HOLD F TO START WAVE" prompt included) stays hidden instead of
+            // sitting on screen permanently in scenes like Tutorial.
+            bool waveLoopActive = director != null;
+            waveHud?.SetVisible(waveLoopActive);
+            intermissionPrompt?.SetIntermissionVisible(waveLoopActive);
+            if (scoreHudText != null) scoreHudText.gameObject.SetActive(waveLoopActive);
             arenaNavigation?.SetActive(false);
             arenaSeal?.Stop();
             arenaObjective?.SetVisible(false);
@@ -247,7 +260,7 @@ namespace Gameplay.Waves
             {
                 barrier?.SetLocked(false);
             }
-            RefreshPresentation();
+            if (waveLoopActive) RefreshPresentation();
         }
 
         private void UpdateStartHold()
@@ -333,6 +346,8 @@ namespace Gameplay.Waves
             {
                 arenaObjective?.SetVisible(false);
             }
+
+            if (scoreHudText != null) scoreHudText.text = $"SCORE  {director.Score}";
         }
 
         private void OnPhaseChanged(WavePhase previous, WavePhase current)
@@ -397,15 +412,66 @@ namespace Gameplay.Waves
             crosshair?.SetVisible(false);
             if (cameraController != null) cameraController.enabled = false;
 
-            gameOver?.Show(new WaveRunSummary(result.WaveReached, result.Kills, result.GoldEarned, result.Duration));
+            gameOver?.Show(new WaveRunSummary(result.WaveReached, result.Kills, result.GoldEarned, result.Duration, result.Score));
+            leaderboardSubmitPanel?.Hide();
+            // Hidden until HandleLeaderboardEligibilityAsync resolves whether this identity
+            // already has a locked-in username, so the button never flashes visible then hides.
+            gameOver?.SetLeaderboardEntryAvailable(false);
+            HandleLeaderboardEligibilityAsync(result);
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             _gameOverOwnsCursor = true;
             Time.timeScale = 0f;
         }
 
+        // A player only ever names themselves once per identity (see LeaderboardSubmitPanel). If
+        // that identity already has a saved username, every subsequent run submits silently under
+        // it instead of prompting again; only a first-time player sees the Add To Leaderboard
+        // button at all.
+        private async void HandleLeaderboardEligibilityAsync(WaveRunResult result)
+        {
+            string savedUsername;
+            try
+            {
+                savedUsername = await CloudUsername.LoadAsync();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+                gameOver?.SetLeaderboardEntryAvailable(true);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(savedUsername))
+            {
+                gameOver?.SetLeaderboardEntryAvailable(true);
+                return;
+            }
+
+            try
+            {
+                await LeaderboardsClient.SubmitAsync(LeaderboardIds.HighestScore, result.Score, savedUsername);
+                await LeaderboardsClient.SubmitAsync(LeaderboardIds.FurthestWave, result.WaveReached, savedUsername);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
+        }
+
+        private void OnAddToLeaderboardRequested()
+        {
+            leaderboardSubmitPanel?.Show(gameOver.LastSummary);
+        }
+
+        private void OnLeaderboardSubmitted()
+        {
+            gameOver?.SetLeaderboardEntryAvailable(false);
+        }
+
         private void RestartRun()
         {
+            leaderboardSubmitPanel?.Hide();
             ReleaseGameOverOwnership();
             Scene scene = SceneManager.GetActiveScene();
             SceneTransitionController.LoadScene(scene.name);
@@ -413,6 +479,7 @@ namespace Gameplay.Waves
 
         private void ReturnToMainMenu()
         {
+            leaderboardSubmitPanel?.Hide();
             ReleaseGameOverOwnership();
             SceneTransitionController.LoadScene("MainMenu");
         }
